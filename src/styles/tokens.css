@@ -1,0 +1,244 @@
+/* ==========================================================================
+   My Guyana — design tokens
+   Ported from the Claude Design handoff's colors_and_type.css, with the
+   app-level override (one navy primary everywhere, agency hues survive only
+   as small identity marks) folded in — matching My Guyana - Mobile C.dc.html.
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', monospace;
+
+  --text-2xs: 13px;
+  --text-xs:  14px;
+  --text-sm:  15px;
+  --text-base:17px;
+  --text-md:  19px;
+  --text-lg:  23px;
+  --text-xl:  28px;
+  --text-2xl: 36px;
+  --text-3xl: 48px;
+  --text-4xl: 64px;
+
+  --leading-tight: 1.12;
+  --leading-snug:  1.3;
+  --leading-normal:1.55;
+  --leading-relaxed:1.7;
+
+  --tracking-tight: -0.02em;
+  --tracking-snug:  -0.01em;
+  --tracking-normal:0;
+  --tracking-wide:  0.04em;
+  --tracking-caps:  0.08em;
+
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold:600;
+  --weight-bold:    700;
+  --weight-extra:   800;
+
+  --neutral-0:   #ffffff;
+  --neutral-50:  #f8fafc;
+  --neutral-100: #f5f7f9;
+  --neutral-150: #eff2f6;
+  --neutral-200: #e8edf2;
+  --neutral-300: #cdd5df;
+  --neutral-400: #9aa5b2;
+  --neutral-500: #667585;
+  --neutral-600: #4d5d6d;
+  --neutral-700: #344454;
+  --neutral-800: #293745;
+  --neutral-900: #1d2935;
+  --neutral-950: #111b24;
+
+  --brand-50:  #e8eef4;
+  --brand-100: #d0dce8;
+  --brand-200: #a3b8cf;
+  --brand-300: #7694b5;
+  --brand-400: #4a6f9a;
+  --brand-500: #213b55;
+  --brand-600: #142b44;
+  --brand-700: #0e2237;
+  --brand-800: #091a2b;
+  --brand-900: #061320;
+  --brand-950: #030b15;
+
+  --fg-1: var(--neutral-900);
+  --fg-2: var(--neutral-800);
+  --fg-3: var(--neutral-600);
+  --fg-4: var(--neutral-500);
+  --fg-on-accent: #ffffff;
+
+  --bg-page:  #f5f7f9;
+  --bg-subtle:var(--neutral-50);
+  --bg-solid: var(--neutral-0);
+
+  --surface-1: var(--neutral-0);
+  --surface-2: var(--neutral-50);
+  --surface-3: var(--neutral-0);
+  --surface-4: var(--neutral-200);
+
+  --surface-border:      rgba(29, 41, 53, 0.10);
+  --surface-border-soft: rgba(29, 41, 53, 0.06);
+  --surface-hairline:    rgba(29, 41, 53, 0.08);
+
+  --shadow-xs: 0 1px 2px rgba(29, 41, 53, 0.05);
+  --shadow-sm: 0 1px 3px rgba(29, 41, 53, 0.06);
+  --shadow-md: 0 3px 8px rgba(29, 41, 53, 0.07), 0 1px 2px rgba(29, 41, 53, 0.05);
+  --shadow-lg: 0 6px 16px rgba(29, 41, 53, 0.08), 0 2px 6px rgba(29, 41, 53, 0.05);
+  --shadow-xl: 0 12px 30px rgba(29, 41, 53, 0.10), 0 4px 10px rgba(29, 41, 53, 0.06);
+  --shadow-accent: 0 8px 22px var(--agency-accent-ring);
+
+  --radius-xs:  6px;
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  20px;
+  --radius-2xl: 28px;
+  --radius-pill:999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10:40px;
+  --space-12:48px;
+  --space-16:64px;
+  --space-20:80px;
+  --space-24:96px;
+
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:   cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-emphasis: cubic-bezier(0.2, 0.9, 0.25, 1.15);
+  --dur-snap:  120ms;
+  --dur-fast:  180ms;
+  --dur-base:  260ms;
+  --dur-slow:  420ms;
+  --tr-control: transform var(--dur-fast) var(--ease-spring), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  --tr-surface: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+
+  --status-success: #1f8a5b;
+  --status-success-bg: rgba(31, 138, 91, 0.12);
+  --status-warning: #c47d12;
+  --status-warning-bg: rgba(196, 125, 18, 0.14);
+  --status-error:   #c43d3d;
+  --status-error-bg: rgba(196, 61, 61, 0.12);
+  --status-info:    #2a6fdb;
+  --status-info-bg: rgba(42, 111, 219, 0.12);
+
+  /* App-wide override: one navy primary everywhere (matches Mobile C's own
+     page-level override) — agency hues survive only via --agency-mark. */
+  --agency-accent:       #142b44;
+  --agency-accent-strong:#0e2237;
+  --agency-accent-soft:  rgba(20, 43, 68, 0.10);
+  --agency-accent-ring:  rgba(20, 43, 68, 0.45);
+  --agency-tint:         #142b44;
+  --agency-contrast:     #ffffff;
+
+  --hero-navy-gradient: linear-gradient(180deg, #0a1424 0%, #14263e 35%, #0c192c 70%, #0a1424 100%);
+}
+
+[data-agency="mops"][data-agency] { --agency-mark: #8b2346; }
+[data-agency="nis"][data-agency] {
+  --agency-mark: #00795a;
+  --agency-accent-strong: #00674c;
+  --agency-accent-soft: rgba(0, 121, 90, 0.12);
+  --agency-accent-ring: rgba(0, 121, 90, 0.40);
+  --agency-tint: #00795a;
+}
+[data-agency="gpl"][data-agency] { --agency-mark: #404293; }
+[data-agency="gra"][data-agency],
+[data-agency="revenue"][data-agency] { --agency-mark: #2563c9; }
+[data-agency="gro"][data-agency] { --agency-mark: #8a3fa8; }
+[data-agency="immigration"][data-agency],
+[data-agency="passport"][data-agency] { --agency-mark: #3a45b0; }
+[data-agency="human-services"][data-agency],
+[data-agency="social"][data-agency] { --agency-mark: #c2365f; }
+[data-agency="housing"][data-agency],
+[data-agency="chpa"][data-agency] { --agency-mark: #b45f16; }
+[data-agency="appointments"][data-agency] { --agency-mark: #6d4bd8; }
+
+/* ============================================================================
+   SEMANTIC TEXT ROLES
+   ============================================================================ */
+.ds-display { font-family: var(--font-sans); font-weight: var(--weight-extra); font-size: var(--text-4xl); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); color: var(--fg-1); }
+.ds-h1 { font-family: var(--font-sans); font-weight: var(--weight-bold); font-size: var(--text-2xl); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); color: var(--fg-1); }
+.ds-h2 { font-family: var(--font-sans); font-weight: var(--weight-bold); font-size: var(--text-xl); line-height: var(--leading-snug); letter-spacing: var(--tracking-snug); color: var(--fg-1); }
+.ds-h3 { font-family: var(--font-sans); font-weight: var(--weight-semibold); font-size: var(--text-lg); line-height: var(--leading-snug); letter-spacing: var(--tracking-snug); color: var(--fg-1); }
+.ds-lead { font-family: var(--font-sans); font-weight: var(--weight-regular); font-size: var(--text-md); line-height: var(--leading-relaxed); color: var(--fg-2); }
+.ds-body { font-family: var(--font-sans); font-weight: var(--weight-regular); font-size: var(--text-base); line-height: var(--leading-normal); color: var(--fg-2); }
+.ds-small { font-family: var(--font-sans); font-weight: var(--weight-medium); font-size: var(--text-sm); line-height: var(--leading-normal); color: var(--fg-2); }
+.ds-caption { font-family: var(--font-sans); font-weight: var(--weight-medium); font-size: var(--text-xs); line-height: var(--leading-normal); color: var(--fg-3); }
+.ds-eyebrow { font-family: var(--font-sans); font-weight: var(--weight-bold); font-size: var(--text-xs); line-height: 1; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--agency-accent); }
+.ds-mono { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-2); }
+
+/* ============================================================================
+   SURFACE UTILITY
+   ============================================================================ */
+.surface { position: relative; background: var(--surface-1); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
+.surface--2 { background: var(--surface-2); }
+.surface--4 { background: var(--surface-4); box-shadow: var(--shadow-sm); }
+
+/* ============================================================================
+   MICRO-INTERACTIONS
+   ============================================================================ */
+.interactive { transition: var(--tr-surface); cursor: pointer; will-change: transform; }
+.interactive:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.interactive:active { transform: translateY(-1px) scale(0.995); transition-duration: var(--dur-snap); }
+
+.press { transition: var(--tr-control); will-change: transform; background: none; border: none; font: inherit; color: inherit; cursor: pointer; }
+.press:hover { transform: translateY(-1px); }
+.press:active { transform: translateY(0) scale(0.96); transition-duration: var(--dur-snap); }
+
+.focus-ring:focus-visible { outline: 2px solid #142b44; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(20, 43, 68, 0.22); }
+
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .interactive, .press, .focus-ring, * { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+  .interactive:hover, .press:hover { transform: none; }
+}
+
+/* ============================================================================
+   SHARED KEYFRAMES (ported from the prototype's page-level <style> block)
+   ============================================================================ */
+@keyframes pushBannerIn { from { transform: translateY(-130%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes sheetSlideUp { from { transform: translateY(100%); opacity: 0.6; } to { transform: translateY(0); opacity: 1; } }
+@keyframes sheetOverlayFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hubPop { from { opacity: 0; transform: scale(0.94) translateY(-4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes successIconPop { 0% { opacity: 0; transform: scale(0.4) rotate(-12deg); } 60% { opacity: 1; transform: scale(1.12) rotate(4deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes successFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes successRingPulse { 0% { transform: scale(0.8); opacity: 0.7; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes confettiFall { 0% { transform: translateY(-16px) rotate(0deg); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(140px) rotate(200deg); opacity: 0; } }
+@keyframes pageSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes faceSweep { 0% { transform: translateY(-64px); opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { transform: translateY(64px); opacity: 0; } }
+@keyframes faceArcSpin { to { transform: rotate(360deg); } }
+@keyframes fallDrift { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -520; } }
+@keyframes mistBreathe { 0%, 100% { opacity: 0.35; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.18); } }
+@keyframes riverDrift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-34px); } }
+@keyframes sheetGlow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+@keyframes arrowGlow { 0%, 100% { opacity: 0.34; } 50% { opacity: 0.5; } }
+@keyframes faceOvalGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(120,200,255,0.28); } 50% { box-shadow: 0 0 0 14px rgba(120,200,255,0); } }
+@keyframes faceDots { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@keyframes alertEaseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-splash-anim] { animation: none !important; }
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg-page);
+  font-family: var(--font-sans);
+  color: var(--fg-1);
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+button { font-family: inherit; }
