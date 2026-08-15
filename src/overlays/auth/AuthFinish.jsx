@@ -3,6 +3,7 @@ import {
   Screen, IconBadge, PrimaryButton, SecondaryButton, Field, textInputStyle, ErrorBox, ListCard, Spacer,
 } from './ui';
 import { OB_CAPABILITIES } from './authData';
+import { formatEidDate } from '../eid/eidData';
 
 // STEP 4 · SET UP ACCOUNT · only what is still missing
 export function Setup({ st, on, persona }) {
@@ -79,6 +80,17 @@ export function ObVerified({ st, on, persona }) {
           <span style={{ fontSize: 13, lineHeight: 1.4, color: 'rgba(255,255,255,0.82)' }}>{verifiedBy} · 3 agencies already linked</span>
         </span>
       </div>
+      {st.eidApplied && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 15, borderRadius: 16, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.16)' }}>
+          <Icon name="fingerprint" size={20} color="#fdd77f" style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 14.5, fontWeight: 800, color: '#fff' }}>e-ID application started</span>
+            <span style={{ fontSize: 13, lineHeight: 1.4, color: 'rgba(255,255,255,0.82)' }}>
+              {st.eidApptDate ? `Service Centre visit: ${formatEidDate(st.eidApptDate)} · ${st.eidApptTime}` : 'Finish it any time from MoPS'}
+            </span>
+          </span>
+        </div>
+      )}
       <Spacer />
       <button className="press focus-ring" onClick={on.obFinish} style={{ width: '100%', minHeight: 52, border: 'none', borderRadius: 14, background: '#fff', color: '#0e2237', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
         Go to my Home

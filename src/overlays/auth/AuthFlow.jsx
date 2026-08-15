@@ -10,6 +10,7 @@ import { Otp, Blocked, Pol, FaceCheck } from './AuthOtpFace';
 import { Manual, Review, Limited } from './AuthManual';
 import { Setup, Secure, ObVerified, ObBasic } from './AuthFinish';
 import { Recovery, RecoveryFix } from './AuthRecovery';
+import { EidBook } from './AuthEidApply';
 
 const CONTACT_PLACEHOLDER = { phone: '••• ••• 4820', email: 'n••••••@example.gy' };
 
@@ -48,6 +49,10 @@ function makeInitialState(persona) {
     setupEmail: '', setupPass: '', setupError: '',
 
     accountLevel: 'basic', secureDone: false, deviceFaceOn: true,
+
+    // Default e-ID application booked when a citizen signs up with a TIN or
+    // passport (i.e. they don't already have an e-ID).
+    eidApplied: false, eidApptOffice: '', eidApptDate: '', eidApptTime: '',
 
     recoveryFrom: 'identifier', recoveryReason: null,
   };
@@ -305,9 +310,20 @@ export default function AuthFlow() {
       patch({ authStep: 'face' });
       after(2200, () => {
         if (recovery) { finish('Signed in with your e-ID'); return; }
-        setSt((s) => ({ ...s, authStep: 'setup' }));
+        // Signed up with a TIN/passport and no e-ID yet → start an e-ID
+        // application by default and take them straight to booking.
+        setSt((s) => ({ ...s, authStep: (s.authIntent === 'create' && s.govIdType !== 'e-ID') ? 'eid-book' : 'setup' }));
       });
     },
+    selectEidOffice: (name) => patch({ eidApptOffice: name }),
+    selectEidDate: (iso) => patch({ eidApptDate: iso }),
+    selectEidTime: (t) => patch({ eidApptTime: t }),
+    eidBookConfirm: () => {
+      if (!st.eidApptOffice || !st.eidApptDate || !st.eidApptTime) return;
+      patch({ eidApplied: true, authStep: 'setup' });
+      showToast('e-ID application started · appointment booked');
+    },
+    eidBookSkip: () => patch({ authStep: 'setup' }),
 
     // --- manual account creation ---
     updateManual: (key, e) => { const v = e.target.value; patch({ manualFields: { ...st.manualFields, [key]: v } }); },
@@ -416,6 +432,8 @@ export default function AuthFlow() {
     case 'manual': ScreenNode = <Manual st={st} on={on} />; break;
     case 'review': ScreenNode = <Review on={on} />; break;
     case 'limited': ScreenNode = <Limited st={st} on={on} />; break;
+
+    case 'eid-book': ScreenNode = <EidBook st={st} on={on} />; break;
 
     case 'setup': ScreenNode = <Setup st={st} on={on} persona={persona} />; break;
     case 'secure': ScreenNode = <Secure st={st} on={on} />; break;

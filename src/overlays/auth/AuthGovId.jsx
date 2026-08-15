@@ -3,7 +3,7 @@ import {
   Screen, Heading, IconBadge, PrimaryButton, SecondaryButton, TextButton, Row, ListCard,
   Field, textInputStyle, ErrorBox, InfoBox, Spacer, Spinner,
 } from './ui';
-import { GOV_ID_TYPES, GOV_ID_PLACEHOLDER, GOV_ID_TITLE, govIdAgencyFor } from './authData';
+import { GOV_ID_PLACEHOLDER, GOV_ID_TITLE, govIdAgencyFor } from './authData';
 
 // STEP 1 · CREATE · one decision per screen: which document, how to give it, then its number
 export function GovId({ st, on }) {
@@ -12,12 +12,37 @@ export function GovId({ st, on }) {
     <Screen onBack={on.govStepBack} gap={18}>
       {govStep === 'choose' && (
         <>
-          <Heading title="Which document do you have?" sub="Pick the one you have with you. Any of these is enough." />
+          <Heading
+            title="Set up with your e-ID"
+            sub="Your e-ID is the fastest way in. No e-ID yet? Use your TIN or passport and we'll start an e-ID application for you."
+          />
+          <button
+            className="press focus-ring" onClick={() => on.govPickType('e-ID')}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, width: '100%', padding: 22, border: 'none', borderRadius: 20, background: 'var(--brand-600)', color: '#fff', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span aria-hidden="true" style={{ width: 50, height: 50, borderRadius: 15, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="fingerprint" size={24} color="#fff" />
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', padding: '4px 9px', borderRadius: 999, background: 'rgba(255,255,255,0.2)' }}>FASTEST</span>
+            </span>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.015em' }}>Use my e-ID</span>
+              <span style={{ fontSize: 13, lineHeight: 1.5, color: 'rgba(255,255,255,0.82)' }}>Tap your card to the phone or enter its number. Nothing to fill in.</span>
+            </span>
+          </button>
+
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--fg-3)' }}>
+            Don't have an e-ID yet?
+          </span>
           <ListCard>
-            {GOV_ID_TYPES.map((g) => (
-              <Row key={g.id} icon={g.icon} title={g.label} sub={g.hint} onClick={() => on.govPickType(g.id)} />
-            ))}
+            <Row icon="receipt" title="TIN" sub="Your tax number, on any GRA letter" onClick={() => on.govPickType('TIN')} />
+            <Row icon="book-user" title="Passport" sub="Your Guyana passport" onClick={() => on.govPickType('Passport')} />
           </ListCard>
+          <p style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+            <Icon name="info" size={15} color="var(--fg-4)" style={{ flexShrink: 0, marginTop: 1 }} />
+            We confirm who you are with this document, then start your e-ID application and help you book a Service Centre visit.
+          </p>
           <Spacer />
           <TextButton onClick={on.govIdNone}>I don't have any of these</TextButton>
         </>
