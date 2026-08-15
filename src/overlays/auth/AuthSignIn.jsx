@@ -5,9 +5,14 @@ import {
 } from './ui';
 
 // SIGN IN · this device already knows the citizen (an optimisation inside Sign in)
-export function SignInDevice({ on, persona }) {
+export function SignInDevice({ st, on, persona }) {
   const first = (persona.name || 'there').split(' ')[0];
   const initial = (persona.initials || first.charAt(0)).charAt(0);
+  // Drive the primary action off the real biometric probe: unlock if a passkey
+  // is enrolled here, set one up if the device supports it, otherwise fall back.
+  const canBio = st?.bioSupported;
+  const enrolled = st?.bioEnrolled;
+  const busy = !!st?.bioBusy;
   return (
     <Screen onBack={on.backToSplash}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -27,11 +32,25 @@ export function SignInDevice({ on, persona }) {
           <span style={{ fontSize: 13.5, color: 'var(--fg-3)' }}>••• ••• 4820</span>
         </div>
       </div>
+      {st?.bioError && <ErrorBox>{st.bioError}</ErrorBox>}
       <Spacer />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <PrimaryButton onClick={on.startFaceSignIn}>
-          <Icon name="scan-face" size={20} color="#fff" /> Sign in with Face ID
-        </PrimaryButton>
+        {!st?.bioProbed && (
+          <PrimaryButton busy>Checking this device…</PrimaryButton>
+        )}
+        {st?.bioProbed && canBio && enrolled && (
+          <PrimaryButton busy={busy} onClick={on.startFaceSignIn}>
+            <Icon name="scan-face" size={20} color="#fff" /> {busy ? 'Waiting for Face ID…' : 'Sign in with Face ID'}
+          </PrimaryButton>
+        )}
+        {st?.bioProbed && canBio && !enrolled && (
+          <PrimaryButton busy={busy} onClick={on.enrolBiometricNow}>
+            <Icon name="scan-face" size={20} color="#fff" /> {busy ? 'Setting up…' : 'Set up Face ID on this device'}
+          </PrimaryButton>
+        )}
+        {st?.bioProbed && !canBio && (
+          <PrimaryButton onClick={on.otherWays}>Continue with a code or password</PrimaryButton>
+        )}
         <SecondaryButton onClick={on.otherWays}>Other ways to sign in</SecondaryButton>
         <TextButton onClick={on.useOtherAccount}>Use a different account</TextButton>
       </div>

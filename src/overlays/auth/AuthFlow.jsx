@@ -11,6 +11,7 @@ import { Manual, Review, Limited } from './AuthManual';
 import { Setup, Secure, ObVerified, ObBasic } from './AuthFinish';
 import { Recovery, RecoveryFix } from './AuthRecovery';
 import { EidBook } from './AuthEidApply';
+import { isBiometricSupported, hasEnrolledBiometric, authenticateBiometric, enrolBiometric } from './biometric';
 
 const CONTACT_PLACEHOLDER = { phone: '••• ••• 4820', email: 'n••••••@example.gy' };
 
@@ -50,6 +51,9 @@ function makeInitialState(persona) {
 
     accountLevel: 'basic', secureDone: false, deviceFaceOn: true,
 
+    // Real device biometric (WebAuthn) — populated by a probe when the flow opens.
+    bioProbed: false, bioSupported: false, bioEnrolled: false, bioBusy: false, bioError: '',
+
     // Default e-ID application booked when a citizen signs up with a TIN or
     // passport (i.e. they don't already have an e-ID).
     eidApplied: false, eidApptOffice: '', eidApptDate: '', eidApptTime: '',
@@ -81,6 +85,17 @@ export default function AuthFlow() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   useEffect(() => clearTimers, []);
+
+  // Probe the device once the flow opens: can it do a platform biometric, and is
+  // a passkey already enrolled here? Drives which sign-in button we show.
+  useEffect(() => {
+    if (!open) return undefined;
+    let alive = true;
+    isBiometricSupported().then((supported) => {
+      if (alive) setSt((s) => ({ ...s, bioProbed: true, bioSupported: supported, bioEnrolled: hasEnrolledBiometric() }));
+    });
+    return () => { alive = false; };
+  }, [open]);
 
   const patch = (obj) => setSt({ ...st, ...obj });
 
@@ -129,7 +144,32 @@ export default function AuthFlow() {
     backToSplash: () => patch({ authStep: 'splash', contactValue: '', contactError: '', otpError: '' }),
 
     // --- sign in: device / other ways / password ---
-    startFaceSignIn: () => { patch({ authStep: 'face' }); after(1500, () => finish('Welcome back')); },
+    // Real biometric: pops the device Face ID / Touch ID / fingerprint prompt.
+    // On success we show the capture animation briefly, then go in. On any
+    // failure we surface a recoverable message and keep the OTP/password paths.
+    startFaceSignIn: async () => {
+      setSt((s) => ({ ...s, bioBusy: true, bioError: '' }));
+      const res = await authenticateBiometric();
+      if (res.ok) {
+        setSt((s) => ({ ...s, bioBusy: false, authStep: 'face' }));
+        after(1200, () => finish('Welcome back'));
+        return;
+      }
+      // Nothing enrolled on this device yet — flip the button to "set up" instead.
+      if (res.reason === 'noenrol') { setSt((s) => ({ ...s, bioBusy: false, bioEnrolled: false, bioError: '' })); return; }
+      setSt((s) => ({ ...s, bioBusy: false, bioError: res.message }));
+    },
+    // First-time on this device: enrol a platform passkey, then go in.
+    enrolBiometricNow: async () => {
+      setSt((s) => ({ ...s, bioBusy: true, bioError: '' }));
+      const res = await enrolBiometric({ name: persona?.name || 'My Guyana citizen', displayName: persona?.name || 'My Guyana citizen' });
+      if (res.ok) {
+        setSt((s) => ({ ...s, bioBusy: false, bioEnrolled: true, authStep: 'face' }));
+        after(1200, () => finish('Welcome back'));
+        return;
+      }
+      setSt((s) => ({ ...s, bioBusy: false, bioError: res.message }));
+    },
     otherWays: () => patch({ authStep: 'otherways', signInPassError: '' }),
     otherWaysBack: () => patch({ authStep: 'signin-device' }),
     useOtherAccount: () => patch({ authStep: 'identifier', authIntent: 'signin', contactValue: '', contactError: '' }),
@@ -372,7 +412,18 @@ export default function AuthFlow() {
       settle('verified');
     },
     toggleDeviceFace: () => patch({ deviceFaceOn: !st.deviceFaceOn }),
-    secureContinue: () => patch({ secureDone: true, authStep: st.accountLevel === 'verified' ? 'ob-verified' : 'ob-basic' }),
+    secureContinue: async () => {
+      const goNext = () => setSt((s) => ({ ...s, secureDone: true, bioBusy: false, authStep: s.accountLevel === 'verified' ? 'ob-verified' : 'ob-basic' }));
+      // If they kept Face ID on and the device can do it, enrol a real passkey now
+      // so a later "Sign in with Face ID" works end to end. A cancelled prompt is
+      // not a blocker — we continue into the app either way.
+      if (st.deviceFaceOn && st.bioSupported && !st.bioEnrolled) {
+        setSt((s) => ({ ...s, bioBusy: true }));
+        const res = await enrolBiometric({ name: persona?.name || 'My Guyana citizen', displayName: persona?.name || 'My Guyana citizen' });
+        setSt((s) => ({ ...s, bioEnrolled: res.ok || s.bioEnrolled }));
+      }
+      goNext();
+    },
     obFinish: () => finish(null),
     obVerifyNow: () => {
       if (st.discoverResult === 'eid' || st.discoverResult === 'citizen') { patch({ authStep: 'proof' }); return; }
