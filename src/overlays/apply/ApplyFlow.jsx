@@ -7,6 +7,7 @@ import { useAppState } from '../../state/AppStateContext';
 import { AGENCIES, SERVICE_CENTRES } from '../../state/mockData';
 import { getApplicationDef } from '../../state/requirements';
 import { buildEidDateOptions, EID_TIME_OPTIONS, formatEidDate } from '../eid/eidData';
+import { recognizeImage, parseFields } from '../../lib/ocr';
 
 const fieldStyle = {
   width: '100%', boxSizing: 'border-box', minHeight: 48, padding: '12px 14px',
@@ -52,10 +53,12 @@ export default function ApplyFlow() {
   const [appt, setAppt] = useState({ office: '', date: '', time: '' });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [scan, setScan] = useState({ status: 'idle', pct: 0, text: '', error: '' });
   const timers = useRef([]);
+  const fileRef = useRef(null);
 
   useEffect(() => {
-    if (open) { setStep(1); setFields({}); setDocStatus({}); setAppt({ office: '', date: '', time: '' }); setSubmitting(false); setDone(false); }
+    if (open) { setStep(1); setFields({}); setDocStatus({}); setAppt({ office: '', date: '', time: '' }); setSubmitting(false); setDone(false); setScan({ status: 'idle', pct: 0, text: '', error: '' }); }
   }, [open, payload?.serviceId]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
@@ -66,6 +69,32 @@ export default function ApplyFlow() {
   if (!open || !def) return null;
 
   const setField = (key) => (e) => setFields((f) => ({ ...f, [key]: e.target.value }));
+
+  // Real OCR: read a photographed document and pre-fill what we can. Everything
+  // stays on-device (see lib/ocr.js).
+  const onScanFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setScan({ status: 'scanning', pct: 0, text: '', error: '' });
+    try {
+      const text = await recognizeImage(file, (pct) => setScan((s) => ({ ...s, pct })));
+      const parsed = parseFields(text);
+      setFields((f) => {
+        const next = { ...f };
+        def.fields.forEach((fl) => {
+          if (fl.type === 'date' && parsed.dob && !next[fl.key]) next[fl.key] = parsed.dob;
+          if (/number|account/i.test(fl.key) && parsed.documentNumber && !next[fl.key]) next[fl.key] = parsed.documentNumber;
+        });
+        return next;
+      });
+      const preview = text.replace(/\s+/g, ' ').trim().slice(0, 220);
+      setScan({ status: 'done', pct: 100, text: preview, error: '' });
+      showToast(preview ? 'Scanned — we filled what we could. Check the details.' : 'We couldn\'t read much. Enter the details by hand.');
+    } catch {
+      setScan({ status: 'error', pct: 0, text: '', error: 'Could not read that image. Try a clearer photo, or enter the details by hand.' });
+    }
+  };
   const uploadDoc = (id) => {
     setDocStatus((s) => ({ ...s, [id]: 'uploading' }));
     const t = setTimeout(() => setDocStatus((s) => ({ ...s, [id]: 'uploaded' })), 500);
@@ -150,6 +179,43 @@ export default function ApplyFlow() {
           {step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--fg-2)' }}>{def.blurb}</p>
+
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onScanFile} style={{ display: 'none' }} />
+              <button
+                className="press focus-ring" onClick={() => fileRef.current?.click()} disabled={scan.status === 'scanning'}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 64, padding: '13px 15px', borderRadius: 16, border: `1.5px dashed ${mark}`, background: `color-mix(in oklch, ${mark} 8%, transparent)`, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+              >
+                <span aria-hidden="true" style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 12, background: mark, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {scan.status === 'scanning'
+                    ? <span className="apply-spin" style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.5)', borderTopColor: '#fff', borderRadius: 999, display: 'inline-block' }} />
+                    : <Icon name="scan-text" size={20} color="#fff" />}
+                </span>
+                <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--fg-1)' }}>
+                    {scan.status === 'scanning' ? `Reading document… ${scan.pct}%` : 'Scan a document to fill this in'}
+                  </span>
+                  <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--fg-2)' }}>
+                    {scan.status === 'scanning' ? 'This runs on your phone — nothing is uploaded' : 'Photograph your ID and we read the details off it'}
+                  </span>
+                </span>
+              </button>
+              {scan.status === 'done' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 12, borderRadius: 12, background: 'var(--status-success-bg)', border: '1px solid color-mix(in oklch, var(--status-success) 35%, transparent)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 800, color: 'var(--fg-1)' }}>
+                    <Icon name="check-circle-2" size={15} color="var(--status-success)" />Read from your document
+                  </span>
+                  {scan.text
+                    ? <span style={{ fontSize: 11.5, lineHeight: 1.45, color: 'var(--fg-3)' }}>“{scan.text}{scan.text.length >= 220 ? '…' : ''}”</span>
+                    : <span style={{ fontSize: 11.5, color: 'var(--fg-3)' }}>Not much text detected — please fill the fields below.</span>}
+                </div>
+              )}
+              {scan.status === 'error' && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 12, background: 'var(--status-error-bg)' }}>
+                  <Icon name="triangle-alert" size={15} color="var(--status-error)" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: 12, lineHeight: 1.45, color: 'var(--fg-1)' }}>{scan.error}</span>
+                </div>
+              )}
+
               {def.fields.map((f) => (
                 <FieldRow key={f.key} field={f} value={fields[f.key] || ''} onChange={setField(f.key)} />
               ))}
