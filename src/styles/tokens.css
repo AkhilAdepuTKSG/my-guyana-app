@@ -242,3 +242,9 @@ body {
 }
 * { box-sizing: border-box; }
 button { font-family: inherit; }
+
+/* Auth flow screens are scrollable flex columns. Without this, tall content
+   (e.g. the full document picker) gets shrunk to fit instead of overflowing,
+   so it never scrolls. Keep children at their natural size; a flex:1 spacer
+   still grows on short screens because its inline flex-shrink wins. */
+.auth-screen > * { flex-shrink: 0; }

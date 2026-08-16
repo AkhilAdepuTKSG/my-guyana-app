@@ -7,6 +7,7 @@ import Icon from '../../components/ui/Icon';
 export function Screen({ children, onBack, padTop = 28, gap = 16, bg = 'var(--surface-1)', center = false, style }) {
   return (
     <div
+      className="auth-screen"
       style={{
         position: 'absolute', inset: 0, overflowY: 'auto', background: bg,
         padding: center ? '0 28px' : `${padTop}px 20px 30px`,
