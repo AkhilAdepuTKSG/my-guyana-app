@@ -50,17 +50,28 @@ export default function ApplyFlow() {
   const [step, setStep] = useState(1);
   const [fields, setFields] = useState({});
   const [docStatus, setDocStatus] = useState({});
+  const [docFiles, setDocFiles] = useState({}); // { [docId]: { name, url, size } }
   const [appt, setAppt] = useState({ office: '', date: '', time: '' });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [scan, setScan] = useState({ status: 'idle', pct: 0, text: '', error: '' });
   const timers = useRef([]);
   const fileRef = useRef(null);
+  const docInputRef = useRef(null);
+  const pendingDocId = useRef(null);
+
+  // Free any object URLs we made for document previews.
+  const revokeDocUrls = () => { Object.values(docFiles).forEach((f) => f?.url && URL.revokeObjectURL(f.url)); };
 
   useEffect(() => {
-    if (open) { setStep(1); setFields({}); setDocStatus({}); setAppt({ office: '', date: '', time: '' }); setSubmitting(false); setDone(false); setScan({ status: 'idle', pct: 0, text: '', error: '' }); }
+    if (open) {
+      revokeDocUrls();
+      setStep(1); setFields({}); setDocStatus({}); setDocFiles({}); setAppt({ office: '', date: '', time: '' });
+      setSubmitting(false); setDone(false); setScan({ status: 'idle', pct: 0, text: '', error: '' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, payload?.serviceId]);
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  useEffect(() => () => { timers.current.forEach(clearTimeout); revokeDocUrls(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dateOptions = useMemo(() => buildEidDateOptions(), []);
   const agency = def ? AGENCIES[def.agency] : null;
@@ -101,11 +112,29 @@ export default function ApplyFlow() {
       setScan({ status: 'error', pct: 0, text: '', error: 'Could not read that image. Try a clearer photo, or enter the details by hand.' });
     }
   };
-  const uploadDoc = (id) => {
-    setDocStatus((s) => ({ ...s, [id]: 'uploading' }));
-    const t = setTimeout(() => setDocStatus((s) => ({ ...s, [id]: 'uploaded' })), 500);
-    timers.current.push(t);
+  // Real file upload: open the picker for a specific document, then attach the
+  // chosen file. There is no backend, so we keep the file locally (name + a
+  // preview URL) and mark it attached.
+  const pickDoc = (id) => { pendingDocId.current = id; docInputRef.current?.click(); };
+  const onDocFile = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    const id = pendingDocId.current;
+    if (!file || !id) return;
+    setDocStatus((s) => ({ ...s, [id]: 'uploaded' }));
+    setDocFiles((prev) => {
+      if (prev[id]?.url) URL.revokeObjectURL(prev[id].url);
+      return { ...prev, [id]: { name: file.name, url: URL.createObjectURL(file), size: file.size } };
+    });
   };
+  const removeDoc = (id) => {
+    setDocFiles((prev) => {
+      if (prev[id]?.url) URL.revokeObjectURL(prev[id].url);
+      const next = { ...prev }; delete next[id]; return next;
+    });
+    setDocStatus((s) => { const next = { ...s }; delete next[id]; return next; });
+  };
+  const fmtSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
   const fieldsOk = def.fields.every((f) => !f.required || String(fields[f.key] || '').trim());
   const docsOk = def.documents.every((d) => !d.required || docStatus[d.id] === 'uploaded');
@@ -122,6 +151,7 @@ export default function ApplyFlow() {
         fields: { ...fields },
         documents: def.documents.map((d) => ({
           name: d.label,
+          file: docFiles[d.id]?.name || null,
           status: docStatus[d.id] === 'uploaded' ? 'Uploaded' : (d.required ? 'Missing' : 'Optional'),
         })),
         appointment: def.appointment ? { ...appt } : null,
@@ -232,8 +262,9 @@ export default function ApplyFlow() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <h3 style={{ margin: 0, fontSize: 15.5, fontWeight: 800, color: 'var(--fg-1)' }}>Required documents</h3>
-                <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-3)' }}>Attach a photo or scan of each. Bring the originals if an appointment is booked.</p>
+                <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-3)' }}>Attach a photo, scan or PDF of each. Bring the originals if an appointment is booked.</p>
               </div>
+              <input ref={docInputRef} type="file" accept="image/*,application/pdf" onChange={onDocFile} style={{ display: 'none' }} />
               {def.documents.map((d) => {
                 const status = docStatus[d.id] || 'missing';
                 const uploaded = status === 'uploaded';
@@ -249,14 +280,36 @@ export default function ApplyFlow() {
                         {d.hint && <span style={{ fontSize: 12, lineHeight: 1.45, color: 'var(--fg-3)' }}>{d.hint}</span>}
                       </span>
                     </div>
-                    <button
-                      className="press focus-ring" onClick={() => uploadDoc(d.id)} disabled={status === 'uploading'}
-                      style={{ minHeight: 40, borderRadius: 10, border: `1px solid ${uploaded ? 'var(--status-success)' : 'var(--surface-border)'}`, background: uploaded ? 'var(--status-success-bg)' : 'var(--surface-1)', color: uploaded ? 'var(--status-success)' : 'var(--fg-1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                    >
-                      {status === 'uploading' ? (<><span className="apply-spin" style={{ width: 13, height: 13, border: '2px solid var(--surface-border)', borderTopColor: 'var(--fg-2)', borderRadius: 999, display: 'inline-block' }} />Uploading…</>)
-                        : uploaded ? (<><Icon name="refresh-cw" size={13} />Replace</>)
-                          : (<><Icon name="upload" size={13} />Upload</>)}
-                    </button>
+                    {uploaded ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 10, background: 'var(--status-success-bg)', border: '1px solid color-mix(in oklch, var(--status-success) 30%, transparent)' }}>
+                          <Icon name="paperclip" size={14} color="var(--status-success)" style={{ flexShrink: 0 }} />
+                          <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, color: 'var(--fg-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{docFiles[d.id]?.name || 'Attached'}</span>
+                          {docFiles[d.id]?.size != null && <span style={{ fontSize: 11, color: 'var(--fg-3)', flexShrink: 0 }}>{fmtSize(docFiles[d.id].size)}</span>}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          {docFiles[d.id]?.url && (
+                            <a className="press focus-ring" href={docFiles[d.id].url} target="_blank" rel="noopener noreferrer"
+                              style={{ flex: 1, minHeight: 38, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              <Icon name="eye" size={13} />View
+                            </a>
+                          )}
+                          <button className="press focus-ring" onClick={() => pickDoc(d.id)}
+                            style={{ flex: 1, minHeight: 38, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                            <Icon name="refresh-cw" size={13} />Replace
+                          </button>
+                          <button className="press focus-ring" onClick={() => removeDoc(d.id)} aria-label={`Remove ${d.label}`}
+                            style={{ width: 40, minHeight: 38, flexShrink: 0, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--status-error)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Icon name="trash-2" size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button className="press focus-ring" onClick={() => pickDoc(d.id)}
+                        style={{ minHeight: 40, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <Icon name="upload" size={13} />{d.required ? 'Upload file' : 'Add file'}
+                      </button>
+                    )}
                   </div>
                 );
               })}
