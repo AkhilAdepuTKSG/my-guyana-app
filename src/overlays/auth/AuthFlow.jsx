@@ -11,7 +11,7 @@ import { Manual, Review, Limited } from './AuthManual';
 import { Setup, Secure, ObVerified, ObBasic } from './AuthFinish';
 import { Recovery, RecoveryFix } from './AuthRecovery';
 import { EidBook } from './AuthEidApply';
-import { isBiometricSupported, hasEnrolledBiometric, authenticateBiometric, enrolBiometric } from './biometric';
+import { isBiometricSupported, hasEnrolledBiometric, authenticateBiometric, enrolBiometric, clearBiometric } from './biometric';
 import { recognizeImage, parseFields } from '../../lib/ocr';
 
 const CONTACT_PLACEHOLDER = { phone: '••• ••• 4820', email: 'n••••••@example.gy' };
@@ -204,6 +204,21 @@ export default function AuthFlow({ gate = false }) {
         return;
       }
       setSt((s) => ({ ...s, bioBusy: false, bioError: res.message }));
+    },
+    // The device says it's enrolled but the passkey no longer works (e.g. it was
+    // deleted from the browser/OS). WebAuthn won't tell us that, so let the
+    // citizen forget the stale record and enrol a fresh passkey in one tap.
+    bioResetEnrol: async () => {
+      clearBiometric();
+      setSt((s) => ({ ...s, bioEnrolled: false, bioError: '', bioBusy: true }));
+      const res = await enrolBiometric({ name: persona?.name || 'My Guyana citizen', displayName: persona?.name || 'My Guyana citizen' });
+      if (res.ok) {
+        setSt((s) => ({ ...s, bioBusy: false, bioEnrolled: true, authStep: 'face' }));
+        after(1200, () => finish('Welcome back'));
+        return;
+      }
+      // Enrolment cancelled/failed → stay on the setup state so they can retry.
+      setSt((s) => ({ ...s, bioBusy: false, bioEnrolled: false, bioError: res.message }));
     },
     otherWays: () => patch({ authStep: 'otherways', signInPassError: '' }),
     otherWaysBack: () => patch({ authStep: 'signin-device' }),

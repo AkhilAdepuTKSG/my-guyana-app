@@ -3,6 +3,7 @@ import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
 import { PERSONAS } from '../../state/mockData';
 import { useRegionName } from './regionStore';
+import BiometricSettings from './BiometricSettings';
 
 // Short descriptor shown under each name in the "View as" switcher — enough
 // to tell the two demo personas apart without duplicating their whole state.
@@ -100,6 +101,9 @@ export default function ProfileSheet() {
             <Icon name="chevron-right" size={17} color="var(--fg-3)" />
           </button>
         </div>
+
+        {/* Face ID / biometric management for this device */}
+        <BiometricSettings />
 
         {/* View as — the persona switcher kept for QA/demo purposes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

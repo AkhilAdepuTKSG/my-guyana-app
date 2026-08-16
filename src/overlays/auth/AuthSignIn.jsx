@@ -43,6 +43,11 @@ export function SignInDevice({ st, on, persona }) {
             <Icon name="scan-face" size={20} color="#fff" /> {busy ? 'Waiting for Face ID…' : 'Sign in with Face ID'}
           </PrimaryButton>
         )}
+        {st?.bioProbed && canBio && enrolled && !busy && (
+          <TextButton onClick={on.bioResetEnrol} style={{ minHeight: 38 }}>
+            Face ID not working? Set it up again
+          </TextButton>
+        )}
         {st?.bioProbed && canBio && !enrolled && (
           <PrimaryButton busy={busy} onClick={on.enrolBiometricNow}>
             <Icon name="scan-face" size={20} color="#fff" /> {busy ? 'Setting up…' : 'Set up Face ID on this device'}
