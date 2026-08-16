@@ -63,7 +63,7 @@ function makeInitialState(persona) {
 }
 
 export default function AuthFlow({ gate = false }) {
-  const { isOpen, closeOverlay, persona, showToast, signIn } = useAppState();
+  const { isOpen, closeOverlay, persona, showToast, signIn, addNotification } = useAppState();
   const open = gate || isOpen('auth');
   const [st, setSt] = useState(() => makeInitialState(persona));
   const timers = useRef([]);
@@ -137,6 +137,16 @@ export default function AuthFlow({ gate = false }) {
   const finish = (msg) => {
     clearTimers();
     signIn(buildUser());
+    // A citizen who registered with a non-e-ID document gets an e-ID application
+    // started + appointment booked — surface that as their first notification.
+    if (st.eidApplied) {
+      addNotification({
+        agency: 'mops', icon: 'fingerprint', title: 'e-ID application started',
+        body: st.eidApptDate
+          ? `Your Service Centre visit is booked. Complete your profile to speed things up.`
+          : 'Complete your profile to speed things up.',
+      });
+    }
     if (msg) showToast(msg);
     closeOverlay('auth');
   };

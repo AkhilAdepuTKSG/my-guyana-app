@@ -6,6 +6,7 @@ import Surface from '../components/ui/Surface';
 import ListRow from '../components/ui/ListRow';
 import SegmentedTabs from '../components/ui/SegmentedTabs';
 import Sheet from '../components/ui/Sheet';
+import NotificationBell from '../components/ui/NotificationBell';
 
 // Short blurbs per category — the source design writes these per-agency;
 // mockData only carries name/icon/services, so they're invented here.
@@ -109,14 +110,7 @@ export default function Services() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div className="ds-h2">Services</div>
-        <button
-          className="press focus-ring"
-          onClick={() => openOverlay('notifications')}
-          aria-label="Notifications"
-          style={{ width: 38, height: 38, borderRadius: '50%', border: '1px solid var(--surface-border)', background: 'var(--surface-1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Icon name="bell" size={17} color="var(--fg-2)" />
-        </button>
+        <NotificationBell />
       </div>
 
       <SegmentedTabs

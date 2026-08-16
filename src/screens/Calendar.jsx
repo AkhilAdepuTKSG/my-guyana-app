@@ -1,6 +1,7 @@
 import { useAppState } from '../state/AppStateContext';
 import { AGENCIES, APPOINTMENTS } from '../state/mockData';
 import Icon from '../components/ui/Icon';
+import NotificationBell from '../components/ui/NotificationBell';
 
 function dayAbbr(dateStr) {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
@@ -17,14 +18,7 @@ export default function Calendar() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div className="ds-h2">Schedule</div>
-        <button
-          className="press focus-ring"
-          onClick={() => openOverlay('notifications')}
-          aria-label="Notifications"
-          style={{ width: 38, height: 38, borderRadius: '50%', border: '1px solid var(--surface-border)', background: 'var(--surface-1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Icon name="bell" size={17} color="var(--fg-2)" />
-        </button>
+        <NotificationBell />
       </div>
 
       {appointments.length > 0 ? (

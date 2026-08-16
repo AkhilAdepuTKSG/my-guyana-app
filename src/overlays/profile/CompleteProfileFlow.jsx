@@ -27,7 +27,7 @@ function Field({ label, hint, children }) {
 }
 
 export default function CompleteProfileFlow() {
-  const { isOpen, closeOverlay, persona, user, updateUser, showToast } = useAppState();
+  const { isOpen, closeOverlay, persona, user, updateUser, showToast, addNotification } = useAppState();
   const open = isOpen('completeProfile');
   const [fields, setFields] = useState(EMPTY);
   const [submitting, setSubmitting] = useState(false);
@@ -47,6 +47,10 @@ export default function CompleteProfileFlow() {
     if (!complete) return;
     setSubmitting(true);
     updateUser({ profileComplete: true, profile: { ...fields } });
+    addNotification({
+      agency: 'mops', icon: 'user-round-check', title: 'Profile completed',
+      body: 'Thanks — your personal records and services are unlocking across My Guyana.',
+    });
     showToast('Profile completed — your records are unlocking');
     closeOverlay('completeProfile');
   };

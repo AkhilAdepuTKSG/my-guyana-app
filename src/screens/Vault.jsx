@@ -1,6 +1,7 @@
 import { useAppState } from '../state/AppStateContext';
 import Icon from '../components/ui/Icon';
 import ListRow from '../components/ui/ListRow';
+import NotificationBell from '../components/ui/NotificationBell';
 
 // Invented locally — mockData.js has no eID number field.
 const EID_NUMBER = 'GUY-0447-1029';
@@ -124,17 +125,7 @@ export default function Vault() {
             <Icon name="chevron-left" size={18} color="var(--fg-1)" />Home
           </button>
           <div style={{ flex: 1 }} />
-          <button
-            className="press focus-ring"
-            onClick={() => openOverlay('notifications')}
-            aria-label="Notifications"
-            style={{
-              width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'var(--surface-1)', border: '1px solid var(--surface-border)',
-            }}
-          >
-            <Icon name="bell" size={17} color="var(--fg-2)" />
-          </button>
+          <NotificationBell size={40} />
         </div>
         <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--fg-1)' }}>Vault</div>
         <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 500, color: 'var(--fg-3)', marginTop: 2 }}>Your IDs, cards and documents</div>
