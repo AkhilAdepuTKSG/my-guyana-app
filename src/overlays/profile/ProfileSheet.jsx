@@ -15,7 +15,7 @@ function descriptorFor(p) {
 }
 
 export default function ProfileSheet() {
-  const { isOpen, closeOverlay, openOverlay, navigate, viewAsId, setViewAsId, persona, showToast } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, navigate, viewAsId, setViewAsId, persona, showToast, signOut: endSession } = useAppState();
   const open = isOpen('profile');
   const region = useRegionName();
 
@@ -31,7 +31,7 @@ export default function ProfileSheet() {
 
   const signOut = () => {
     closeOverlay('profile');
-    openOverlay('auth');
+    endSession(); // clears the persisted session → app returns to the auth gate
   };
 
   return (

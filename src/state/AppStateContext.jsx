@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { PERSONAS } from './mockData';
 
 const AppStateContext = createContext(null);
@@ -8,12 +8,38 @@ const AppStateContext = createContext(null);
 // string so individual flows never need to touch this shared file.
 export const SCREENS = ['home', 'nis', 'mops', 'gpl', 'vault', 'wallet', 'services', 'calendar', 'applications'];
 
+// Persistent session — the app boots to the auth gate until this says otherwise,
+// and a signed-in citizen stays signed in across reloads. Bump the version suffix
+// if the stored shape changes incompatibly.
+const SESSION_KEY = 'myguyana.session.v1';
+
+function loadSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.status === 'authenticated' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export function AppStateProvider({ children }) {
   const [screen, setScreenState] = useState('home');
   const [viewAsId, setViewAsId] = useState('devindra');
   const [overlays, setOverlays] = useState(new Map()); // key -> payload
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
+
+  // { status: 'authenticated', user: {...}, at } | null. Lazy-initialised from
+  // localStorage so a returning citizen skips the gate.
+  const [session, setSession] = useState(loadSession);
+  useEffect(() => {
+    try {
+      if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      else localStorage.removeItem(SESSION_KEY);
+    } catch { /* storage unavailable (private mode / quota) — run in-memory */ }
+  }, [session]);
 
   const navigate = useCallback((next) => {
     setScreenState(next);
@@ -48,12 +74,24 @@ export function AppStateProvider({ children }) {
 
   const persona = PERSONAS[viewAsId] ?? PERSONAS.devindra;
 
+  // --- session actions ---
+  const signIn = useCallback((user) => {
+    setSession({ status: 'authenticated', user: user || {}, at: Date.now() });
+  }, []);
+  const signOut = useCallback(() => setSession(null), []);
+  const updateUser = useCallback((patch) => {
+    setSession((s) => (s ? { ...s, user: { ...s.user, ...patch } } : s));
+  }, []);
+  const isAuthenticated = !!session && session.status === 'authenticated';
+  const user = session?.user ?? null;
+
   const value = useMemo(() => ({
     screen, navigate,
     viewAsId, setViewAsId, persona,
     overlays, openOverlay, closeOverlay, isOpen, getPayload,
     toast, showToast,
-  }), [screen, navigate, viewAsId, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, toast, showToast]);
+    session, user, isAuthenticated, signIn, signOut, updateUser,
+  }), [screen, navigate, viewAsId, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser]);
 
   return (
     <AppStateContext.Provider value={value}>

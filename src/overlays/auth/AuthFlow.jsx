@@ -62,9 +62,9 @@ function makeInitialState(persona) {
   };
 }
 
-export default function AuthFlow() {
-  const { isOpen, closeOverlay, persona, showToast } = useAppState();
-  const open = isOpen('auth');
+export default function AuthFlow({ gate = false }) {
+  const { isOpen, closeOverlay, persona, showToast, signIn } = useAppState();
+  const open = gate || isOpen('auth');
   const [st, setSt] = useState(() => makeInitialState(persona));
   const timers = useRef([]);
   const otpTick = useRef(null);
@@ -112,8 +112,31 @@ export default function AuthFlow() {
     }, 1000);
   };
 
+  // Snapshot who just signed in / registered, for the persisted session. The
+  // create-account paths all terminate on a user tap (onboarding "Go to Home"),
+  // so `st` is current here; the sign-in paths are method 'returning'.
+  const buildUser = () => {
+    const create = st.authIntent === 'create';
+    const method = !create ? 'returning'
+      : (st.govIdType === 'e-ID' || st.discoverResult === 'eid') ? 'eid'
+        : st.govIdType ? st.govIdType // 'TIN' | 'Passport' | 'National ID' | "Driver's licence"
+          : 'manual';
+    // A linked e-ID record is a complete profile; TIN/passport/manual are not yet.
+    const profileComplete = !create || st.discoverResult === 'eid';
+    return {
+      personaId: 'devindra',
+      name: persona?.name || 'Citizen',
+      method,
+      verificationLevel: create ? st.accountLevel : 'verified', // 'verified' | 'basic'
+      profileComplete,
+      eidApplied: !!st.eidApplied,
+      eidAppointment: st.eidApplied ? { office: st.eidApptOffice, date: st.eidApptDate, time: st.eidApptTime } : null,
+    };
+  };
+
   const finish = (msg) => {
     clearTimers();
+    signIn(buildUser());
     if (msg) showToast(msg);
     closeOverlay('auth');
   };

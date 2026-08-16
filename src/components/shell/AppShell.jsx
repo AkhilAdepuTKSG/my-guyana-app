@@ -12,7 +12,6 @@ import Services from '../../screens/Services';
 import Calendar from '../../screens/Calendar';
 import Applications from '../../screens/Applications';
 
-import AuthFlow from '../../overlays/auth/AuthFlow';
 import EidApplicationFlow from '../../overlays/eid/EidApplicationFlow';
 import NisRegistrationFlow from '../../overlays/nisReg/NisRegistrationFlow';
 import BenefitClaimFlow from '../../overlays/benefit/BenefitClaimFlow';
@@ -67,8 +66,8 @@ export default function AppShell() {
       <TabBar />
       <Toast />
 
-      {/* Full-screen flows and sheets — layered above the primary screens. */}
-      <AuthFlow />
+      {/* Full-screen flows and sheets — layered above the primary screens.
+          The auth flow itself lives at the app root as the pre-shell gate. */}
       <EidApplicationFlow />
       <NisRegistrationFlow />
       <BenefitClaimFlow />

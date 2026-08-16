@@ -13,8 +13,8 @@ export function GovId({ st, on }) {
       {govStep === 'choose' && (
         <>
           <Heading
-            title="Set up with your e-ID"
-            sub="Your e-ID is the fastest way in. No e-ID yet? Use your TIN or passport and we'll start an e-ID application for you."
+            title="How do you want to sign up?"
+            sub="Your e-ID is the fastest way in. No e-ID yet? Sign up with any government document and we'll start an e-ID application for you."
           />
           <button
             className="press focus-ring" onClick={() => on.govPickType('e-ID')}
@@ -36,12 +36,14 @@ export function GovId({ st, on }) {
             Don't have an e-ID yet?
           </span>
           <ListCard>
-            <Row icon="receipt" title="TIN" sub="Your tax number, on any GRA letter" onClick={() => on.govPickType('TIN')} />
+            <Row icon="id-card" title="National ID" sub="The GECOM card you vote with" onClick={() => on.govPickType('National ID')} />
             <Row icon="book-user" title="Passport" sub="Your Guyana passport" onClick={() => on.govPickType('Passport')} />
+            <Row icon="car" title="Driver's licence" sub="Issued by the Guyana Police Force" onClick={() => on.govPickType("Driver's licence")} />
+            <Row icon="receipt" title="TIN" sub="Your tax number, on any GRA letter" onClick={() => on.govPickType('TIN')} />
           </ListCard>
           <p style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-3)' }}>
             <Icon name="info" size={15} color="var(--fg-4)" style={{ flexShrink: 0, marginTop: 1 }} />
-            We confirm who you are with this document, then start your e-ID application and help you book a Service Centre visit.
+            We confirm who you are with this document, then start your e-ID application, help you book a Service Centre visit, and prompt you to complete your profile.
           </p>
           <Spacer />
           <TextButton onClick={on.govIdNone}>I don't have any of these</TextButton>
