@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import Icon from '../../components/ui/Icon';
 import { EID_CITIZENSHIP_OPTIONS } from './eidData';
 
@@ -22,22 +23,31 @@ function Field({ id, label, hint, value, onChange, placeholder }) {
 // (which decides which documents step 2 asks for) and an optional
 // "speed up your visit" family-details section.
 export default function EidStep1({
-  fields, updateField, scanned, scanning, onScan, optionalOpen, onToggleOptional,
+  fields, updateField, scanned, scanning, scanPct, scanText, scanError, onScanFile, optionalOpen, onToggleOptional,
 }) {
+  const scanRef = useRef(null);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <input
+        ref={scanRef} type="file" accept="image/*"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onScanFile(f); }}
+        style={{ display: 'none' }}
+      />
       {scanned && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: 14, borderRadius: 16, background: 'var(--status-success-bg)', border: '1px solid color-mix(in oklch, var(--status-success) 34%, transparent)' }}>
-          <Icon name="badge-check" size={19} color="var(--status-success)" />
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: 14, borderRadius: 16, background: 'var(--status-success-bg)', border: '1px solid color-mix(in oklch, var(--status-success) 34%, transparent)' }}>
+          <Icon name="badge-check" size={19} color="var(--status-success)" style={{ flexShrink: 0, marginTop: 1 }} />
           <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--fg-1)' }}>Filled in from your ID</span>
-            <span style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-2)' }}>Check every field and correct anything that looks wrong.</span>
+            <span style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-2)' }}>
+              {scanText ? `Read: “${scanText}${scanText.length >= 220 ? '…' : ''}” — check every field.` : 'Check every field and correct anything that looks wrong.'}
+            </span>
+            <button className="press focus-ring" onClick={() => scanRef.current?.click()} style={{ alignSelf: 'flex-start', marginTop: 4, background: 'none', border: 'none', padding: 0, color: 'var(--agency-accent-strong, var(--agency-accent))', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Scan again</button>
           </span>
         </div>
       )}
       {!scanned && (
         <button
-          className="press focus-ring" onClick={onScan} disabled={scanning}
+          className="press focus-ring" onClick={() => scanRef.current?.click()} disabled={scanning}
           style={{
             display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: 14, borderRadius: 16,
             border: '1.5px dashed var(--agency-accent)', cursor: scanning ? 'default' : 'pointer', textAlign: 'left',
@@ -48,11 +58,17 @@ export default function EidStep1({
             <Icon name={scanning ? 'loader-circle' : 'scan-line'} size={18} color="var(--agency-contrast)" className={scanning ? 'eid-spin' : undefined} />
           </span>
           <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--fg-1)' }}>{scanning ? 'Scanning your ID…' : 'Scan your ID and fill this in'}</span>
-            <span style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-2)' }}>Photograph your GECOM card or passport — we read the details for you.</span>
+            <span style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--fg-1)' }}>{scanning ? `Reading your ID… ${scanPct || 0}%` : 'Scan your ID and fill this in'}</span>
+            <span style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-2)' }}>{scanning ? 'Runs on your phone — nothing is uploaded' : 'Photograph your GECOM card or passport — we read the details for you.'}</span>
           </span>
           {!scanning && <Icon name="chevron-right" size={17} color="var(--fg-3)" />}
         </button>
+      )}
+      {scanError && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 12, background: 'var(--status-error-bg)' }}>
+          <Icon name="triangle-alert" size={15} color="var(--status-error)" style={{ flexShrink: 0, marginTop: 1 }} />
+          <span style={{ fontSize: 12, lineHeight: 1.45, color: 'var(--fg-1)' }}>{scanError}</span>
+        </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 18, borderRadius: 16, background: 'var(--surface-2)' }}>

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Guyana — Sample documents for OCR</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #f4f6f8; color: #0e2237; padding: 24px 16px 48px; }
+    .wrap { max-width: 560px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    p.lede { margin: 0 0 20px; font-size: 14px; line-height: 1.55; color: #475467; }
+    ol { font-size: 14px; line-height: 1.6; color: #344054; padding-left: 20px; margin: 0 0 24px; }
+    .card { background: #fff; border: 1px solid #e4e7ec; border-radius: 16px; padding: 14px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(16,24,40,0.06); }
+    .card h2 { font-size: 15px; margin: 2px 2px 10px; }
+    img { width: 100%; height: auto; border-radius: 10px; border: 1px solid #e4e7ec; display: block; }
+    a.dl { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 16px; border-radius: 10px; background: #0b2d4a; color: #fff; text-decoration: none; font-size: 14px; font-weight: 700; }
+    .note { font-size: 12.5px; line-height: 1.5; color: #667085; margin-top: 18px; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0b1420; color: #e7edf5; }
+      .card { background: #131e2c; border-color: #24303f; }
+      p.lede, ol, .note { color: #9fb0c3; }
+      a.dl { background: #2b6cb0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Sample documents for scanning</h1>
+    <p class="lede">Use these to try the “Scan a document to fill this in” feature in My Guyana. They’re fictional — invented names and numbers.</p>
+    <ol>
+      <li>Download a document below (or open this page on another screen).</li>
+      <li>In My Guyana, open an application (e.g. Passport) or the e-ID / manual sign-up, and tap <b>Scan a document</b>.</li>
+      <li>Choose the saved image from your photos, or photograph the document on the other screen.</li>
+      <li>OCR runs on your device and fills in what it can — check every field.</li>
+    </ol>
+
+    <div class="card">
+      <h2>National Identification Card</h2>
+      <img src="/sample-docs/national-id.png" alt="Sample National ID card" />
+      <a class="dl" href="/sample-docs/national-id.png" download>Download image</a>
+    </div>
+    <div class="card">
+      <h2>Birth Certificate</h2>
+      <img src="/sample-docs/birth-certificate.png" alt="Sample birth certificate" />
+      <a class="dl" href="/sample-docs/birth-certificate.png" download>Download image</a>
+    </div>
+    <div class="card">
+      <h2>Guyana Passport</h2>
+      <img src="/sample-docs/passport.png" alt="Sample passport data page" />
+      <a class="dl" href="/sample-docs/passport.png" download>Download image</a>
+    </div>
+
+    <p class="note">OCR is demo-grade: accuracy depends on lighting and focus, and the app only pre-fills what it’s reasonably sure of. The first scan downloads the recognition engine (a few MB), so it takes a little longer than later scans.</p>
+  </div>
+</body>
+</html>

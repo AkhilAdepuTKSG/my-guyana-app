@@ -83,8 +83,14 @@ export default function ApplyFlow() {
       setFields((f) => {
         const next = { ...f };
         def.fields.forEach((fl) => {
-          if (fl.type === 'date' && parsed.dob && !next[fl.key]) next[fl.key] = parsed.dob;
-          if (/number|account/i.test(fl.key) && parsed.documentNumber && !next[fl.key]) next[fl.key] = parsed.documentNumber;
+          if (next[fl.key]) return; // never overwrite what the citizen already typed
+          const k = fl.key.toLowerCase();
+          if (fl.type === 'date' && parsed.dob) next[fl.key] = parsed.dob;
+          else if (k.includes('surname') && parsed.surname) next[fl.key] = parsed.surname;
+          else if ((k.includes('given') || k.includes('first')) && parsed.givenNames) next[fl.key] = parsed.givenNames;
+          else if ((k.includes('fullname') || k === 'name') && parsed.fullName) next[fl.key] = parsed.fullName;
+          else if (k.includes('address') && parsed.address) next[fl.key] = parsed.address;
+          else if (/number|account/.test(k) && parsed.documentNumber) next[fl.key] = parsed.documentNumber;
         });
         return next;
       });
@@ -180,7 +186,7 @@ export default function ApplyFlow() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--fg-2)' }}>{def.blurb}</p>
 
-              <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onScanFile} style={{ display: 'none' }} />
+              <input ref={fileRef} type="file" accept="image/*" onChange={onScanFile} style={{ display: 'none' }} />
               <button
                 className="press focus-ring" onClick={() => fileRef.current?.click()} disabled={scan.status === 'scanning'}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 64, padding: '13px 15px', borderRadius: 16, border: `1.5px dashed ${mark}`, background: `color-mix(in oklch, ${mark} 8%, transparent)`, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}

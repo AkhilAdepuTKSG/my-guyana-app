@@ -11,6 +11,7 @@ import EidStep2 from './EidStep2';
 import EidStep3 from './EidStep3';
 import EidSuccess from './EidSuccess';
 import { EID_CITIZENSHIP_OPTIONS, buildEidDocDefs, buildEidDateOptions } from './eidData';
+import { recognizeImage, parseFields } from '../../lib/ocr';
 
 const EMPTY_FIELDS = {
   fullName: '', nationalId: '', address: '', phone: '', email: '',
@@ -39,6 +40,9 @@ export default function EidApplicationFlow() {
   const [optionalOpen, setOptionalOpen] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [scanPct, setScanPct] = useState(0);
+  const [scanText, setScanText] = useState('');
+  const [scanError, setScanError] = useState('');
   const [docStatus, setDocStatus] = useState({});
   const [appointment, setAppointment] = useState(EMPTY_APPOINTMENT);
   const [submitting, setSubmitting] = useState(false);
@@ -54,6 +58,9 @@ export default function EidApplicationFlow() {
       setOptionalOpen(false);
       setScanned(false);
       setScanning(false);
+      setScanPct(0);
+      setScanText('');
+      setScanError('');
       setDocStatus({});
       setAppointment(EMPTY_APPOINTMENT);
       setSubmitting(false);
@@ -67,20 +74,25 @@ export default function EidApplicationFlow() {
 
   const updateField = (key) => (e) => setFields((f) => ({ ...f, [key]: e.target.value }));
 
-  const onScan = () => {
-    setScanning(true);
-    const t = setTimeout(() => {
+  const onScanFile = async (file) => {
+    if (!file) return;
+    setScanning(true); setScanned(false); setScanError(''); setScanText(''); setScanPct(0);
+    try {
+      const text = await recognizeImage(file, setScanPct);
+      const parsed = parseFields(text);
       setFields((f) => ({
         ...f,
-        fullName: persona?.name || f.fullName,
-        nationalId: 'GEC-4821-7739',
-        address: 'Lot 22 Republic Road, Georgetown',
-        phone: f.phone || '+592 611 0384',
+        fullName: f.fullName || parsed.fullName || '',
+        nationalId: f.nationalId || parsed.documentNumber || '',
+        address: f.address || parsed.address || '',
       }));
+      setScanText(text.replace(/\s+/g, ' ').trim().slice(0, 220));
       setScanned(true);
+    } catch {
+      setScanError('Could not read that image. Enter the details by hand.');
+    } finally {
       setScanning(false);
-    }, 900);
-    timers.current.push(t);
+    }
   };
 
   const docs = useMemo(() => (
@@ -138,7 +150,8 @@ export default function EidApplicationFlow() {
       {step === 1 && (
         <EidStep1
           fields={fields} updateField={updateField} scanned={scanned} scanning={scanning}
-          onScan={onScan} optionalOpen={optionalOpen} onToggleOptional={() => setOptionalOpen((v) => !v)}
+          scanPct={scanPct} scanText={scanText} scanError={scanError} onScanFile={onScanFile}
+          optionalOpen={optionalOpen} onToggleOptional={() => setOptionalOpen((v) => !v)}
         />
       )}
 

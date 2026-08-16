@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import Icon from '../../components/ui/Icon';
 import {
   Screen, Heading, IconBadge, PrimaryButton, SecondaryButton, Field,
@@ -19,23 +20,50 @@ const smallFieldStyle = {
 // STAGE 3 · nothing matched · the citizen tells us who they are
 export function Manual({ st, on }) {
   const m = st.manualFields;
+  const scanRef = useRef(null);
+  const ms = st.manualScan || { status: 'idle', pct: 0, text: '', error: '' };
   return (
     <Screen onBack={on.authStepBack} gap={18}>
       <InfoBox tone="info">We could not find you in government records, so we will ask you a few things instead.</InfoBox>
       <Heading title="Personal details" sub="A few details about you, so we can set up your account." />
 
+      <input
+        ref={scanRef} type="file" accept="image/*"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) on.manualScanFile(f); }}
+        style={{ display: 'none' }}
+      />
       <button
-        className="press focus-ring" onClick={on.manualScanFill}
+        className="press focus-ring" onClick={() => scanRef.current?.click()} disabled={ms.status === 'scanning'}
         style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 64, padding: '13px 15px', borderRadius: 16, border: '1.5px dashed var(--brand-600)', background: 'var(--brand-100)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
       >
         <span aria-hidden="true" style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: 'var(--brand-600)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="camera" size={18} color="#fff" />
+          {ms.status === 'scanning'
+            ? <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.5)', borderTopColor: '#fff', borderRadius: 999, display: 'inline-block', animation: 'faceArcSpin 0.9s linear infinite' }} />
+            : <Icon name="scan-text" size={18} color="#fff" />}
         </span>
         <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--fg-1)' }}>Scan a document to fill this in</span>
-          <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--fg-2)' }}>Faster than typing — we read your details off it</span>
+          <span style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--fg-1)' }}>
+            {ms.status === 'scanning' ? `Reading document… ${ms.pct}%` : 'Scan a document to fill this in'}
+          </span>
+          <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--fg-2)' }}>
+            {ms.status === 'scanning' ? 'Runs on your phone — nothing is uploaded' : 'Faster than typing — we read your details off it'}
+          </span>
         </span>
       </button>
+      {ms.status === 'done' && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 12, background: 'var(--status-success-bg)' }}>
+          <Icon name="check-circle-2" size={15} color="var(--status-success)" style={{ flexShrink: 0, marginTop: 1 }} />
+          <span style={{ fontSize: 11.5, lineHeight: 1.45, color: 'var(--fg-2)' }}>
+            {ms.text ? `Read from your document: “${ms.text}${ms.text.length >= 220 ? '…' : ''}”` : 'Not much text detected — please fill the fields below.'}
+          </span>
+        </div>
+      )}
+      {ms.status === 'error' && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 12, background: 'var(--status-error-bg)' }}>
+          <Icon name="triangle-alert" size={15} color="var(--status-error)" style={{ flexShrink: 0, marginTop: 1 }} />
+          <span style={{ fontSize: 12, lineHeight: 1.45, color: 'var(--fg-1)' }}>{ms.error}</span>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Field label="First name">

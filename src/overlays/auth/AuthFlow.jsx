@@ -12,6 +12,7 @@ import { Setup, Secure, ObVerified, ObBasic } from './AuthFinish';
 import { Recovery, RecoveryFix } from './AuthRecovery';
 import { EidBook } from './AuthEidApply';
 import { isBiometricSupported, hasEnrolledBiometric, authenticateBiometric, enrolBiometric } from './biometric';
+import { recognizeImage, parseFields } from '../../lib/ocr';
 
 const CONTACT_PLACEHOLDER = { phone: '••• ••• 4820', email: 'n••••••@example.gy' };
 
@@ -46,6 +47,7 @@ function makeInitialState(persona) {
 
     manualFields: { first, last: rest.join(' '), dob: '', country: '', gender: '', phone: '', email: '', password: '' },
     docType: '', docUploaded: false, manualDocNo: '', limitedReason: 'nodoc',
+    manualScan: { status: 'idle', pct: 0, text: '', error: '' },
 
     setupEmail: '', setupPass: '', setupError: '',
 
@@ -403,17 +405,30 @@ export default function AuthFlow({ gate = false }) {
     updateDocType: (e) => patch({ docType: e.target.value }),
     updateManualDocNo: (e) => patch({ manualDocNo: e.target.value }),
     pickUpload: () => patch({ docUploaded: !st.docUploaded }),
-    manualScanFill: () => {
-      patch({
-        docUploaded: true, docType: st.docType || 'passport', manualDocNo: 'R0123456',
-        manualFields: {
-          ...st.manualFields,
-          first: st.manualFields.first || 'Nicole', last: st.manualFields.last || 'Persaud',
-          dob: st.manualFields.dob || '1994-03-12', country: st.manualFields.country || 'gy',
-          phone: st.manualFields.phone || '677 4820',
-        },
-      });
-      showToast('We read your details off the document');
+    manualScanFile: async (file) => {
+      if (!file) return;
+      setSt((s) => ({ ...s, manualScan: { status: 'scanning', pct: 0, text: '', error: '' } }));
+      try {
+        const text = await recognizeImage(file, (pct) => setSt((s) => ({ ...s, manualScan: { ...s.manualScan, pct } })));
+        const parsed = parseFields(text);
+        const preview = text.replace(/\s+/g, ' ').trim().slice(0, 220);
+        setSt((s) => ({
+          ...s,
+          docUploaded: true,
+          docType: s.docType || 'passport',
+          manualDocNo: s.manualDocNo || parsed.documentNumber || '',
+          manualFields: {
+            ...s.manualFields,
+            first: s.manualFields.first || parsed.givenNames || '',
+            last: s.manualFields.last || parsed.surname || '',
+            dob: s.manualFields.dob || parsed.dob || '',
+          },
+          manualScan: { status: 'done', pct: 100, text: preview, error: '' },
+        }));
+        showToast(preview ? 'We read your document — check the details.' : "Couldn't read much — enter details by hand.");
+      } catch {
+        setSt((s) => ({ ...s, manualScan: { status: 'error', pct: 0, text: '', error: 'Could not read that image. Enter your details by hand.' } }));
+      }
     },
     manualSubmit: () => {
       const m = st.manualFields;
