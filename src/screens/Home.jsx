@@ -66,7 +66,7 @@ const ELIGIBILITY_DEFS = [
 ];
 
 export default function Home() {
-  const { navigate, openOverlay, showToast, persona } = useAppState();
+  const { navigate, openOverlay, showToast, persona, user } = useAppState();
   const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
 
   const connected = persona.connectedAgencies || [];
@@ -375,6 +375,31 @@ export default function Home() {
       </button>
 
       <div style={{ paddingTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* Complete-your-profile prompt — shown to citizens who registered with a
+            document other than an e-ID (session.user.profileComplete === false). */}
+        {user && user.profileComplete === false && (
+          <button
+            className="press focus-ring" onClick={() => openOverlay('completeProfile')}
+            aria-label="Complete your profile"
+            style={{
+              width: '100%', padding: '15px 16px', borderRadius: 18, background: 'var(--brand-600)',
+              border: 'none', boxShadow: 'var(--shadow-md)', cursor: 'pointer', textAlign: 'left',
+              display: 'flex', alignItems: 'center', gap: 13, color: '#fff',
+            }}
+          >
+            <span aria-hidden="true" style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 12, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="user-round-pen" size={20} color="#fff" />
+            </span>
+            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 14.5, fontWeight: 800 }}>Complete your profile</span>
+              <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'rgba(255,255,255,0.85)' }}>
+                {user.eidApplied ? 'e-ID booked. Add a few details to open your records.' : 'Add a few details to open your personal records and services.'}
+              </span>
+            </span>
+            <Icon name="arrow-right" size={17} color="rgba(255,255,255,0.9)" />
+          </button>
+        )}
 
         {/* Next step nudge */}
         <button

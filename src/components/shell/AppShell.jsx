@@ -36,6 +36,7 @@ import PaymentsHistory from '../../overlays/payments/PaymentsHistory';
 import NisCard from '../../overlays/cards/NisCard';
 import EidCard from '../../overlays/cards/EidCard';
 import ProfileSheet from '../../overlays/profile/ProfileSheet';
+import CompleteProfileFlow from '../../overlays/profile/CompleteProfileFlow';
 import NotificationsSheet from '../../overlays/profile/NotificationsSheet';
 import RegionSheet from '../../overlays/profile/RegionSheet';
 import WelcomeCarousel from '../../overlays/welcome/WelcomeCarousel';
@@ -95,6 +96,7 @@ export default function AppShell() {
       <TourSheet />
       <AddAgencyDiscoverySheet />
       <ProfileSheet />
+      <CompleteProfileFlow />
       <NotificationsSheet />
       <RegionSheet />
     </div>
