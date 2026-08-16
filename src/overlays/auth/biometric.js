@@ -64,14 +64,24 @@ export async function isBiometricSupported() {
 }
 
 // Map the WebAuthn DOMException zoo onto a short reason + a human message the UI
-// can show. 'cancelled' is the common one (user dismissed the OS prompt).
+// can show. The raw name/message are logged and appended so a generic failure
+// (especially on iOS, which collapses many causes into NotAllowedError) is
+// diagnosable rather than a dead "something went wrong".
+//
+// iOS note: platform passkeys require iCloud Keychain to be ON and the page to be
+// open in Safari itself (not an in-app webview) and not in Private Browsing. When
+// any of those isn't met, Safari rejects with a generic NotAllowedError.
 function describeError(err) {
-  const name = err?.name || '';
-  if (name === 'NotAllowedError') return { reason: 'cancelled', message: 'Face ID was cancelled. Try again, or use another way to sign in.' };
-  if (name === 'InvalidStateError') return { reason: 'alreadyEnrolled', message: 'This device is already set up. Try signing in with Face ID.' };
-  if (name === 'SecurityError') return { reason: 'insecure', message: 'Face ID needs a secure (https) connection. Use another way to sign in here.' };
-  if (name === 'NotSupportedError' || name === 'AbortError') return { reason: 'unsupported', message: "This device can't use Face ID here. Use another way to sign in." };
-  return { reason: 'error', message: 'Face ID could not complete. Use another way to sign in.' };
+  const name = err?.name || 'Error';
+  const detail = err?.message ? ` (${err.message})` : '';
+  try { console.warn('[biometric] WebAuthn failed:', name, err?.message, err); } catch { /* ignore */ }
+  const iosHint = 'On iPhone: open in Safari (not an in-app browser), turn on iCloud Keychain in Settings, and don\'t use Private Browsing.';
+  if (name === 'NotAllowedError') return { reason: 'cancelled', name, message: `Face ID didn't complete. If it keeps failing — ${iosHint}` };
+  if (name === 'InvalidStateError') return { reason: 'alreadyEnrolled', name, message: 'This device is already set up. Try signing in with Face ID.' };
+  if (name === 'SecurityError') return { reason: 'insecure', name, message: `Face ID needs a secure connection and the right domain${detail}. Use another way to sign in here.` };
+  if (name === 'ConstraintError') return { reason: 'constraint', name, message: `This device can't create a passkey${detail}. ${iosHint}` };
+  if (name === 'NotSupportedError' || name === 'AbortError') return { reason: 'unsupported', name, message: `This device can't use Face ID here${detail}. Use another way to sign in.` };
+  return { reason: 'error', name, message: `Face ID could not complete — ${name}${detail}. ${iosHint}` };
 }
 
 // Enrol this device: creates a platform passkey (pops the biometric prompt) and
