@@ -5,21 +5,32 @@ import { useAppState } from '../../state/AppStateContext';
 import { AGENCIES, NOTIFICATIONS } from '../../state/mockData';
 
 export default function NotificationsSheet() {
-  const { isOpen, closeOverlay } = useAppState();
+  const { isOpen, closeOverlay, notifications, dismissNotification, markNotificationsRead } = useAppState();
   const open = isOpen('notifications');
-  const [dismissedIds, setDismissedIds] = useState([]);
+  // Only the pre-seeded demo notifications need a local dismissed list; the
+  // citizen's own (persisted) notifications are dismissed through the store.
+  const [dismissedSeed, setDismissedSeed] = useState([]);
 
-  // Reset whichever notifications were dismissed each time the sheet reopens,
-  // so this mock data source doesn't "run out" after one demo pass.
+  // Opening the sheet resets the demo items and clears the unread badge.
   useEffect(() => {
-    if (open) setDismissedIds([]);
-  }, [open]);
+    if (open) { setDismissedSeed([]); markNotificationsRead(); }
+  }, [open, markNotificationsRead]);
 
-  const items = NOTIFICATIONS.filter((n) => !dismissedIds.includes(n.id));
+  const ownIds = new Set(notifications.map((n) => n.id));
+  const items = [
+    ...notifications,
+    ...NOTIFICATIONS.filter((n) => !dismissedSeed.includes(n.id)),
+  ];
   const hasItems = items.length > 0;
 
-  const dismiss = (id) => setDismissedIds((prev) => [...prev, id]);
-  const clearAll = () => setDismissedIds(NOTIFICATIONS.map((n) => n.id));
+  const dismiss = (id) => {
+    if (ownIds.has(id)) dismissNotification(id);
+    else setDismissedSeed((prev) => [...prev, id]);
+  };
+  const clearAll = () => {
+    notifications.forEach((n) => dismissNotification(n.id));
+    setDismissedSeed(NOTIFICATIONS.map((n) => n.id));
+  };
 
   return (
     <Sheet open={open} onClose={() => closeOverlay('notifications')} maxHeight="75%">

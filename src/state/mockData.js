@@ -22,7 +22,11 @@ export const AGENCIES = {
   },
   immigration: {
     id: 'immigration', name: 'Immigration & Passport', shortName: 'Immigration',
-    icon: 'plane', mark: '#3a45b0', dataAgency: 'immigration', comingSoon: true,
+    icon: 'plane', mark: '#3a45b0', dataAgency: 'immigration',
+  },
+  mof: {
+    id: 'mof', name: 'Ministry of Finance', shortName: 'MoF',
+    icon: 'banknote', mark: '#0f7b6c', dataAgency: 'mof',
   },
   humanServices: {
     id: 'humanServices', name: 'Human Services & Social Security', shortName: 'Human Services',
@@ -121,6 +125,8 @@ export const SERVICE_DIRECTORY = [
   { id: 'cat-id', name: 'Identity & Records', icon: 'id-card', agency: 'mops', services: ['National e-ID Card', 'Birth certificate copy', 'Change of name'] },
   { id: 'cat-social', name: 'Social Security', icon: 'shield-check', agency: 'nis', services: ['NIS registration', 'Sickness Benefit', 'Maternity Benefit', 'Funeral Grant', 'Pension estimate'] },
   { id: 'cat-utilities', name: 'Utilities', icon: 'zap', agency: 'gpl', services: ['Pay electricity bill', 'Report an outage', 'New connection application'] },
+  { id: 'cat-immigration', name: 'Immigration & Passport', icon: 'plane', agency: 'immigration', services: ['Guyana Passport'] },
+  { id: 'cat-finance', name: 'Finance & Grants', icon: 'banknote', agency: 'mof', services: ['Cash Grant'] },
   { id: 'cat-revenue', name: 'Revenue & Tax', icon: 'receipt', agency: 'gra', services: ['TIN registration', 'File annual return'], comingSoon: true },
   { id: 'cat-housing', name: 'Housing & Land', icon: 'home', agency: 'housing', services: ['House lot application', 'Water connection'], comingSoon: true },
 ];

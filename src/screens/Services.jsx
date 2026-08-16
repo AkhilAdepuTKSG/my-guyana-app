@@ -13,6 +13,8 @@ const CATEGORY_DESC = {
   'cat-id': 'Identity documents and civil records, issued by MoPS.',
   'cat-social': 'Contributions, benefits and pension, from NIS.',
   'cat-utilities': 'Bills, usage and outages, from GPL.',
+  'cat-immigration': 'Passports and travel documents, from Immigration.',
+  'cat-finance': 'Cash grants and support, from the Ministry of Finance.',
   'cat-revenue': 'Tax registration and filing, from GRA.',
   'cat-housing': 'House lots and water connections.',
 };
@@ -31,6 +33,8 @@ const SERVICE_ICONS = {
   'Pay electricity bill': 'receipt',
   'Report an outage': 'zap-off',
   'New connection application': 'plug-zap',
+  'Guyana Passport': 'plane',
+  'Cash Grant': 'banknote',
   'TIN registration': 'hash',
   'File annual return': 'file-text',
   'House lot application': 'home',
@@ -55,6 +59,10 @@ function resolveServiceAction(name, { openOverlay, showToast }) {
       return () => openOverlay('gplPay');
     case 'Report an outage':
       return () => openOverlay('gplOutage');
+    case 'Guyana Passport':
+      return () => openOverlay('apply', { serviceId: 'passport' });
+    case 'Cash Grant':
+      return () => openOverlay('apply', { serviceId: 'cashGrant' });
     default:
       return () => showToast(`${name} — coming soon`);
   }

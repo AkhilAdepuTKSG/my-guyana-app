@@ -66,7 +66,7 @@ const ELIGIBILITY_DEFS = [
 ];
 
 export default function Home() {
-  const { navigate, openOverlay, showToast, persona, user } = useAppState();
+  const { navigate, openOverlay, showToast, persona, user, unreadCount } = useAppState();
   const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
 
   const connected = persona.connectedAgencies || [];
@@ -227,14 +227,22 @@ export default function Home() {
           <Icon name="chevron-down" size={16} color="var(--fg-4)" />
         </button>
         <button
-          className="press focus-ring" onClick={() => openOverlay('notifications')} aria-label="Notifications"
+          className="press focus-ring" onClick={() => openOverlay('notifications')} aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : 'Notifications'}
           style={{
+            position: 'relative',
             width: 44, height: 44, borderRadius: '50%', background: 'var(--surface-1)',
             border: '1px solid var(--surface-border)', display: 'flex', alignItems: 'center',
             justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
           }}
         >
           <Icon name="bell" size={18} color="var(--fg-1)" />
+          {unreadCount > 0 && (
+            <span aria-hidden="true" style={{
+              position: 'absolute', top: 6, right: 6, minWidth: 16, height: 16, padding: '0 4px',
+              borderRadius: 999, background: 'var(--status-error)', color: '#fff', fontSize: 10, fontWeight: 800,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--surface-1)',
+            }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+          )}
         </button>
       </div>
 

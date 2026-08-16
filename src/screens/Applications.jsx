@@ -23,8 +23,10 @@ function formatDate(iso) {
 }
 
 export default function Applications() {
-  const { navigate, openOverlay } = useAppState();
-  const applications = ONGOING_APPLICATIONS;
+  const { navigate, openOverlay, applications: submitted } = useAppState();
+  // Applications the citizen submitted (persisted, newest first) sit above the
+  // pre-seeded demo ones.
+  const applications = [...submitted, ...ONGOING_APPLICATIONS];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -62,7 +64,7 @@ export default function Applications() {
               <Surface
                 key={app.id}
                 interactive
-                onClick={() => openOverlay('track', { id: app.id })}
+                onClick={() => openOverlay('track', app)}
                 style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12, cursor: 'pointer' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

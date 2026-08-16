@@ -13,6 +13,7 @@ import Calendar from '../../screens/Calendar';
 import Applications from '../../screens/Applications';
 
 import EidApplicationFlow from '../../overlays/eid/EidApplicationFlow';
+import ApplyFlow from '../../overlays/apply/ApplyFlow';
 import NisRegistrationFlow from '../../overlays/nisReg/NisRegistrationFlow';
 import BenefitClaimFlow from '../../overlays/benefit/BenefitClaimFlow';
 import GplPayBill from '../../overlays/gpl/GplPayBill';
@@ -70,6 +71,7 @@ export default function AppShell() {
       {/* Full-screen flows and sheets — layered above the primary screens.
           The auth flow itself lives at the app root as the pre-shell gate. */}
       <EidApplicationFlow />
+      <ApplyFlow />
       <NisRegistrationFlow />
       <BenefitClaimFlow />
       <GplPayBill />
