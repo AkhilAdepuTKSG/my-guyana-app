@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import Icon from '../../components/ui/Icon';
 import {
   Screen, Heading, IconBadge, PrimaryButton, SecondaryButton, TextButton, Row, ListCard,
@@ -45,6 +46,7 @@ export function Consent({ st, on }) {
 
 // STAGE 3 · PROOFING · a record was found; prove it belongs to you
 export function Proof({ st, on }) {
+  const scanRef = useRef(null);
   const found = st.discoverResult === 'eid'
     ? 'You are registered with government, and you have an e-ID'
     : 'You are registered with government, but you do not have an e-ID';
@@ -54,6 +56,11 @@ export function Proof({ st, on }) {
   return (
     <Screen onBack={on.authStepBack}>
       <Heading eyebrow="Your identity" title={found} sub={sub} />
+      <input
+        ref={scanRef} type="file" accept="image/*"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) on.proofScanFile(f); }}
+        style={{ display: 'none' }}
+      />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
         <Row
           icon="scan-face" iconBg="var(--brand-600)" iconFg="#fff" border="var(--brand-600)"
@@ -63,6 +70,11 @@ export function Proof({ st, on }) {
         {st.discoverResult === 'eid' && (
           <Row icon="nfc" title="Tap my e-ID card" sub="Hold your card to the phone — the chip proves it is yours" onClick={on.proofTap} />
         )}
+        <Row
+          icon="scan-line" title="Scan my ID card"
+          sub="Photograph your card — we read it on your device to confirm it's yours"
+          onClick={() => scanRef.current?.click()}
+        />
       </div>
       <TextButton onClick={on.proofOtherMethod}>Use another verification method</TextButton>
     </Screen>

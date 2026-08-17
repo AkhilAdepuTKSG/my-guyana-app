@@ -326,6 +326,19 @@ export default function AuthFlow({ gate = false }) {
     consentDemoNoRecord: () => patch({ authStep: 'manual', discoverResult: 'unresolved' }),
     proofFace: () => { patch({ authStep: 'face' }); after(1800, () => setSt((s) => ({ ...s, authStep: 'link-confirm' }))); },
     proofTap: () => patch({ authStep: 'eid-auth' }),
+    // Verify by scanning the physical ID card: real on-device OCR reads it, then
+    // the record is presented to connect (same destination as the face check).
+    proofScanFile: async (file) => {
+      if (!file) return;
+      patch({ authStep: 'idscan' });
+      try {
+        await recognizeImage(file);
+        after(400, () => setSt((s) => ({ ...s, authStep: 'link-confirm' })));
+      } catch {
+        setSt((s) => ({ ...s, authStep: 'proof' }));
+        showToast('We could not read that card. Try another way to verify.');
+      }
+    },
     proofOtherMethod: () => showToast('Other verification methods are still being confirmed with the identity team'),
     eidGoAlt: () => patch({ authStep: st.consentFrom === 'recovery' ? 'recovery-fix' : 'proof', eidCardError: '' }),
     eidAuthTap: () => {
@@ -523,6 +536,7 @@ export default function AuthFlow({ gate = false }) {
 
     case 'govid': ScreenNode = <GovId st={st} on={on} />; break;
     case 'govscan': ScreenNode = <GovScan />; break;
+    case 'idscan': ScreenNode = <GovScan />; break;
     case 'govcheck': ScreenNode = <GovCheck st={st} />; break;
     case 'norecord': ScreenNode = <NoRecord st={st} on={on} />; break;
     case 'confirmid': ScreenNode = <ConfirmId st={st} on={on} persona={persona} />; break;
