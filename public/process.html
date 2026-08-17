@@ -1,0 +1,297 @@
+<title>My Guyana Services Reimagined</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#F4F7FA; --surface:#FFFFFF; --ink:#12293C; --ink-2:#48607A; --muted:#7F94A6; --line:#E3EAF0;
+    --elim:#C13B2C; --elim-bg:#FCEAE6; --elim-bd:#F0BEB4;
+    --gate:#0B4E86; --gate-bg:#E7F0F9; --gate-bd:#B7D2EE;
+    --agent:#0E7C55; --agent-2:#0A6244; --agent-row:#E7F5EE;
+    --p2:#586B7D; --p2-bg:#EDF1F5; --p2-bd:#C9D5DF;
+    --radius:12px; --radius-sm:8px;
+    --shadow:0 1px 2px rgba(18,41,60,.05),0 8px 26px rgba(18,41,60,.07);
+    --lane-w:150px; --step-w:158px; --cols:10;
+    --serif:Georgia,'Times New Roman',serif;
+    --sans:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  body{font-family:var(--sans);color:var(--ink);line-height:1.5;
+    background:radial-gradient(900px 360px at 88% -10%,#DCF0E6,transparent 60%),var(--bg)}
+  .page{max-width:1640px;margin:0 auto;padding:34px 22px 54px}
+  svg{display:block}
+
+  h2{font-family:var(--serif);font-weight:600;font-size:23px;letter-spacing:-.01em;margin:0 0 6px}
+  .sec{margin-top:6px}
+
+  .legend{display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin:22px 0 10px;padding:11px 15px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);box-shadow:var(--shadow)}
+  .leg{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
+  .sw{width:13px;height:13px;border-radius:4px;flex-shrink:0;border:1px solid}
+  .sw.e{background:var(--elim-bg);border-color:var(--elim-bd)} .sw.g{background:var(--gate-bg);border-color:var(--gate-bd)}
+  .sw.a{background:linear-gradient(135deg,var(--agent),var(--agent-2));border-color:var(--agent-2)}
+  .sw.p{background:var(--p2-bg);border-color:var(--p2-bd)}
+  .clickhint{font-size:12.5px;color:var(--ink-2);margin:0 0 18px 2px;line-height:1.55;max-width:104ch}
+  .clickhint svg{display:inline-block;width:14px;height:14px;color:var(--gate);vertical-align:-2px;margin-right:5px}
+  .clickhint b{color:var(--gate)}
+
+  .band-label{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin:24px 0 11px 2px}
+  .band-label.tobe{color:var(--agent)}
+  .band-label .tag{font-family:var(--serif);font-size:13.5px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-2)}
+  .band-label svg{width:16px;height:16px}
+
+  .swim{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
+  .swim-canvas{position:relative;min-width:calc(var(--lane-w) + var(--cols)*var(--step-w))}
+  svg.flow{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:visible}
+  .grid{display:grid;grid-template-columns:var(--lane-w) repeat(var(--cols),minmax(var(--step-w),1fr));min-width:calc(var(--lane-w) + var(--cols)*var(--step-w))}
+
+  .corner{position:sticky;left:0;z-index:6;background:var(--surface);border-right:2px solid var(--line);border-bottom:1px solid var(--line)}
+  .sthead{padding:9px 8px;text-align:center;border-bottom:1px solid var(--line);border-right:1px solid #EEF1F4;background:var(--surface);position:relative}
+  .sthead.p2{background:var(--p2-bg)}
+  .sthead .n{display:inline-flex;width:22px;height:22px;border-radius:50%;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;margin-bottom:5px;background:var(--ink)}
+  .sthead.p2 .n{background:var(--p2)}
+  .sthead .nm{display:block;font-size:10.5px;font-weight:600;color:var(--ink);line-height:1.18}
+  .sthead .ph{display:block;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-top:3px}
+  .sthead .p2tag{display:block;font-size:7.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--p2);margin-top:3px}
+
+  .lane-label{position:sticky;left:0;z-index:5;background:var(--surface);border-right:2px solid var(--line);border-bottom:1px solid var(--line);
+    display:flex;flex-direction:column;justify-content:center;gap:4px;padding:11px 10px;min-height:96px}
+  .lane-label .li{width:25px;height:25px;border-radius:7px;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink-2)}
+  .lane-label .li svg{width:14px;height:14px}
+  .lane-label .ln{font-size:11px;font-weight:600;color:var(--ink);line-height:1.18}
+  .lane-label .lr{font-size:8.5px;color:var(--muted)}
+  .lane-label.agent{background:linear-gradient(135deg,var(--agent),var(--agent-2));border-right-color:var(--agent-2)}
+  .lane-label.agent .li{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.3);color:#fff}
+  .lane-label.agent .ln{color:#fff;font-family:var(--serif);font-size:12.5px}
+  .lane-label.agent .lr{color:#CFF3E4}
+
+  .cell{border-bottom:1px solid var(--line);border-right:1px solid #EEF1F4;padding:8px 8px 8px 16px;display:flex;flex-direction:column;gap:6px;min-height:96px}
+  .cell.agentrow{background:var(--agent-row)}
+  .cell.p2col{background:rgba(237,241,245,.7)}
+  .cell.agentrow.p2col{background:#DFE9E5}
+
+  .card{border-radius:var(--radius-sm);padding:8px 9px;border:1px solid}
+  .card .ct{font-size:10.5px;font-weight:600;line-height:1.25;color:var(--ink)}
+  .card .cs{font-size:8.5px;color:var(--ink-2);line-height:1.35;margin-top:3px}
+  .seqrow{display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap}
+  .seq{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;font-size:9px;font-weight:800;color:#fff;flex-shrink:0}
+  .seq.a{background:var(--agent)} .seq.h{background:var(--gate)} .seq.p{background:var(--p2)}
+  .tag{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 6px;border-radius:9px;border:1px solid;display:inline-flex;align-items:center;gap:3px}
+  .tag svg{width:9px;height:9px}
+  .tag.mv{background:#EAF7F0;color:var(--agent-2);border-color:#9AD8BC}
+
+  .card.agent{background:#fff;border-color:#BFE3D4}
+  .card.agent .ab{display:inline-flex;align-items:center;gap:4px;font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--agent-2)}
+  .card.agent.p2{background:#FAFBFC;border-color:var(--p2-bd)}
+  .card.agent.p2 .ab{color:var(--p2)}
+
+  .card.human{background:#fff;border-color:var(--gate-bd);cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.05);transition:box-shadow .15s}
+  .card.human:hover{box-shadow:0 8px 18px rgba(0,0,0,.12)}
+  .card.human .duo{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:5px}
+  .card.human .duo span.lab{display:inline-flex;align-items:center;gap:3px;font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;padding:2px 6px;border-radius:9px;border:1px solid}
+  .card.human .d-ai{background:#E6F4EC;color:var(--agent);border-color:#BBE0C9}
+  .card.human .d-hu{background:var(--gate-bg);color:var(--gate);border-color:var(--gate-bd)}
+  .card.human .duo svg{width:8px;height:8px}
+  .card.human .ct-row{display:flex;align-items:center;justify-content:space-between;gap:5px}
+  .card.human .chev{color:var(--gate);transition:transform .2s;flex-shrink:0} .card.human .chev svg{width:11px;height:11px}
+  .card.human.open .chev{transform:rotate(180deg)}
+  .card.human .acts{display:none;margin-top:7px;border-top:1px dashed var(--line);padding-top:7px}
+  .card.human.open .acts{display:block}
+  .card.human .acts .lbl{font-size:7.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--gate);margin-bottom:5px}
+  .card.human .acts ul{list-style:none;display:flex;flex-direction:column;gap:4px}
+  .card.human .acts li{font-size:8.5px;color:var(--ink-2);line-height:1.35;display:flex;gap:5px;align-items:flex-start}
+  .card.human .acts li .nm{width:13px;height:13px;border-radius:50%;background:var(--gate-bg);color:var(--gate);border:1px solid var(--gate-bd);font-size:7.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+  .card.human .acts .gone{margin-top:7px;font-size:8.5px;color:var(--agent-2);line-height:1.4}
+  .card.human .acts .gone b{color:var(--agent-2)}
+  .card.human.p2{background:#FAFBFC;border-color:var(--p2-bd);box-shadow:none}
+  .card.human.p2 .ct{color:var(--p2)}
+  .card.human.p2 .chev{color:var(--p2)}
+  .card.human.p2 .d-hu{background:var(--p2-bg);color:var(--p2);border-color:var(--p2-bd)}
+  .card.human.p2 .acts .lbl{color:var(--p2)}
+  .card.human.p2 .acts li .nm{background:var(--p2-bg);color:var(--p2);border-color:var(--p2-bd)}
+  .card.human .acts .gone.still{color:var(--p2)}
+  .card.human .acts .gone.still b{color:var(--p2)}
+
+  .foot{margin-top:22px;text-align:center;font-size:11px;color:var(--muted)}
+</style>
+
+<div class="page">
+
+  <div class="sec">
+    <h2>The journey, step by step</h2>
+    <div class="legend">
+      <strong style="font-size:12px;color:var(--ink)">How to read this:</strong>
+      <span class="leg"><span class="sw a"></span>The app — does the legwork</span>
+      <span class="leg"><span class="sw g"></span>A person acts</span>
+      <span class="leg"><span class="sw p"></span>Stays in person, for now</span>
+    </div>
+    <p class="clickhint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5V6a1.8 1.8 0 0 1 3.6 0v6m0-1.5a1.6 1.6 0 0 1 3.2 0v1.5m0-1a1.6 1.6 0 0 1 3.2 0v3.5a5 5 0 0 1-5 5h-2a5 5 0 0 1-4.3-2.5L5 16"/></svg>One column is one step. <b>Click any blue card</b> to see what that person does now, and what they no longer have to do. The green lane is the app doing the work behind each step.</p>
+
+    <div class="band-label tobe">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.5 3.5 1.5 4.5 5 5-3.5.5-4.5 1.5-5 5-.5-3.5-1.5-4.5-5-5 3.5-.5 4.5-1.5 5-5Z"/></svg>
+      The reimagined journey <span class="tag">— steps 1–9 in the app; step 10 stays in person</span>
+    </div>
+    <div class="swim"><div class="swim-canvas"><svg class="flow" id="tobe-flow"></svg><div class="grid" id="tobe-grid"></div></div></div>
+  </div>
+
+  <div class="foot">My Guyana · Citizen services reimagined · Steps 1–9 in the app, step 10 in person · Prototype for discussion</div>
+</div>
+
+<script>
+const ICON = {
+  building:'<path d="M5 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16M13 21V9h5a1 1 0 0 1 1 1v11M3 21h18M8 8h2M8 12h2M8 16h2"/>',
+  shieldlock:'<path d="M12 3 5 6v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8V6l-7-3Z"/><rect x="9.5" y="11" width="5" height="4" rx="1"/><path d="M10.6 11v-1a1.4 1.4 0 0 1 2.8 0v1"/>',
+  robot:'<rect x="5" y="8" width="14" height="11" rx="2.5"/><path d="M12 8V4.5M9.5 4.5h5"/><circle cx="9.5" cy="13.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="13.5" r="1.1" fill="currentColor" stroke="none"/><path d="M3 12v3M21 12v3"/>',
+  person:'<circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/>',
+  bolt:'<path d="M13 3 5 13h6l-1 8 8-10h-6l1-8Z"/>',
+  chevdown:'<path d="m6 9 6 6 6-6"/>',
+  landmark:'<path d="M3 21h18M4 10h16M12 3 4 7v3h16V7L12 3ZM6 10v8M10 10v8M14 10v8M18 10v8"/>',
+};
+function svg(n){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[n]}</svg>`;}
+
+const STEPS=[
+  {n:1,nm:'Create account',ph:'Get in'},
+  {n:2,nm:'Prove who you are',ph:'Get in'},
+  {n:3,nm:'Start an e-ID',ph:'Your identity'},
+  {n:4,nm:'Complete profile',ph:'Your identity'},
+  {n:5,nm:'Find a service',ph:'Get a service'},
+  {n:6,nm:'Apply',ph:'Get a service'},
+  {n:7,nm:'Attach documents',ph:'Get a service'},
+  {n:8,nm:'Submit & book',ph:'Get a service'},
+  {n:9,nm:'Track & updates',ph:'After'},
+  {n:10,nm:'In-person capture',ph:'In person',p2:true},
+];
+
+const TOBE_LANES=[
+  {id:'citizen',name:'Citizen',role:'one account',icon:'person'},
+  {id:'app',name:'My Guyana app',role:'does the legwork',icon:'robot',agent:true},
+  {id:'registry',name:'Identity Registry',role:'verifies once',icon:'shieldlock'},
+  {id:'agency',name:'Agency',role:'decides',icon:'landmark'},
+  {id:'centre',name:'Service Centre',role:'captures biometrics',icon:'building'},
+];
+const TOBE={
+  'app-1':{t:'Opens a locked app and restores a returning citizen’s session — nothing to remember. There is no form to fill just to begin.',mv:'One account'},
+  'app-2':{t:'Runs the check the citizen chooses — a live face match, a tap of the e-ID card, or a scan of the ID read on the device — against the government record. Shows nothing until it passes.',mv:'Ask once'},
+  'app-3':{t:'If there is no e-ID, it starts the e-ID application automatically and books the Service Centre visit — no separate errand to work out.',mv:'Auto-generate'},
+  'app-4':{t:'Pre-fills the profile from what it already read, and asks only for the few details still missing.',mv:'Ask once'},
+  'app-5':{t:'Brings every agency into one place and surfaces the services that apply to this citizen.',mv:'One account'},
+  'app-6':{t:'Builds each application from one requirements definition — exactly the fields and documents that service needs, and nothing else.',mv:'Ask once'},
+  'app-7':{t:'Reads a photographed document on the device (OCR) and fills the form; accepts real uploads and reuses them across applications.',mv:'Auto-generate'},
+  'app-8':{t:'Assembles the submission, books any appointment, and files it. No form is typed by anyone.',mv:'Auto-generate'},
+  'app-9':{t:'Tracks every application and raises a notification as it moves; the unread badge follows the citizen across every screen.',mv:'Always watching'},
+  'app-10':{t:'The biometric capture stays in person. The app only holds the booking and records the result when the visit is done.',p2:true},
+
+  'citizen-1':{who:'Citizen',t:'Signs in',s:'face, or a code',mv:'One account',
+    actions:['Sign in with a fingerprint or face','Or take a one-time code if the device can’t'],
+    gone:'No longer travels to an office or waits in a queue just to begin.'},
+  'citizen-2':{who:'Citizen',t:'Proves who they are',s:'once',mv:'Ask once',
+    actions:['Choose face, e-ID tap, or scan the ID card','Confirm the record is theirs'],
+    gone:'No longer shows the same documents at every counter — this one check is reused by every agency.'},
+  'citizen-4':{who:'Citizen',t:'Adds what’s missing',s:'a few fields',
+    actions:['Confirm the details already read from the ID','Add email, phone and address'],
+    gone:'No longer rewrites name, date of birth and address on every form.'},
+  'citizen-5':{who:'Citizen',t:'Picks a service',
+    actions:['Browse by agency, or search'],
+    gone:'No longer asks around to find which office handles it.'},
+  'citizen-7':{who:'Citizen',t:'Attaches documents',s:'scan or upload, once',mv:'Auto-generate',
+    actions:['Photograph a document to auto-fill the form','Upload the birth certificate and other files'],
+    gone:'No longer photocopies the same documents for each agency — a file uploaded once is reused.'},
+  'citizen-8':{who:'Citizen',t:'Submits and books',
+    actions:['Review the summary and submit','Pick an appointment slot if one is needed'],
+    gone:'No longer drops off papers with no receipt of what happens next.'},
+  'citizen-9':{who:'Citizen',t:'Follows progress',s:'no phone calls',mv:'Always watching',
+    actions:['See status and a step-by-step timeline','Get notified the moment it changes'],
+    gone:'No longer calls or revisits an office to ask where the application is.'},
+  'citizen-10':{who:'Citizen',t:'Attends one visit',s:'in person',p2:true,
+    actions:['Go to the booked Service Centre, once','Photo, signature and fingerprints are taken'],
+    gone:'Nothing removed — this is the one physical step that stays, and the app booked it for you.'},
+
+  'registry-2':{who:'Identity Registry',t:'Confirms the record',s:'once',
+    actions:['Match the identity to the government record'],
+    gone:'No longer re-checked from scratch at every agency separately.'},
+  'registry-3':{who:'Identity Registry',t:'Receives the e-ID request',
+    actions:['Queue the new e-ID for enrolment'],
+    gone:'No longer a separate paper application, filed on another trip.'},
+
+  'agency-6':{who:'Agency',t:'Gets a complete case',
+    actions:['Receive the application with everything it needs'],
+    gone:'No longer asks the citizen for the same identity and documents again.'},
+  'agency-9':{who:'Agency',t:'Decides and updates',
+    actions:['Review and decide','Status flows back to the citizen automatically'],
+    gone:'No longer leaves the citizen guessing — the decision is pushed to them.'},
+
+  'centre-10':{who:'Service Centre',t:'Captures biometrics',s:'in person',p2:true,
+    actions:['Capture photo, signature and fingerprints','Produce the e-ID card'],
+    gone:'Nothing removed — biometric capture has to be done in person.'},
+};
+
+function agentCard(c,n){
+  return `<div class="card agent ${c.p2?'p2':''}">
+    <div class="seqrow"><span class="seq ${c.p2?'p':'a'}">${n}</span>
+      <span class="ab">${svg('robot')}${c.p2?'Stays in person':'App · automated'}</span>
+      ${c.mv?`<span class="tag mv">${c.mv}</span>`:''}</div>
+    <div class="ct">${c.t}</div></div>`;
+}
+function humanCard(c,n){
+  const acts=(c.actions||[]).map((a,i)=>`<li><span class="nm">${i+1}</span><span>${a}</span></li>`).join('');
+  return `<div class="card human ${c.p2?'p2':''}" onclick="toggleCard(this)">
+    <div class="duo"><span class="seq ${c.p2?'p':'h'}">${n}</span>
+      ${c.p2?'':`<span class="lab d-ai">${svg('bolt')}App</span>`}
+      <span class="lab d-hu">${svg('person')}${c.who}</span>
+      ${c.mv?`<span class="tag mv">${c.mv}</span>`:''}</div>
+    <div class="ct-row"><span class="ct">${c.t}</span><span class="chev">${svg('chevdown')}</span></div>
+    ${c.s?`<div class="cs">${c.s}</div>`:''}
+    ${acts?`<div class="acts"><div class="lbl">What ${c.who} does${c.p2?', in person':' now'}</div><ul>${acts}</ul>
+      ${c.gone?`<div class="gone ${c.p2?'still':''}"><b>${c.p2?'Why this stays:':'No longer has to:'}</b> ${c.gone}</div>`:''}</div>`:''}
+  </div>`;
+}
+
+function renderSwim(gridId, lanes, cells){
+  const g=document.getElementById(gridId);
+  let html=`<div class="corner"></div>`;
+  STEPS.forEach(s=>{ html+=`<div class="sthead ${s.p2?'p2':''}"><span class="n">${s.n}</span><span class="nm">${s.nm}</span><span class="ph">${s.ph}</span>${s.p2?'<span class="p2tag">In person</span>':''}</div>`; });
+  lanes.forEach(lane=>{
+    html+=`<div class="lane-label ${lane.agent?'agent':''}"><span class="li">${svg(lane.icon)}</span><span class="ln">${lane.name}</span>${lane.role?`<span class="lr">${lane.role}</span>`:''}</div>`;
+    STEPS.forEach(s=>{
+      const n=s.n, key=lane.id+'-'+n, v=cells[key]; let inner='';
+      if(v){ inner = lane.agent ? agentCard(v,n) : humanCard(v,n); }
+      const cls=[lane.agent?'agentrow':'', s.p2?'p2col':''].filter(Boolean).join(' ');
+      html+=`<div class="cell ${cls}" data-cell="${key}">${inner}</div>`;
+    });
+  });
+  g.innerHTML=html;
+}
+renderSwim('tobe-grid', TOBE_LANES, TOBE);
+
+/* ---- flow lines: linear across columns, rails within a shared column ---- */
+function buildFlow(svgId, gridId, lanes){
+  const canvas=document.getElementById(gridId).parentElement;
+  const svgEl=document.getElementById(svgId);
+  const base=canvas.getBoundingClientRect();
+  const W=canvas.scrollWidth,H=canvas.scrollHeight;
+  svgEl.setAttribute('width',W);svgEl.setAttribute('height',H);svgEl.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const stroke='#0E7C55';
+  function R(sel){const el=canvas.querySelector(sel);if(!el)return null;const r=el.getBoundingClientRect();
+    return{l:r.left-base.left,t:r.top-base.top,r:r.right-base.left,b:r.bottom-base.top,cx:r.left-base.left+r.width/2,cy:r.top-base.top+r.height/2};}
+  let s=`<defs><marker id="ar-tobe" markerWidth="8" markerHeight="8" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="${stroke}" fill-opacity="0.55"/></marker></defs>`;
+  const line=(x1,y1,x2,y2,o)=>{o=o||{};s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${o.w||1.5}" stroke-linecap="round" stroke-opacity="${o.op||0.45}" ${o.arrow?'marker-end="url(#ar-tobe)"':''}/>`;};
+  const dot=(x,y)=>{s+=`<circle cx="${x}" cy="${y}" r="2.3" fill="${stroke}" fill-opacity="0.75"/>`;};
+  function H_(n){return R(`.sthead:nth-child(${n+1})`);}
+  const N=STEPS.length;
+  for(let c=1;c<N;c++){ const a=H_(c),b=H_(c+1); if(a&&b) line(a.r-3,a.cy,b.l+3,b.cy,{arrow:true,op:0.4}); }
+  for(let c=1;c<=N;c++){
+    const parts=lanes.map(l=>R(`[data-cell="${l.id}-${c}"] .card`)).filter(Boolean);
+    if(parts.length<2) continue;
+    const colLeft=Math.min(...parts.map(p=>p.l));
+    const railX=colLeft-7, topY=Math.min(...parts.map(p=>p.cy)), botY=Math.max(...parts.map(p=>p.cy));
+    line(railX,topY,railX,botY,{op:0.4});
+    parts.forEach(p=>{ line(railX,p.cy,p.l,p.cy,{op:0.5}); dot(p.l,p.cy); });
+  }
+  svgEl.innerHTML=s;
+}
+function redrawFlows(){ buildFlow('tobe-flow','tobe-grid',TOBE_LANES); }
+function toggleCard(el){ el.classList.toggle('open'); requestAnimationFrame(redrawFlows); }
+window.toggleCard=toggleCard;
+window.addEventListener('load',()=>requestAnimationFrame(redrawFlows));
+window.addEventListener('resize',()=>{clearTimeout(window.__ft);window.__ft=setTimeout(redrawFlows,150);});
+document.querySelectorAll('.swim').forEach(el=>el.addEventListener('scroll',()=>{clearTimeout(window.__fs);window.__fs=setTimeout(redrawFlows,80);}));
+requestAnimationFrame(()=>requestAnimationFrame(redrawFlows));
+setTimeout(redrawFlows,400);
+</script>
