@@ -42,77 +42,41 @@ export const AGENCIES = {
   },
 };
 
+// A freshly registered citizen starts empty: no agencies connected, no NIS
+// record, no linked electricity account, no e-ID yet. The app fills up only
+// from what the citizen actually does (connecting agencies, applying for
+// things, booking appointments). The display name/initials are overlaid from
+// the signed-in session in AppStateContext — the value here is just a
+// pre-sign-in placeholder.
 export const PERSONAS = {
-  devindra: {
-    id: 'devindra',
-    name: 'Nicole Persaud',
-    initials: 'NP',
-    dob: '1990-04-12',
+  citizen: {
+    id: 'citizen',
+    name: '',
+    initials: '',
+    dob: '',
     region: 'r4',
-    verified: true,
-    nisNumber: 'NIS-2201-84732',
-    nisAccountState: 'active', // none | pending | active
-    eidStatus: 'issued', // none | applied | issued
-    connectedAgencies: ['nis', 'mops', 'gpl'],
-    contributions: { paid: 500, required: 750, weeks: 500, requiredWeeks: 750 },
-    gpl: {
-      account: 'GPL-88213-4', balance: 14250, dueDate: '2026-08-28', status: 'unpaid',
-      usageKwh: [210, 198, 225, 240, 230, 260, 250, 245, 238, 255, 262, 248],
-    },
-  },
-  aaliyah: {
-    id: 'aaliyah',
-    name: 'Aaliyah Persaud',
-    initials: 'AP',
-    dob: '2006-11-02',
-    region: 'r4',
-    verified: true,
+    verified: false,
     nisNumber: null,
-    nisAccountState: 'none',
-    eidStatus: 'none',
-    connectedAgencies: ['mops'],
+    nisAccountState: 'none', // none | pending | active
+    eidStatus: 'none', // none | applied | issued
+    connectedAgencies: [],
     contributions: { paid: 0, required: 750, weeks: 0, requiredWeeks: 750 },
     gpl: null,
   },
 };
 
-export const ONGOING_APPLICATIONS = [
-  {
-    id: 'app-eid-1', type: 'eid', agency: 'mops', title: 'National e-ID Card',
-    status: 'In review', step: 2, totalSteps: 4,
-    submittedOn: '2026-08-02', eta: 'Aug 20',
-    documents: [{ name: 'Birth certificate', status: 'On file' }, { name: 'Proof of address', status: 'Uploaded' }],
-    pendingActions: [],
-  },
-  {
-    id: 'app-nis-1', type: 'nisReg', agency: 'nis', title: 'NIS Registration',
-    status: 'Action needed', step: 1, totalSteps: 3,
-    submittedOn: '2026-08-09', eta: 'Aug 16',
-    documents: [{ name: 'Proof of employment', status: 'Missing' }],
-    pendingActions: [{ label: 'Upload proof of employment' }],
-  },
-];
+// Everything below is per-citizen activity that a brand-new account has none
+// of. It stays empty by default; real submissions/notifications the citizen
+// generates are persisted separately (see AppStateContext).
+export const ONGOING_APPLICATIONS = [];
 
-export const NOTIFICATIONS = [
-  { id: 'n1', agency: 'nis', icon: 'shield-check', title: 'Employer filed your NIS registration', body: 'Devcon Construction Ltd. submitted a registration on your behalf. Review and confirm.', time: '2h ago', read: false },
-  { id: 'n2', agency: 'mops', icon: 'landmark', title: 'e-ID application update', body: 'Your application moved to "In review."', time: '1d ago', read: false },
-  { id: 'n3', agency: 'gpl', icon: 'zap', title: 'Bill ready', body: 'Your August electricity bill of $14,250 is ready.', time: '3d ago', read: true },
-];
+export const NOTIFICATIONS = [];
 
-export const APPOINTMENTS = [
-  { id: 'a1', agency: 'mops', title: 'e-ID enrolment appointment', location: 'MoPS Service Centre — Georgetown', date: '2026-08-20', time: '10:30 AM' },
-];
+export const APPOINTMENTS = [];
 
-export const PAYMENT_HISTORY = [
-  { id: 'p1', agency: 'gpl', title: 'Electricity bill', amount: 13980, date: '2026-07-28', method: 'Bank transfer', status: 'Paid' },
-  { id: 'p2', agency: 'nis', title: 'Voluntary contribution', amount: 4500, date: '2026-07-05', method: 'Debit card', status: 'Paid' },
-  { id: 'p3', agency: 'gpl', title: 'Electricity bill', amount: 12760, date: '2026-06-27', method: 'Bank transfer', status: 'Paid' },
-];
+export const PAYMENT_HISTORY = [];
 
-export const NIS_ACTIVITY = [
-  { id: 'ac1', title: 'Contribution posted', subtitle: 'July 2026 · Devcon Construction Ltd.', date: '2026-08-01', amount: 4500 },
-  { id: 'ac2', title: 'Contribution posted', subtitle: 'June 2026 · Devcon Construction Ltd.', date: '2026-07-01', amount: 4500 },
-];
+export const NIS_ACTIVITY = [];
 
 export const NIS_BENEFITS = [
   { id: 'b-sick', key: 'sickness', name: 'Sickness Benefit', icon: 'thermometer' },
@@ -131,9 +95,7 @@ export const SERVICE_DIRECTORY = [
   { id: 'cat-housing', name: 'Housing & Land', icon: 'home', agency: 'housing', services: ['House lot application', 'Water connection'], comingSoon: true },
 ];
 
-export const GPL_TICKETS = [
-  { id: 't1', title: 'Outage report — Sophia', status: 'Resolved', date: '2026-07-14' },
-];
+export const GPL_TICKETS = [];
 
 export const REGIONS = [
   { id: 'r1', name: 'Region 1 — Barima-Waini' },

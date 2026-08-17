@@ -1,22 +1,11 @@
 import Sheet from '../../components/ui/Sheet';
 import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
-import { PERSONAS } from '../../state/mockData';
 import { useRegionName } from './regionStore';
 import BiometricSettings from './BiometricSettings';
 
-// Short descriptor shown under each name in the "View as" switcher — enough
-// to tell the two demo personas apart without duplicating their whole state.
-function descriptorFor(p) {
-  const count = p.connectedAgencies.length;
-  const agencyLabel = `${count} agenc${count === 1 ? 'y' : 'ies'} connected`;
-  if (p.nisAccountState === 'active') return `Full account · ${agencyLabel}`;
-  if (p.nisAccountState === 'pending') return `NIS registration pending · ${agencyLabel}`;
-  return `Dependent profile · ${agencyLabel}`;
-}
-
 export default function ProfileSheet() {
-  const { isOpen, closeOverlay, openOverlay, navigate, viewAsId, setViewAsId, persona, showToast, signOut: endSession } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, navigate, persona, showToast, signOut: endSession } = useAppState();
   const open = isOpen('profile');
   const region = useRegionName();
 
@@ -104,36 +93,6 @@ export default function ProfileSheet() {
 
         {/* Face ID / biometric management for this device */}
         <BiometricSettings />
-
-        {/* View as — the persona switcher kept for QA/demo purposes */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <h2 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>View as</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {Object.values(PERSONAS).map((p) => {
-              const active = p.id === viewAsId;
-              return (
-                <button
-                  key={p.id}
-                  className="press focus-ring"
-                  onClick={() => {
-                    setViewAsId(p.id);
-                    showToast(`Viewing as ${p.name}`);
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 56, padding: '8px 4px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
-                >
-                  <span style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--agency-accent-soft)', color: 'var(--agency-accent-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0 }}>
-                    {p.initials}
-                  </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: 'block', fontSize: 14.5, fontWeight: 700, color: 'var(--fg-1)' }}>{p.name}</span>
-                    <span style={{ display: 'block', marginTop: 1, fontSize: 12, color: 'var(--fg-3)' }}>{descriptorFor(p)}</span>
-                  </span>
-                  <Icon name="check" size={18} color="var(--agency-accent)" style={{ opacity: active ? 1 : 0, flexShrink: 0 }} />
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         {!persona.verified && (
           <button

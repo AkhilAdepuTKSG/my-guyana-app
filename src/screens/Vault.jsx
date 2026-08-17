@@ -45,11 +45,12 @@ function buildWalletCards(persona) {
 }
 
 function buildDocuments(persona) {
-  const docs = [
-    { icon: 'id-card', label: 'National ID', sub: `${EID_NUMBER} · expires 2027` },
-    { icon: 'file-text', label: 'Birth certificate', sub: 'Registrar General · certified copy' },
-  ];
+  // A brand-new account has no documents on file. They appear as the citizen
+  // gains a verified identity and connects agencies.
+  const docs = [];
   if (persona.eidStatus === 'issued') {
+    docs.push({ icon: 'id-card', label: 'National ID', sub: `${EID_NUMBER} · expires 2027` });
+    docs.push({ icon: 'file-text', label: 'Birth certificate', sub: 'Registrar General · certified copy' });
     docs.push({ icon: 'badge-check', label: 'e-ID issuance letter', sub: 'DICR · 6 Aug 2026' });
   }
   if (persona.connectedAgencies.includes('nis') && persona.nisAccountState !== 'none') {
@@ -158,6 +159,7 @@ export default function Vault() {
         </div>
       )}
 
+      {docs.length > 0 && (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <h2 className="ds-eyebrow" style={{ fontSize: 12, margin: 0 }}>Documents</h2>
         <div style={{ border: '1px solid var(--surface-border)', borderRadius: 18, background: 'var(--surface-1)', overflow: 'hidden' }}>
@@ -175,6 +177,7 @@ export default function Vault() {
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -93,7 +93,7 @@ function resolveApp(payload) {
     }
     if (payload.title) return payload;
   }
-  return ONGOING_APPLICATIONS[0];
+  return ONGOING_APPLICATIONS[0] || null;
 }
 
 export default function Tracking() {
@@ -111,6 +111,13 @@ export default function Tracking() {
   }, [open]);
 
   const app = resolveApp(getPayload('track'));
+  if (!app) {
+    return (
+      <PageOverlay open={open} onClose={() => closeOverlay('track')} title="Track application">
+        <div className="ds-body">No application found.</div>
+      </PageOverlay>
+    );
+  }
   const meta = TRACK_META[app.id] || {};
   const agency = AGENCIES[app.agency] || {};
   const tone = toneFor(app.status);

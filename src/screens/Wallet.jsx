@@ -5,11 +5,8 @@ import StatusPill from '../components/ui/StatusPill';
 import NotificationBell from '../components/ui/NotificationBell';
 import { PAYMENT_HISTORY, AGENCIES } from '../state/mockData';
 
-// Invented locally — mockData.js has no bank/payment account list.
-const BANK_ACCOUNTS = [
-  { id: 'bank-1', bank: 'Republic Bank (Guyana) Ltd.', last4: '2231' },
-  { id: 'bank-2', bank: 'GBTI — Guyana Bank for Trade & Industry', last4: '9075' },
-];
+// A new account has no linked payment accounts — the citizen adds their own.
+const BANK_ACCOUNTS = [];
 
 const STATUS_TONE = { Paid: 'success', Pending: 'warning', Failed: 'error' };
 

@@ -125,9 +125,13 @@ export default function AuthFlow({ gate = false }) {
           : 'manual';
     // A linked e-ID record is a complete profile; TIN/passport/manual are not yet.
     const profileComplete = !create || st.discoverResult === 'eid';
+    // Prefer whatever name the citizen actually gave us (typed in the manual
+    // flow, or read off a scanned document); fall back to a neutral label so
+    // the header is never blank. There is no seeded persona name any more.
+    const m = st.manualFields || {};
+    const enteredName = [m.first, m.last].map((s) => (s || '').trim()).filter(Boolean).join(' ');
     return {
-      personaId: 'devindra',
-      name: persona?.name || 'Citizen',
+      name: enteredName || persona?.name || 'Citizen',
       method,
       verificationLevel: create ? st.accountLevel : 'verified', // 'verified' | 'basic'
       profileComplete,

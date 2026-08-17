@@ -42,7 +42,6 @@ function loadArray(key) {
 
 export function AppStateProvider({ children }) {
   const [screen, setScreenState] = useState('home');
-  const [viewAsId, setViewAsId] = useState('devindra');
   const [overlays, setOverlays] = useState(new Map()); // key -> payload
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
@@ -97,7 +96,18 @@ export function AppStateProvider({ children }) {
     toastTimer.current = setTimeout(() => setToast(null), opts.duration ?? 2600);
   }, []);
 
-  const persona = PERSONAS[viewAsId] ?? PERSONAS.devindra;
+  // The single citizen profile is the empty template from mockData, with the
+  // display name/initials overlaid from whoever is signed in. There is no
+  // demo-persona switching any more — a signed-in citizen only ever sees their
+  // own (initially empty) account.
+  const sessionUser = session?.user ?? null;
+  const persona = useMemo(() => {
+    const base = PERSONAS.citizen;
+    const name = (sessionUser?.name || '').trim();
+    if (!name) return base;
+    const initials = name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+    return { ...base, name, initials: initials || base.initials, verified: sessionUser?.verificationLevel === 'verified' };
+  }, [sessionUser]);
 
   // --- session actions ---
   const signIn = useCallback((user) => {
@@ -134,13 +144,13 @@ export function AppStateProvider({ children }) {
 
   const value = useMemo(() => ({
     screen, navigate,
-    viewAsId, setViewAsId, persona,
+    persona,
     overlays, openOverlay, closeOverlay, isOpen, getPayload,
     toast, showToast,
     session, user, isAuthenticated, signIn, signOut, updateUser,
     applications, addApplication, updateApplication,
     notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount,
-  }), [screen, navigate, viewAsId, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount]);
+  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount]);
 
   return (
     <AppStateContext.Provider value={value}>

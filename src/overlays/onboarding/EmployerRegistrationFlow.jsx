@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Icon from '../../components/ui/Icon';
 import Button from '../../components/ui/Button';
 import { useAppState } from '../../state/AppStateContext';
@@ -33,30 +33,15 @@ function InfoRow({ label, value, mono, masked, onRevealTap }) {
 }
 
 export default function EmployerRegistrationFlow() {
-  const { isOpen, closeOverlay, openOverlay, screen, persona, showToast, navigate } = useAppState();
+  const { isOpen, closeOverlay, persona, showToast, navigate } = useAppState();
   const open = isOpen('empReg');
 
-  const [bannerVisible, setBannerVisible] = useState(false);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
-  const [resolved, setResolved] = useState(null); // null | 'confirmed' | 'disputed'
+  // eslint-disable-next-line no-unused-vars -- setter used below; the value is not read
+  const [, setResolved] = useState(null); // null | 'confirmed' | 'disputed'
 
   const [masked, setMasked] = useState(true);
   const [revealing, setRevealing] = useState(false);
   const [phase, setPhase] = useState('review'); // 'review' | 'dispute-confirm' | 'matching' | 'success'
-
-  // Simulate the "push" notification arriving a moment after Home loads.
-  useEffect(() => {
-    if (screen !== 'home' || bannerDismissed || open || resolved) return;
-    const t = setTimeout(() => setBannerVisible(true), 900);
-    return () => clearTimeout(t);
-  }, [screen, bannerDismissed, open, resolved]);
-
-  useEffect(() => {
-    if (open) setBannerVisible(false);
-  }, [open]);
-
-  const dismissBanner = () => { setBannerVisible(false); setBannerDismissed(true); };
-  const reviewFromBanner = () => { setBannerVisible(false); setBannerDismissed(true); openOverlay('empReg'); };
 
   const close = () => {
     closeOverlay('empReg');
@@ -91,36 +76,6 @@ export default function EmployerRegistrationFlow() {
 
   return (
     <>
-      {bannerVisible && (
-        <div
-          data-agency="nis"
-          style={{ position: 'absolute', top: 12, left: 12, right: 12, zIndex: 125, animation: 'pushBannerIn 0.42s cubic-bezier(0.16,1,0.3,1) both' }}
-        >
-          <div style={{
-            display: 'flex', flexDirection: 'column', gap: 12, padding: 14, borderRadius: 20,
-            background: 'var(--surface-1)', border: '1px solid rgba(0,121,90,0.28)', boxShadow: 'var(--shadow-xl)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
-              <span style={{ width: 34, height: 34, flexShrink: 0, borderRadius: 10, background: '#00674c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="user-check" size={17} color="#fff" />
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#00674c' }}>NIS</span>
-                  <span style={{ flexShrink: 0, fontSize: 11, color: 'var(--fg-4)' }}>now</span>
-                </div>
-                <p style={{ margin: '2px 0 0', fontSize: 14.5, fontWeight: 800, lineHeight: 1.3, color: 'var(--fg-1)' }}>Your employer registered you with NIS</p>
-                <p style={{ margin: '3px 0 0', fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-2)' }}>{EMPLOYER_NAME} filed your registration. Confirm it's you to activate your record.</p>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Button variant="outline" onClick={dismissBanner} style={{ flex: 1, minHeight: 44 }}>Later</Button>
-              <Button onClick={reviewFromBanner} style={{ flex: 1.4, minHeight: 44 }}>Review</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {open && (
       <div data-agency="nis" style={{ position: 'absolute', inset: 0, zIndex: 115, display: 'flex', flexDirection: 'column', background: 'var(--surface-1)', animation: 'pageSlideIn var(--dur-slow) var(--ease-emphasis)' }}>
         <div style={{ flexShrink: 0, padding: '18px 20px 22px', display: 'flex', flexDirection: 'column', gap: 16, background: 'linear-gradient(150deg, #00563a 0%, #009b67 100%)' }}>
