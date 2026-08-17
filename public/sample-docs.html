@@ -12,8 +12,13 @@
     h1 { font-size: 22px; margin: 0 0 6px; }
     p.lede { margin: 0 0 20px; font-size: 14px; line-height: 1.55; color: #475467; }
     ol { font-size: 14px; line-height: 1.6; color: #344054; padding-left: 20px; margin: 0 0 24px; }
-    h2.grp { font-size: 16px; margin: 28px 0 2px; }
+    h2.grp { font-size: 18px; margin: 34px 0 2px; }
     p.grpn { margin: 0 0 14px; font-size: 13px; color: #667085; }
+    .who { border-radius: 14px; padding: 14px 16px; margin: 6px 0 16px; font-size: 13px; line-height: 1.7; }
+    .who.eid { background: #e7f1fb; border: 1px solid #cadcf0; }
+    .who.noeid { background: #fdf3e7; border: 1px solid #f0dcc0; }
+    .who b { font-variant-numeric: tabular-nums; }
+    .who .k { color: #667085; display: inline-block; min-width: 116px; }
     .card { background: #fff; border: 1px solid #e4e7ec; border-radius: 16px; padding: 14px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(16,24,40,0.06); }
     .card h2 { font-size: 15px; margin: 2px 2px 10px; }
     img { width: 100%; height: auto; border-radius: 10px; border: 1px solid #e4e7ec; display: block; }
@@ -29,62 +34,111 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Sample documents for scanning</h1>
-    <p class="lede">Use these to try the “Scan a document to fill this in” feature in My Guyana. They’re fictional — invented names and numbers.</p>
+    <h1>Sample documents &amp; test identities</h1>
+    <p class="lede">Two fictional citizens the demo “government database” already knows. Sign in or create an account with their numbers, or scan a card to try on-device OCR. Every document for a person is internally consistent — the same name, date of birth and numbers throughout.</p>
     <ol>
-      <li>Download a document below (or open this page on another screen).</li>
-      <li>In My Guyana, open an application (e.g. Passport) or the e-ID / manual sign-up, and tap <b>Scan a document</b>.</li>
-      <li>Choose the saved image from your photos, or photograph the document on the other screen.</li>
+      <li>Pick a citizen below. To <b>sign in</b>, use Nicole’s e-ID number and date of birth. To <b>create an account</b>, use any of John’s document numbers.</li>
+      <li>Or download a card and tap <b>Scan a document</b> in the app to fill fields by OCR.</li>
       <li>OCR runs on your device and fills in what it can — check every field.</li>
     </ol>
 
-    <h2 class="grp">Identity documents</h2>
-    <p class="grpn">Sign up or verify with any of these. Scanning them runs OCR to pre-fill your details.</p>
+    <h2 class="grp">Nicole Persaud — has an e-ID</h2>
+    <div class="who eid">
+      <div><span class="k">e-ID number</span><b>E1234567890</b></div>
+      <div><span class="k">Date of birth</span><b>12 / 04 / 1990</b></div>
+      <div><span class="k">National ID</span><b>N1234567890</b></div>
+      <div><span class="k">Passport</span><b>P1234567890</b></div>
+      <div><span class="k">Driver’s licence</span><b>DL1234567890</b></div>
+      <div><span class="k">TIN</span><b>1234567890</b></div>
+      <div style="margin-top:6px;color:#2b6cb0;">Use <b>Sign in → Sign in with my e-ID</b> with the e-ID number + date of birth above.</div>
+    </div>
     <div class="card">
       <h2>e-ID card</h2>
-      <img src="/sample-docs/eid-card.png" alt="Sample Guyana e-ID card" />
-      <a class="dl" href="/sample-docs/eid-card.png" download>Download image</a>
+      <img src="/sample-docs/nicole-eid-card.png" alt="Sample Guyana e-ID card for Nicole Persaud" />
+      <a class="dl" href="/sample-docs/nicole-eid-card.png" download>Download image</a>
     </div>
     <div class="card">
       <h2>National Identification Card</h2>
-      <img src="/sample-docs/national-id.png" alt="Sample National ID card" />
-      <a class="dl" href="/sample-docs/national-id.png" download>Download image</a>
+      <img src="/sample-docs/nicole-national-id.png" alt="Sample National ID card for Nicole Persaud" />
+      <a class="dl" href="/sample-docs/nicole-national-id.png" download>Download image</a>
     </div>
     <div class="card">
       <h2>Driver's licence</h2>
-      <img src="/sample-docs/drivers-licence.png" alt="Sample driver's licence" />
-      <a class="dl" href="/sample-docs/drivers-licence.png" download>Download image</a>
+      <img src="/sample-docs/nicole-drivers-licence.png" alt="Sample driver's licence for Nicole Persaud" />
+      <a class="dl" href="/sample-docs/nicole-drivers-licence.png" download>Download image</a>
     </div>
     <div class="card">
       <h2>TIN certificate</h2>
-      <img src="/sample-docs/tin-certificate.png" alt="Sample TIN certificate" />
-      <a class="dl" href="/sample-docs/tin-certificate.png" download>Download image</a>
+      <img src="/sample-docs/nicole-tin-certificate.png" alt="Sample TIN certificate for Nicole Persaud" />
+      <a class="dl" href="/sample-docs/nicole-tin-certificate.png" download>Download image</a>
     </div>
     <div class="card">
       <h2>Guyana Passport</h2>
-      <img src="/sample-docs/passport.png" alt="Sample passport data page" />
-      <a class="dl" href="/sample-docs/passport.png" download>Download image</a>
+      <img src="/sample-docs/nicole-passport.png" alt="Sample passport data page for Nicole Persaud" />
+      <a class="dl" href="/sample-docs/nicole-passport.png" download>Download image</a>
     </div>
-
-    <h2 class="grp">For a passport application</h2>
-    <p class="grpn">The documents you attach when applying for a passport (plus an ID above).</p>
     <div class="card">
       <h2>Birth certificate</h2>
-      <img src="/sample-docs/birth-certificate.png" alt="Sample birth certificate" />
-      <a class="dl" href="/sample-docs/birth-certificate.png" download>Download image</a>
-    </div>
-    <div class="card">
-      <h2>Passport photograph</h2>
-      <img src="/sample-docs/passport-photo.png" alt="Sample passport photograph" />
-      <a class="dl" href="/sample-docs/passport-photo.png" download>Download image</a>
+      <img src="/sample-docs/nicole-birth-certificate.png" alt="Sample birth certificate for Nicole Persaud" />
+      <a class="dl" href="/sample-docs/nicole-birth-certificate.png" download>Download image</a>
     </div>
     <div class="card">
       <h2>Proof of address</h2>
-      <img src="/sample-docs/proof-of-address.png" alt="Sample proof of address" />
-      <a class="dl" href="/sample-docs/proof-of-address.png" download>Download image</a>
+      <img src="/sample-docs/nicole-proof-of-address.png" alt="Sample proof of address for Nicole Persaud" />
+      <a class="dl" href="/sample-docs/nicole-proof-of-address.png" download>Download image</a>
+    </div>
+    <div class="card">
+      <h2>Passport photograph</h2>
+      <img src="/sample-docs/nicole-passport-photo.png" alt="Sample passport photograph for Nicole Persaud" />
+      <a class="dl" href="/sample-docs/nicole-passport-photo.png" download>Download image</a>
     </div>
 
-    <p class="note">OCR is demo-grade: accuracy depends on lighting and focus, and the app only pre-fills what it’s reasonably sure of. The first scan downloads the recognition engine (a few MB), so it takes a little longer than later scans.</p>
+    <h2 class="grp">John Doe — no e-ID yet</h2>
+    <div class="who noeid">
+      <div><span class="k">National ID</span><b>N0987654321</b></div>
+      <div><span class="k">Passport</span><b>P0987654321</b></div>
+      <div><span class="k">Driver’s licence</span><b>DL0987654321</b></div>
+      <div><span class="k">TIN</span><b>0987654321</b></div>
+      <div><span class="k">Date of birth</span><b>30 / 09 / 1985</b></div>
+      <div style="margin-top:6px;color:#b8791f;">Use <b>Create an account</b> with any of these numbers. As John has no e-ID, the portal makes you book an e-ID appointment before finishing.</div>
+    </div>
+    <div class="card">
+      <h2>National Identification Card</h2>
+      <img src="/sample-docs/john-national-id.png" alt="Sample National ID card for John Doe" />
+      <a class="dl" href="/sample-docs/john-national-id.png" download>Download image</a>
+    </div>
+    <div class="card">
+      <h2>Driver's licence</h2>
+      <img src="/sample-docs/john-drivers-licence.png" alt="Sample driver's licence for John Doe" />
+      <a class="dl" href="/sample-docs/john-drivers-licence.png" download>Download image</a>
+    </div>
+    <div class="card">
+      <h2>TIN certificate</h2>
+      <img src="/sample-docs/john-tin-certificate.png" alt="Sample TIN certificate for John Doe" />
+      <a class="dl" href="/sample-docs/john-tin-certificate.png" download>Download image</a>
+    </div>
+    <div class="card">
+      <h2>Guyana Passport</h2>
+      <img src="/sample-docs/john-passport.png" alt="Sample passport data page for John Doe" />
+      <a class="dl" href="/sample-docs/john-passport.png" download>Download image</a>
+    </div>
+    <div class="card">
+      <h2>Birth certificate</h2>
+      <img src="/sample-docs/john-birth-certificate.png" alt="Sample birth certificate for John Doe" />
+      <a class="dl" href="/sample-docs/john-birth-certificate.png" download>Download image</a>
+    </div>
+    <div class="card">
+      <h2>Proof of address</h2>
+      <img src="/sample-docs/john-proof-of-address.png" alt="Sample proof of address for John Doe" />
+      <a class="dl" href="/sample-docs/john-proof-of-address.png" download>Download image</a>
+    </div>
+    <div class="card">
+      <h2>Passport photograph</h2>
+      <img src="/sample-docs/john-passport-photo.png" alt="Sample passport photograph for John Doe" />
+      <a class="dl" href="/sample-docs/john-passport-photo.png" download>Download image</a>
+    </div>
+
+    <p class="note">These identities are fictional and exist only in the demo. OCR is demo-grade: accuracy depends on lighting and focus, and the app only pre-fills what it’s reasonably sure of. The first scan downloads the recognition engine (a few MB), so it takes a little longer than later scans.</p>
   </div>
 </body>
 </html>

@@ -1,5 +1,5 @@
 import { useAppState } from '../state/AppStateContext';
-import { AGENCIES, APPOINTMENTS } from '../state/mockData';
+import { AGENCIES } from '../state/mockData';
 import Icon from '../components/ui/Icon';
 import NotificationBell from '../components/ui/NotificationBell';
 
@@ -11,8 +11,7 @@ function dateNum(dateStr) {
 }
 
 export default function Calendar() {
-  const { openOverlay } = useAppState();
-  const appointments = APPOINTMENTS;
+  const { openOverlay, appointments } = useAppState();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

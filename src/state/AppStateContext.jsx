@@ -29,6 +29,7 @@ function loadSession() {
 // screen and the notifications sheet.
 const APPLICATIONS_KEY = 'myguyana.applications.v1';
 const NOTIFICATIONS_KEY = 'myguyana.notifications.v1';
+const APPOINTMENTS_KEY = 'myguyana.appointments.v1';
 
 function loadArray(key) {
   try {
@@ -58,12 +59,16 @@ export function AppStateProvider({ children }) {
 
   const [applications, setApplications] = useState(() => loadArray(APPLICATIONS_KEY));
   const [notifications, setNotifications] = useState(() => loadArray(NOTIFICATIONS_KEY));
+  const [appointments, setAppointments] = useState(() => loadArray(APPOINTMENTS_KEY));
   useEffect(() => {
     try { localStorage.setItem(APPLICATIONS_KEY, JSON.stringify(applications)); } catch { /* ignore */ }
   }, [applications]);
   useEffect(() => {
     try { localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications)); } catch { /* ignore */ }
   }, [notifications]);
+  useEffect(() => {
+    try { localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(appointments)); } catch { /* ignore */ }
+  }, [appointments]);
 
   const navigate = useCallback((next) => {
     setScreenState(next);
@@ -103,10 +108,26 @@ export function AppStateProvider({ children }) {
   const sessionUser = session?.user ?? null;
   const persona = useMemo(() => {
     const base = PERSONAS.citizen;
-    const name = (sessionUser?.name || '').trim();
-    if (!name) return base;
-    const initials = name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-    return { ...base, name, initials: initials || base.initials, verified: sessionUser?.verificationLevel === 'verified' };
+    const u = sessionUser;
+    if (!u) return base;
+    const name = (u.name || '').trim();
+    const initials = name
+      ? name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+      : base.initials;
+    // Identity fields come from the government record resolved at sign-in
+    // (see govRegistry / AuthFlow.buildUser). Service data (connected agencies,
+    // NIS, GPL) stays empty — those only populate through real use.
+    return {
+      ...base,
+      name: name || base.name,
+      initials: initials || base.initials,
+      verified: u.verificationLevel === 'verified',
+      eidStatus: u.eidStatus || base.eidStatus,
+      eidNo: u.eidNo || null,
+      nationalId: u.gov?.nationalId || null,
+      region: u.gov?.region || base.region,
+      dob: u.gov?.dob || base.dob,
+    };
   }, [sessionUser]);
 
   // --- session actions ---
@@ -137,6 +158,17 @@ export function AppStateProvider({ children }) {
   const dismissNotification = useCallback((id) => {
     setNotifications((list) => list.filter((n) => n.id !== id));
   }, []);
+  const addAppointment = useCallback((appt) => {
+    const id = appt.id || `appt-${Date.now()}`;
+    setAppointments((list) => [{ ...appt, id }, ...list.filter((a) => a.id !== id)]);
+    return id;
+  }, []);
+  const updateAppointment = useCallback((id, patch) => {
+    setAppointments((list) => list.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  }, []);
+  const removeAppointment = useCallback((id) => {
+    setAppointments((list) => list.filter((a) => a.id !== id));
+  }, []);
   const markNotificationsRead = useCallback(() => {
     setNotifications((list) => list.map((n) => (n.read ? n : { ...n, read: true })));
   }, []);
@@ -150,7 +182,8 @@ export function AppStateProvider({ children }) {
     session, user, isAuthenticated, signIn, signOut, updateUser,
     applications, addApplication, updateApplication,
     notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount,
-  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount]);
+    appointments, addAppointment, updateAppointment, removeAppointment,
+  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, appointments, addAppointment, updateAppointment, removeAppointment]);
 
   return (
     <AppStateContext.Provider value={value}>

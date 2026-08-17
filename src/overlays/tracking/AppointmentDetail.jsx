@@ -3,7 +3,7 @@ import PageOverlay from '../../components/ui/PageOverlay';
 import Sheet from '../../components/ui/Sheet';
 import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
-import { AGENCIES, APPOINTMENTS } from '../../state/mockData';
+import { AGENCIES } from '../../state/mockData';
 
 // Fixed "what happens at your visit" copy — the source design hard-codes
 // this to the e-ID enrolment flow (the only appointment type it models),
@@ -42,22 +42,22 @@ function formatDateLabel(iso) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
-function resolveAppointment(payload) {
+function resolveAppointment(payload, appointments) {
   if (payload && typeof payload === 'object') {
     if (payload.id) {
-      const found = APPOINTMENTS.find((a) => a.id === payload.id);
+      const found = appointments.find((a) => a.id === payload.id);
       if (found) return found;
     }
     if (payload.title) return payload;
   }
-  return APPOINTMENTS[0];
+  return appointments[0] || null;
 }
 
 export default function AppointmentDetail() {
-  const { isOpen, closeOverlay, openOverlay, getPayload, showToast } = useAppState();
+  const { isOpen, closeOverlay, getPayload, showToast, appointments, updateAppointment, removeAppointment } = useAppState();
   const open = isOpen('apptDetail');
 
-  const baseAppt = resolveAppointment(getPayload('apptDetail'));
+  const baseAppt = resolveAppointment(getPayload('apptDetail'), appointments);
 
   // Local override for reschedule/cancel — this is a display-only mock, so
   // there's nothing to persist beyond this overlay's own session.
@@ -95,6 +95,7 @@ export default function AppointmentDetail() {
 
   function confirmReschedule() {
     setOverride((prev) => ({ ...(prev || {}), date: selectedDate, time: selectedTime }));
+    if (baseAppt?.id) updateAppointment(baseAppt.id, { date: selectedDate, time: selectedTime });
     setSheet(null);
     showToast('Appointment updated');
   }
@@ -107,6 +108,7 @@ export default function AppointmentDetail() {
   }
 
   function confirmCancel() {
+    if (baseAppt?.id) removeAppointment(baseAppt.id);
     setSheet(null);
     closeOverlay('apptDetail');
     showToast('Appointment cancelled');

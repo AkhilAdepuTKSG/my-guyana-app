@@ -4,12 +4,14 @@ import {
   Field, textInputStyle, ErrorBox, Spacer, DemoHint,
 } from './ui';
 
-// SIGN IN · this device already knows the citizen (an optimisation inside Sign in)
+// SIGN IN · pick how to prove it's you. e-ID is the primary path; a device
+// passkey (Face ID) is offered when this phone has one enrolled.
 export function SignInDevice({ st, on, persona }) {
-  const first = (persona.name || 'there').split(' ')[0];
-  const initial = (persona.initials || first.charAt(0)).charAt(0);
-  // Drive the primary action off the real biometric probe: unlock if a passkey
-  // is enrolled here, set one up if the device supports it, otherwise fall back.
+  const hasName = !!(persona?.name || '').trim();
+  const first = hasName ? persona.name.split(' ')[0] : '';
+  const initial = (persona?.initials || first.charAt(0) || 'G').charAt(0);
+  // Drive the biometric action off the real probe: unlock if a passkey is
+  // enrolled here, set one up if the device supports it, otherwise hide it.
   const canBio = st?.bioSupported;
   const enrolled = st?.bioEnrolled;
   const busy = !!st?.bioBusy;
@@ -17,31 +19,38 @@ export function SignInDevice({ st, on, persona }) {
     <Screen onBack={on.backToSplash}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <h1 style={{ margin: 0, fontSize: 27, fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.15, color: 'var(--fg-1)' }}>
-          Welcome back<br />{first}
+          {hasName ? <>Welcome back<br />{first}</> : 'Sign in'}
         </h1>
+        {!hasName && (
+          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: 'var(--fg-3)' }}>
+            Sign in with your e-ID, or another way you set up before.
+          </p>
+        )}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, padding: '24px 0 6px' }}>
-        <span aria-hidden="true" style={{ position: 'relative', width: 92, height: 92, borderRadius: 999, background: 'var(--brand-100)', color: 'var(--brand-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800 }}>
-          {initial}
-          <span aria-hidden="true" style={{ position: 'absolute', right: -2, bottom: -2, width: 30, height: 30, borderRadius: 999, background: 'var(--brand-600)', border: '3px solid var(--surface-1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="scan-face" size={15} color="#fff" />
+      {hasName && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, padding: '24px 0 6px' }}>
+          <span aria-hidden="true" style={{ position: 'relative', width: 92, height: 92, borderRadius: 999, background: 'var(--brand-100)', color: 'var(--brand-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800 }}>
+            {initial}
+            <span aria-hidden="true" style={{ position: 'absolute', right: -2, bottom: -2, width: 30, height: 30, borderRadius: 999, background: 'var(--brand-600)', border: '3px solid var(--surface-1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="scan-face" size={15} color="#fff" />
+            </span>
           </span>
-        </span>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
           <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--fg-1)' }}>{persona.name}</span>
-          <span style={{ fontSize: 13.5, color: 'var(--fg-3)' }}>••• ••• 4820</span>
         </div>
-      </div>
+      )}
       {st?.bioError && <ErrorBox>{st.bioError}</ErrorBox>}
       <Spacer />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <PrimaryButton onClick={on.signInWithEid}>
+          <Icon name="fingerprint" size={20} color="#fff" /> Sign in with my e-ID
+        </PrimaryButton>
         {!st?.bioProbed && (
-          <PrimaryButton busy>Checking this device…</PrimaryButton>
+          <SecondaryButton busy>Checking this device…</SecondaryButton>
         )}
         {st?.bioProbed && canBio && enrolled && (
-          <PrimaryButton busy={busy} onClick={on.startFaceSignIn}>
-            <Icon name="scan-face" size={20} color="#fff" /> {busy ? 'Waiting for Face ID…' : 'Sign in with Face ID'}
-          </PrimaryButton>
+          <SecondaryButton busy={busy} onClick={on.startFaceSignIn}>
+            <Icon name="scan-face" size={18} /> {busy ? 'Waiting for Face ID…' : 'Sign in with Face ID'}
+          </SecondaryButton>
         )}
         {st?.bioProbed && canBio && enrolled && !busy && (
           <TextButton onClick={on.bioResetEnrol} style={{ minHeight: 38 }}>
@@ -49,17 +58,52 @@ export function SignInDevice({ st, on, persona }) {
           </TextButton>
         )}
         {st?.bioProbed && canBio && !enrolled && (
-          <PrimaryButton busy={busy} onClick={on.enrolBiometricNow}>
-            <Icon name="scan-face" size={20} color="#fff" /> {busy ? 'Setting up…' : 'Set up Face ID on this device'}
-          </PrimaryButton>
-        )}
-        {st?.bioProbed && !canBio && (
-          <PrimaryButton onClick={on.otherWays}>Continue with a code or password</PrimaryButton>
+          <SecondaryButton busy={busy} onClick={on.enrolBiometricNow}>
+            <Icon name="scan-face" size={18} /> {busy ? 'Setting up…' : 'Set up Face ID on this device'}
+          </SecondaryButton>
         )}
         <SecondaryButton onClick={on.otherWays}>Other ways to sign in</SecondaryButton>
         <TextButton onClick={on.useOtherAccount}>Use a different account</TextButton>
       </div>
     </Screen>
+  );
+}
+
+// SIGN IN · look the returning citizen up by their e-ID number + date of birth
+export function EidSignIn({ st, on }) {
+  return (
+    <Screen onBack={on.backToSplash}>
+      <IconBadgeEid />
+      <Heading
+        eyebrow="Sign in"
+        title="Sign in with your e-ID"
+        sub="Enter your e-ID number and date of birth. We find your record with the Digital Identity Card Registry and take you straight in."
+      />
+      <Field label="e-ID number">
+        <input
+          type="text" inputMode="text" autoCapitalize="characters" enterKeyHint="next"
+          placeholder="e.g. E1234567890" value={st.eidSignInNo} onChange={on.updateEidSignInNo}
+          style={textInputStyle(!!st.eidSignInError, { fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', fontSize: 17 })}
+        />
+      </Field>
+      <Field label="Date of birth">
+        <input
+          type="text" enterKeyHint="go" placeholder="DD / MM / YYYY"
+          value={st.eidSignInDob} onChange={on.updateEidSignInDob} style={textInputStyle(!!st.eidSignInError)}
+        />
+      </Field>
+      {st.eidSignInError && <ErrorBox>{st.eidSignInError}</ErrorBox>}
+      <PrimaryButton onClick={on.eidSignInSubmit}>Sign in</PrimaryButton>
+      <DemoHint>Demo: e-ID <strong>E1234567890</strong> with date of birth <strong>12/04/1990</strong> signs you in as Nicole Persaud.</DemoHint>
+    </Screen>
+  );
+}
+
+function IconBadgeEid() {
+  return (
+    <span aria-hidden="true" style={{ width: 48, height: 48, borderRadius: 15, background: 'var(--brand-100)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name="fingerprint" size={22} color="var(--brand-700)" />
+    </span>
   );
 }
 

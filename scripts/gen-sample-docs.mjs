@@ -1,11 +1,18 @@
-// One-off generator for the sample documents used to try the OCR scan feature.
-// Draws high-contrast, clearly-labelled "documents" so tesseract.js reads them
-// reliably, and writes PNGs into public/sample-docs/ (served by Vite/Vercel).
+// One-off generator for the sample documents used to try the OCR scan feature
+// and to exercise the sign-in / account-creation lookups. Draws high-contrast,
+// clearly-labelled "documents" so tesseract.js reads them reliably, and writes
+// PNGs into public/sample-docs/ (served by Vite/Vercel).
 //
 //   npm i -D @napi-rs/canvas && node scripts/gen-sample-docs.mjs
 //
 // The dependency is only needed to (re)generate the images; the committed PNGs
 // are what the app uses at runtime.
+//
+// IMPORTANT: every value below is kept in lock-step with src/state/govRegistry.js
+// so a scanned/typed number resolves to the same citizen. Two people, each with
+// a fully self-consistent set of documents (nothing shared or mismatched):
+//   • Nicole Persaud — has an e-ID (E1234567890)
+//   • John Doe       — no e-ID yet
 import { createCanvas } from '@napi-rs/canvas';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -16,6 +23,47 @@ mkdirSync(outDir, { recursive: true });
 
 const W = 920;
 const H = 560;
+
+// Mirror of the two govRegistry citizens, with the extra display-only fields the
+// documents need (place of birth, statement/issue dates, utility account).
+const PEOPLE = [
+  {
+    id: 'nicole',
+    name: 'NICOLE PERSAUD',
+    dob: '12/04/1990',
+    address: 'Lot 22 Republic Road, Georgetown',
+    placeOfBirth: 'Georgetown, Guyana',
+    hasEid: true,
+    eidNo: 'E1234567890',
+    eidCardNo: '0000 1234 5678',
+    nationalId: 'N1234567890',
+    passport: 'P1234567890',
+    driversLicence: 'DL1234567890',
+    tin: '1234567890',
+    birthCertNo: 'GRO-1990-0412',
+    tinIssued: '14/02/2019',
+    utilityAccount: 'GPL-88213-4',
+    statementDate: '05/08/2026',
+  },
+  {
+    id: 'john',
+    name: 'JOHN DOE',
+    dob: '30/09/1985',
+    address: 'Lot 8 Sheriff Street, Georgetown',
+    placeOfBirth: 'New Amsterdam, Guyana',
+    hasEid: false,
+    eidNo: null,
+    eidCardNo: null,
+    nationalId: 'N0987654321',
+    passport: 'P0987654321',
+    driversLicence: 'DL0987654321',
+    tin: '0987654321',
+    birthCertNo: 'GRO-1985-0930',
+    tinIssued: '09/06/2016',
+    utilityAccount: 'GPL-73914-2',
+    statementDate: '04/08/2026',
+  },
+];
 
 function draw({ file, headerColor, kicker, title, rows, chip }) {
   const c = createCanvas(W, H);
@@ -88,98 +136,101 @@ function drawPhoto({ file, name }) {
   console.log('wrote', file);
 }
 
-draw({
-  file: 'national-id.png',
-  headerColor: '#00795a',
-  kicker: 'CO-OPERATIVE REPUBLIC OF GUYANA',
-  title: 'NATIONAL IDENTIFICATION CARD',
-  rows: [
-    ['Full Name', 'NICOLE PERSAUD'],
-    ['Date of Birth', '12/04/1990'],
-    ['ID No', '884213004'],
-    ['Address', 'Lot 22 Republic Road, Georgetown'],
-  ],
-});
+for (const p of PEOPLE) {
+  draw({
+    file: `${p.id}-national-id.png`,
+    headerColor: '#00795a',
+    kicker: 'CO-OPERATIVE REPUBLIC OF GUYANA',
+    title: 'NATIONAL IDENTIFICATION CARD',
+    rows: [
+      ['Full Name', p.name],
+      ['Date of Birth', p.dob],
+      ['ID No', p.nationalId],
+      ['Address', p.address],
+    ],
+  });
 
-draw({
-  file: 'birth-certificate.png',
-  headerColor: '#8b2346',
-  kicker: 'GENERAL REGISTER OFFICE · GUYANA',
-  title: 'BIRTH CERTIFICATE',
-  rows: [
-    ['Full Name', 'MAYA SINGH'],
-    ['Date of Birth', '03/09/1996'],
-    ['Document No', 'GRO-2291-0087'],
-    ['Place of Birth', 'Georgetown, Guyana'],
-  ],
-});
+  draw({
+    file: `${p.id}-passport.png`,
+    headerColor: '#3a45b0',
+    kicker: 'IMMIGRATION & PASSPORT · GUYANA',
+    title: 'GUYANA PASSPORT',
+    rows: [
+      ['Full Name', p.name],
+      ['Date of Birth', p.dob],
+      ['Passport No', p.passport],
+      ['Address', p.address],
+    ],
+  });
 
-draw({
-  file: 'passport.png',
-  headerColor: '#3a45b0',
-  kicker: 'IMMIGRATION & PASSPORT · GUYANA',
-  title: 'GUYANA PASSPORT',
-  rows: [
-    ['Full Name', 'DEVON WILLIAMS'],
-    ['Date of Birth', '21/07/1988'],
-    ['Passport No', 'R0456123'],
-    ['Address', 'Lot 5 Sheriff Street, Georgetown'],
-  ],
-});
+  draw({
+    file: `${p.id}-drivers-licence.png`,
+    headerColor: '#1f6f4a',
+    kicker: 'GUYANA POLICE FORCE',
+    title: "DRIVER'S LICENCE",
+    rows: [
+      ['Full Name', p.name],
+      ['Date of Birth', p.dob],
+      ['Licence No', p.driversLicence],
+      ['Address', p.address],
+    ],
+  });
 
-// e-ID card (for the "Scan my ID card" verification option)
-draw({
-  file: 'eid-card.png',
-  headerColor: '#0b2d4a',
-  kicker: 'DIGITAL IDENTITY CARD REGISTRY',
-  title: 'GUYANA e-ID',
-  chip: true,
-  rows: [
-    ['Full Name', 'NICOLE PERSAUD'],
-    ['Date of Birth', '12/04/1990'],
-    ['e-ID No', 'GY-4471-0928'],
-    ['Card No', '0000 1234 5678'],
-  ],
-});
+  draw({
+    file: `${p.id}-tin-certificate.png`,
+    headerColor: '#2563c9',
+    kicker: 'GUYANA REVENUE AUTHORITY',
+    title: 'TIN CERTIFICATE',
+    rows: [
+      ['Full Name', p.name],
+      ['TIN', p.tin],
+      ['Date Issued', p.tinIssued],
+      ['Status', 'Active'],
+    ],
+  });
 
-// Passport-application supporting documents
-draw({
-  file: 'proof-of-address.png',
-  headerColor: '#404293',
-  kicker: 'GUYANA POWER & LIGHT',
-  title: 'UTILITY STATEMENT',
-  rows: [
-    ['Full Name', 'NICOLE PERSAUD'],
-    ['Address', 'Lot 22 Republic Road, Georgetown'],
-    ['Statement Date', '05/08/2026'],
-    ['Account No', 'GPL-88213-4'],
-  ],
-});
+  draw({
+    file: `${p.id}-birth-certificate.png`,
+    headerColor: '#8b2346',
+    kicker: 'GENERAL REGISTER OFFICE · GUYANA',
+    title: 'BIRTH CERTIFICATE',
+    rows: [
+      ['Full Name', p.name],
+      ['Date of Birth', p.dob],
+      ['Document No', p.birthCertNo],
+      ['Place of Birth', p.placeOfBirth],
+    ],
+  });
 
-draw({
-  file: 'drivers-licence.png',
-  headerColor: '#1f6f4a',
-  kicker: 'GUYANA POLICE FORCE',
-  title: "DRIVER'S LICENCE",
-  rows: [
-    ['Full Name', 'NICOLE PERSAUD'],
-    ['Date of Birth', '12/04/1990'],
-    ['Licence No', 'DL-884213'],
-    ['Address', 'Lot 22 Republic Road, Georgetown'],
-  ],
-});
+  draw({
+    file: `${p.id}-proof-of-address.png`,
+    headerColor: '#404293',
+    kicker: 'GUYANA POWER & LIGHT',
+    title: 'UTILITY STATEMENT',
+    rows: [
+      ['Full Name', p.name],
+      ['Address', p.address],
+      ['Statement Date', p.statementDate],
+      ['Account No', p.utilityAccount],
+    ],
+  });
 
-draw({
-  file: 'tin-certificate.png',
-  headerColor: '#2563c9',
-  kicker: 'GUYANA REVENUE AUTHORITY',
-  title: 'TIN CERTIFICATE',
-  rows: [
-    ['Full Name', 'NICOLE PERSAUD'],
-    ['TIN', '1234-5678'],
-    ['Date Issued', '14/02/2019'],
-    ['Status', 'Active'],
-  ],
-});
+  // e-ID card only for the citizen who actually holds one.
+  if (p.hasEid) {
+    draw({
+      file: `${p.id}-eid-card.png`,
+      headerColor: '#0b2d4a',
+      kicker: 'DIGITAL IDENTITY CARD REGISTRY',
+      title: 'GUYANA e-ID',
+      chip: true,
+      rows: [
+        ['Full Name', p.name],
+        ['Date of Birth', p.dob],
+        ['e-ID No', p.eidNo],
+        ['Card No', p.eidCardNo],
+      ],
+    });
+  }
 
-drawPhoto({ file: 'passport-photo.png', name: 'NICOLE PERSAUD' });
+  drawPhoto({ file: `${p.id}-passport-photo.png`, name: p.name });
+}

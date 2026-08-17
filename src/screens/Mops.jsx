@@ -1,5 +1,5 @@
 import { useAppState } from '../state/AppStateContext';
-import { APPOINTMENTS, SERVICE_DIRECTORY } from '../state/mockData';
+import { SERVICE_DIRECTORY } from '../state/mockData';
 import HubHeader from '../components/shell/HubHeader';
 import Icon from '../components/ui/Icon';
 import ListRow from '../components/ui/ListRow';
@@ -12,8 +12,8 @@ function formatApptDate(iso) {
 // Service Centre visit is coming up, then a short "what you can do" list
 // built from the Identity & Records category of the service directory.
 export default function Mops() {
-  const { openOverlay, showToast } = useAppState();
-  const appointment = APPOINTMENTS.find((a) => a.agency === 'mops');
+  const { openOverlay, showToast, appointments } = useAppState();
+  const appointment = appointments.find((a) => a.agency === 'mops');
   const idCategory = SERVICE_DIRECTORY.find((c) => c.id === 'cat-id');
   const [eidServiceName, ...otherServices] = idCategory?.services || [];
 

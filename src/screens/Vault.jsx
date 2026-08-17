@@ -14,7 +14,7 @@ function buildWalletCards(persona) {
     cards.push({
       id: 'eid', key: 'eidCard', title: 'e-ID', sub: 'Digital Identity Card Registry', icon: 'fingerprint',
       bg: 'var(--hero-navy-gradient)', subFg: 'rgba(255,255,255,0.7)',
-      holder: persona.name, number: EID_NUMBER,
+      holder: persona.name, number: persona.eidNo || EID_NUMBER,
       statusLabel: issued ? 'Active' : 'In progress',
       statusBg: issued ? 'rgba(31,138,91,0.28)' : 'rgba(255,255,255,0.16)',
       foot: issued ? 'Issued 6 Aug 2026 · valid to 2036' : 'Verification in progress',
@@ -49,7 +49,7 @@ function buildDocuments(persona) {
   // gains a verified identity and connects agencies.
   const docs = [];
   if (persona.eidStatus === 'issued') {
-    docs.push({ icon: 'id-card', label: 'National ID', sub: `${EID_NUMBER} · expires 2027` });
+    docs.push({ icon: 'id-card', label: 'National ID', sub: `${persona.nationalId || EID_NUMBER} · expires 2027` });
     docs.push({ icon: 'file-text', label: 'Birth certificate', sub: 'Registrar General · certified copy' });
     docs.push({ icon: 'badge-check', label: 'e-ID issuance letter', sub: 'DICR · 6 Aug 2026' });
   }

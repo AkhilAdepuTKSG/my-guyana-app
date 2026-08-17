@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppState } from '../../state/AppStateContext';
 import AuthSplash from './AuthSplash';
-import { SignInDevice, OtherWays, PasswordScreen, IdentifierScreen, NoAccount } from './AuthSignIn';
+import { SignInDevice, EidSignIn, OtherWays, PasswordScreen, IdentifierScreen, NoAccount } from './AuthSignIn';
 import {
   GovId, GovScan, GovCheck, NoRecord, ConfirmId, NotMe, GovContact, ContactHelp,
 } from './AuthGovId';
@@ -13,8 +13,23 @@ import { Recovery, RecoveryFix } from './AuthRecovery';
 import { EidBook } from './AuthEidApply';
 import { isBiometricSupported, hasEnrolledBiometric, authenticateBiometric, enrolBiometric, clearBiometric } from './biometric';
 import { recognizeImage, parseFields } from '../../lib/ocr';
+import { findByEid, findByDocument, dobMatches, toSessionGov, GOV_CITIZENS } from '../../state/govRegistry';
+import { formatEidDate } from '../eid/eidData';
 
 const CONTACT_PLACEHOLDER = { phone: '••• ••• 4820', email: 'n••••••@example.gy' };
+
+// The one demo citizen who holds an e-ID — used when a create-account flow
+// discovers "you have an e-ID" without a specific number to look up.
+const EID_CITIZEN = GOV_CITIZENS.find((c) => c.hasEid) || null;
+
+// Masked contact channels for whichever gov record is in play, falling back to
+// the generic placeholder before any record is resolved.
+function contactChannels(citizen) {
+  return {
+    phone: citizen?.phoneMasked || CONTACT_PLACEHOLDER.phone,
+    email: citizen?.emailMasked || CONTACT_PLACEHOLDER.email,
+  };
+}
 
 function makeInitialState(persona) {
   const [first = '', ...rest] = (persona?.name || '').split(' ');
@@ -45,6 +60,12 @@ function makeInitialState(persona) {
     consentBusy: false,
     discoverResult: null, // 'eid' | 'citizen' | 'unresolved' | null
 
+    // The government record resolved from the number/e-ID the citizen gave us
+    // (see govRegistry). Everything the "we found your record" screens show, and
+    // everything we prepopulate the new account with, comes from here.
+    govCitizen: null,
+    eidSignInNo: '', eidSignInDob: '', eidSignInError: '', eidSignInBusy: false,
+
     manualFields: { first, last: rest.join(' '), dob: '', country: '', gender: '', phone: '', email: '', password: '' },
     docType: '', docUploaded: false, manualDocNo: '', limitedReason: 'nodoc',
     manualScan: { status: 'idle', pct: 0, text: '', error: '' },
@@ -65,7 +86,7 @@ function makeInitialState(persona) {
 }
 
 export default function AuthFlow({ gate = false }) {
-  const { isOpen, closeOverlay, persona, showToast, signIn, addNotification } = useAppState();
+  const { isOpen, closeOverlay, persona, showToast, signIn, addNotification, addAppointment, addApplication } = useAppState();
   const open = gate || isOpen('auth');
   const [st, setSt] = useState(() => makeInitialState(persona));
   const timers = useRef([]);
@@ -117,39 +138,73 @@ export default function AuthFlow({ gate = false }) {
   // Snapshot who just signed in / registered, for the persisted session. The
   // create-account paths all terminate on a user tap (onboarding "Go to Home"),
   // so `st` is current here; the sign-in paths are method 'returning'.
-  const buildUser = () => {
+  // `citizen` is the resolved government record (govRegistry) when one was
+  // matched — passed explicitly where a timeout fires before state settles.
+  const buildUser = (citizen = st.govCitizen) => {
     const create = st.authIntent === 'create';
     const method = !create ? 'returning'
       : (st.govIdType === 'e-ID' || st.discoverResult === 'eid') ? 'eid'
         : st.govIdType ? st.govIdType // 'TIN' | 'Passport' | 'National ID' | "Driver's licence"
           : 'manual';
-    // A linked e-ID record is a complete profile; TIN/passport/manual are not yet.
-    const profileComplete = !create || st.discoverResult === 'eid';
-    // Prefer whatever name the citizen actually gave us (typed in the manual
-    // flow, or read off a scanned document); fall back to a neutral label so
-    // the header is never blank. There is no seeded persona name any more.
+    // Whether the citizen already holds an e-ID drives what the app shows and
+    // whether a Service Centre visit still has to be booked.
+    const hasEid = citizen ? citizen.hasEid : st.discoverResult === 'eid';
+    const eidStatus = hasEid ? 'issued' : st.eidApplied ? 'applied' : 'none';
+    // A matched government record (or a linked e-ID) is a complete profile;
+    // a hand-typed manual account is not until an officer reviews it.
+    const profileComplete = !!citizen || !create || st.discoverResult === 'eid';
+    // Prefer the matched record's name, then whatever the citizen typed/scanned
+    // in the manual flow; fall back to a neutral label so the header is never blank.
     const m = st.manualFields || {};
     const enteredName = [m.first, m.last].map((s) => (s || '').trim()).filter(Boolean).join(' ');
     return {
-      name: enteredName || persona?.name || 'Citizen',
+      name: citizen?.name || enteredName || 'Citizen',
       method,
-      verificationLevel: create ? st.accountLevel : 'verified', // 'verified' | 'basic'
+      verificationLevel: citizen ? 'verified' : create ? st.accountLevel : 'verified', // 'verified' | 'basic'
       profileComplete,
+      eidStatus, // 'issued' | 'applied' | 'none'
+      eidNo: citizen?.eidNo || null,
       eidApplied: !!st.eidApplied,
       eidAppointment: st.eidApplied ? { office: st.eidApptOffice, date: st.eidApptDate, time: st.eidApptTime } : null,
+      gov: toSessionGov(citizen), // masked contacts, TIN, address, etc. for prepopulation
     };
   };
 
-  const finish = (msg) => {
+  const finish = (msg, citizen = st.govCitizen) => {
     clearTimers();
-    signIn(buildUser());
-    // A citizen who registered with a non-e-ID document gets an e-ID application
-    // started + appointment booked — surface that as their first notification.
+    signIn(buildUser(citizen));
+    // A citizen who registered without an e-ID has one started for them, with a
+    // Service Centre visit booked. Surface it as a real appointment, a tracked
+    // application, and a first notification so the whole thing is coherent.
     if (st.eidApplied) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (st.eidApptDate) {
+        addAppointment({
+          id: 'appt-eid',
+          agency: 'mops',
+          title: 'e-ID enrolment appointment',
+          location: st.eidApptOffice || 'MoPS Service Centre — Georgetown',
+          date: st.eidApptDate,
+          time: st.eidApptTime,
+        });
+      }
+      addApplication({
+        id: 'app-eid',
+        type: 'eid',
+        agency: 'mops',
+        title: 'National e-ID Card',
+        status: 'Appointment booked',
+        step: 1,
+        totalSteps: 4,
+        submittedOn: today,
+        eta: st.eidApptDate ? formatEidDate(st.eidApptDate) : '',
+        documents: [],
+        pendingActions: [{ label: 'Attend your Service Centre visit' }],
+      });
       addNotification({
         agency: 'mops', icon: 'fingerprint', title: 'e-ID application started',
         body: st.eidApptDate
-          ? `Your Service Centre visit is booked. Complete your profile to speed things up.`
+          ? 'Your Service Centre visit is booked. Attend it to finish your e-ID.'
           : 'Complete your profile to speed things up.',
       });
     }
@@ -165,10 +220,24 @@ export default function AuthFlow({ gate = false }) {
     setSt((s) => ({ ...s, authStep: 'govcheck', govIdType: s.govIdType || 'National ID' }));
     after(1500, () => {
       setSt((s) => {
-        const unresolved = (s.govIdValue || '').replace(/\D/g, '') === '9999';
-        return unresolved
-          ? { ...s, authStep: 'norecord', discoverResult: 'unresolved' }
-          : { ...s, authStep: 'confirmid', discoverResult: 'citizen' };
+        const typed = (s.govIdValue || '').trim();
+        // Explicit demo escape hatch, then a real registry lookup by the typed
+        // number. The scan path carries no number, so it resolves to the
+        // primary demo citizen (their sample card is what gets scanned).
+        const forcedNoRecord = typed.replace(/\D/g, '') === '9999';
+        const citizen = forcedNoRecord
+          ? null
+          : findByDocument(s.govIdType, typed) || (!typed ? EID_CITIZEN : null);
+        if (!citizen) {
+          return { ...s, authStep: 'norecord', discoverResult: 'unresolved', govCitizen: null };
+        }
+        return {
+          ...s,
+          authStep: 'confirmid',
+          discoverResult: 'citizen',
+          govCitizen: citizen,
+          setupEmail: s.setupEmail || citizen.email || '',
+        };
       });
     });
   };
@@ -227,6 +296,20 @@ export default function AuthFlow({ gate = false }) {
     otherWays: () => patch({ authStep: 'otherways', signInPassError: '' }),
     otherWaysBack: () => patch({ authStep: 'signin-device' }),
     useOtherAccount: () => patch({ authStep: 'identifier', authIntent: 'signin', contactValue: '', contactError: '' }),
+
+    // --- sign in with e-ID number (look the returning citizen up by their e-ID) ---
+    signInWithEid: () => patch({ authStep: 'eid-signin', authIntent: 'signin', eidSignInNo: '', eidSignInDob: '', eidSignInError: '', eidSignInBusy: false }),
+    updateEidSignInNo: (e) => patch({ eidSignInNo: e.target.value.replace(/[^0-9a-zA-Z]/g, '').toUpperCase().slice(0, 12), eidSignInError: '' }),
+    updateEidSignInDob: (e) => patch({ eidSignInDob: e.target.value, eidSignInError: '' }),
+    eidSignInSubmit: () => {
+      if (!(st.eidSignInNo || '').trim()) { patch({ eidSignInError: 'Enter your e-ID number.' }); return; }
+      if (!(st.eidSignInDob || '').trim()) { patch({ eidSignInError: 'Enter your date of birth so we know the card is yours.' }); return; }
+      const citizen = findByEid(st.eidSignInNo);
+      if (!citizen) { patch({ eidSignInError: "We couldn't find an e-ID with that number. Check it and try again." }); return; }
+      if (!dobMatches(st.eidSignInDob, citizen.dob)) { patch({ eidSignInError: "That date of birth doesn't match this e-ID." }); return; }
+      patch({ govCitizen: citizen, eidSignInError: '', authStep: 'face' });
+      after(1500, () => finish(`Welcome back, ${citizen.firstName}`, citizen));
+    },
     signInSendCode: (channel) => {
       patch({ contactMode: channel, otpSource: 'otherways', contactValue: CONTACT_PLACEHOLDER[channel], authStep: 'otp', otpValue: '', otpError: '', otpTries: 0, otpExpired: false });
       startOtpClock();
@@ -299,7 +382,7 @@ export default function AuthFlow({ gate = false }) {
     notMeTryAgain: () => patch({ authStep: 'govid', govStep: 'number', govIdValue: '', govIdError: '' }),
     notMeReport: () => { patch({ authStep: 'govid', govStep: 'choose', govIdValue: '', govIdError: '' }); showToast('Reported. Government will look into that record.'); },
     govSendCode: (channel) => {
-      patch({ contactMode: channel, otpSource: 'govrecord', contactValue: CONTACT_PLACEHOLDER[channel], authStep: 'otp', otpValue: '', otpError: '', otpTries: 0, otpExpired: false });
+      patch({ contactMode: channel, otpSource: 'govrecord', contactValue: contactChannels(st.govCitizen)[channel], authStep: 'otp', otpValue: '', otpError: '', otpTries: 0, otpExpired: false });
       startOtpClock();
     },
     govContactWrong: () => patch({ authStep: 'contacthelp' }),
@@ -319,7 +402,14 @@ export default function AuthFlow({ gate = false }) {
       patch({ consentBusy: true });
       after(1300, () => {
         setSt((s) => (fromLookup
-          ? { ...s, consentBusy: false, discoverResult: isEid ? 'eid' : 'citizen', authStep: 'proof' }
+          ? {
+            ...s, consentBusy: false, discoverResult: isEid ? 'eid' : 'citizen',
+            // "You have an e-ID" resolves to the demo e-ID holder so the
+            // confirm/link screens show a real record.
+            govCitizen: isEid ? EID_CITIZEN : s.govCitizen,
+            setupEmail: s.setupEmail || (isEid ? EID_CITIZEN?.email : '') || '',
+            authStep: 'proof',
+          }
           : { ...s, consentBusy: false, authStep: 'eid-auth' }));
       });
     },
@@ -360,7 +450,8 @@ export default function AuthFlow({ gate = false }) {
     eidCardSubmit: () => {
       if ((st.eidCardNo || '').replace(/\D/g, '').length < 8) { patch({ eidCardError: 'Enter the card number exactly as it appears on the front.' }); return; }
       if (!(st.eidDob || '').trim()) { patch({ eidCardError: 'Enter your date of birth as day, month and year.' }); return; }
-      patch({ authStep: 'otp', otpSource: 'registry', otpValue: '', otpError: '', otpTries: 0, otpExpired: false, eidCardError: '' });
+      const citizen = findByEid(st.eidCardNo) || EID_CITIZEN;
+      patch({ govCitizen: citizen, setupEmail: st.setupEmail || citizen?.email || '', authStep: 'otp', otpSource: 'registry', otpValue: '', otpError: '', otpTries: 0, otpExpired: false, eidCardError: '' });
       startOtpClock();
     },
     linkConfirm: () => settle('verified'),
@@ -417,9 +508,9 @@ export default function AuthFlow({ gate = false }) {
       patch({ authStep: 'face' });
       after(2200, () => {
         if (recovery) { finish('Signed in with your e-ID'); return; }
-        // Signed up with a TIN/passport and no e-ID yet → start an e-ID
-        // application by default and take them straight to booking.
-        setSt((s) => ({ ...s, authStep: (s.authIntent === 'create' && s.govIdType !== 'e-ID') ? 'eid-book' : 'setup' }));
+        // Created an account but the government record has no e-ID yet → a
+        // Service Centre visit must be booked before going any further.
+        setSt((s) => ({ ...s, authStep: (s.authIntent === 'create' && !s.govCitizen?.hasEid) ? 'eid-book' : 'setup' }));
       });
     },
     selectEidOffice: (name) => patch({ eidApptOffice: name }),
@@ -430,7 +521,6 @@ export default function AuthFlow({ gate = false }) {
       patch({ eidApplied: true, authStep: 'setup' });
       showToast('e-ID application started · appointment booked');
     },
-    eidBookSkip: () => patch({ authStep: 'setup' }),
 
     // --- manual account creation ---
     updateManual: (key, e) => { const v = e.target.value; patch({ manualFields: { ...st.manualFields, [key]: v } }); },
@@ -533,6 +623,7 @@ export default function AuthFlow({ gate = false }) {
   let ScreenNode;
   switch (st.authStep) {
     case 'signin-device': ScreenNode = <SignInDevice st={st} on={on} persona={persona} />; break;
+    case 'eid-signin': ScreenNode = <EidSignIn st={st} on={on} />; break;
     case 'otherways': ScreenNode = <OtherWays st={st} on={on} />; break;
     case 'password': ScreenNode = <PasswordScreen st={st} on={on} persona={persona} />; break;
     case 'identifier': ScreenNode = <IdentifierScreen st={st} on={on} />; break;
@@ -543,7 +634,7 @@ export default function AuthFlow({ gate = false }) {
     case 'idscan': ScreenNode = <GovScan />; break;
     case 'govcheck': ScreenNode = <GovCheck st={st} />; break;
     case 'norecord': ScreenNode = <NoRecord st={st} on={on} />; break;
-    case 'confirmid': ScreenNode = <ConfirmId st={st} on={on} persona={persona} />; break;
+    case 'confirmid': ScreenNode = <ConfirmId st={st} on={on} persona={st.govCitizen || persona} />; break;
     case 'notme': ScreenNode = <NotMe on={on} />; break;
     case 'govcontact': ScreenNode = <GovContact st={st} on={on} />; break;
     case 'contacthelp': ScreenNode = <ContactHelp on={on} />; break;
@@ -553,7 +644,7 @@ export default function AuthFlow({ gate = false }) {
     case 'eid-auth': ScreenNode = <EidAuth on={on} />; break;
     case 'eid-fail': ScreenNode = <EidFail on={on} />; break;
     case 'eid-card': ScreenNode = <EidCard st={st} on={on} />; break;
-    case 'link-confirm': ScreenNode = <LinkConfirm persona={persona} on={on} />; break;
+    case 'link-confirm': ScreenNode = <LinkConfirm persona={st.govCitizen || persona} on={on} />; break;
     case 'mismatch': ScreenNode = <Mismatch on={on} />; break;
 
     case 'otp': ScreenNode = <Otp st={st} on={on} />; break;
@@ -567,9 +658,9 @@ export default function AuthFlow({ gate = false }) {
 
     case 'eid-book': ScreenNode = <EidBook st={st} on={on} />; break;
 
-    case 'setup': ScreenNode = <Setup st={st} on={on} persona={persona} />; break;
+    case 'setup': ScreenNode = <Setup st={st} on={on} persona={st.govCitizen || persona} />; break;
     case 'secure': ScreenNode = <Secure st={st} on={on} />; break;
-    case 'ob-verified': ScreenNode = <ObVerified st={st} on={on} persona={persona} />; break;
+    case 'ob-verified': ScreenNode = <ObVerified st={st} on={on} persona={st.govCitizen || persona} />; break;
     case 'ob-basic': ScreenNode = <ObBasic on={on} />; break;
 
     case 'recovery': ScreenNode = <Recovery on={on} />; break;

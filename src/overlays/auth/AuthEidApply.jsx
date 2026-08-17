@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import Icon from '../../components/ui/Icon';
-import { Screen, Heading, InfoBox, PrimaryButton, TextButton } from './ui';
+import { Screen, Heading, InfoBox, PrimaryButton } from './ui';
 import { SERVICE_CENTRES } from '../../state/mockData';
 import { buildEidDateOptions, EID_TIME_OPTIONS } from '../eid/eidData';
 
@@ -18,8 +18,8 @@ export function EidBook({ st, on }) {
         Identity confirmed
       </span>
       <Heading
-        title="Let's set up your e-ID"
-        sub="You don't have an e-ID yet, so we've started an application for you. It's the only thing left — pick when to visit a Service Centre to finish it."
+        title="Book your e-ID appointment"
+        sub="You don't have an e-ID yet, so we've started an application for you. Booking your Service Centre visit is the last step before your account opens — pick a time that suits you."
       />
       <InfoBox tone="info" icon="fingerprint">
         Your e-ID is your key to every government service. Photo, signature and fingerprints are captured in person at the Centre.
@@ -100,7 +100,9 @@ export function EidBook({ st, on }) {
       <PrimaryButton onClick={on.eidBookConfirm} style={{ opacity: ready ? 1 : 0.5 }} disabled={!ready}>
         Confirm appointment
       </PrimaryButton>
-      <TextButton onClick={on.eidBookSkip}>Skip for now — I'll book later</TextButton>
+      <p style={{ margin: 0, textAlign: 'center', fontSize: 11.5, lineHeight: 1.5, color: 'var(--fg-4)' }}>
+        You can reschedule this visit any time from your appointments.
+      </p>
     </Screen>
   );
 }

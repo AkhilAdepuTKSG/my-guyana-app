@@ -151,9 +151,11 @@ export function EidCard({ st, on }) {
 // verified · the record is known, so consent to connect it is informed
 export function LinkConfirm({ persona, on }) {
   const items = [
-    { id: 'name', label: 'Full name', value: persona.name },
+    { id: 'name', label: 'Full name', value: persona.name || '—' },
     { id: 'dob', label: 'Date of birth', value: formatDob(persona.dob) },
-    { id: 'id', label: 'National ID number', value: '884 213 004' },
+    persona.eidNo
+      ? { id: 'eid', label: 'e-ID number', value: persona.eidNo }
+      : { id: 'id', label: 'National ID number', value: persona.nationalId || '—' },
   ];
   return (
     <Screen>

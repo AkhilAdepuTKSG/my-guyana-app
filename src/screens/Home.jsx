@@ -92,6 +92,13 @@ export default function Home() {
   const billIsNextStep = persona.eidStatus === 'issued' && persona.gpl?.status === 'unpaid';
 
   const nextStep = useMemo(() => {
+    if (persona.eidStatus === 'applied') {
+      return {
+        icon: 'calendar-check', eyebrow: 'Booked', title: 'Finish your e-ID',
+        sub: 'Attend your Service Centre visit', cta: 'View',
+        action: () => navigate('calendar'),
+      };
+    }
     if (persona.eidStatus !== 'issued') {
       return {
         icon: 'fingerprint', eyebrow: 'Start here', title: 'Apply for your e-ID',

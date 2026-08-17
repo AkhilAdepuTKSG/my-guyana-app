@@ -5,9 +5,17 @@ import { useRegionName } from './regionStore';
 import BiometricSettings from './BiometricSettings';
 
 export default function ProfileSheet() {
-  const { isOpen, closeOverlay, openOverlay, navigate, persona, showToast, signOut: endSession } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, navigate, persona, user, showToast, signOut: endSession } = useAppState();
   const open = isOpen('profile');
   const region = useRegionName();
+  const gov = user?.gov || null;
+  const contactRows = gov
+    ? [
+      { id: 'email', icon: 'mail', label: 'Email', value: gov.email },
+      { id: 'phone', icon: 'smartphone', label: 'Mobile', value: gov.phone },
+      { id: 'tin', icon: 'receipt', label: 'TIN', value: gov.tin },
+    ].filter((r) => r.value)
+    : [];
 
   const goVault = () => {
     closeOverlay('profile');
@@ -48,6 +56,25 @@ export default function ProfileSheet() {
             </div>
           </div>
         </div>
+
+        {/* Your details — the contact/tax details government holds, pulled in at sign-in */}
+        {contactRows.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <h2 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>Your details</h2>
+            <div style={{ border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', overflow: 'hidden' }}>
+              {contactRows.map((r, i) => (
+                <div
+                  key={r.id}
+                  style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 14px', borderBottom: i < contactRows.length - 1 ? '1px solid var(--surface-hairline)' : 'none' }}
+                >
+                  <Icon name={r.icon} size={16} color="var(--fg-3)" style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--fg-3)' }}>{r.label}</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg-1)', textAlign: 'right', wordBreak: 'break-word' }}>{r.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Region */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

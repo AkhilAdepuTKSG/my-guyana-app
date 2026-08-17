@@ -4,7 +4,7 @@ import Sheet from '../../components/ui/Sheet';
 import Icon from '../../components/ui/Icon';
 import Button from '../../components/ui/Button';
 import { useAppState } from '../../state/AppStateContext';
-import { AGENCIES, ONGOING_APPLICATIONS, APPOINTMENTS } from '../../state/mockData';
+import { AGENCIES, ONGOING_APPLICATIONS } from '../../state/mockData';
 
 // Loose status -> tone mapping, same keyword approach the Applications list
 // uses (mock statuses are free-form strings, not a fixed enum).
@@ -97,7 +97,7 @@ function resolveApp(payload) {
 }
 
 export default function Tracking() {
-  const { isOpen, closeOverlay, openOverlay, navigate, showToast, getPayload } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, navigate, showToast, getPayload, appointments } = useAppState();
   const open = isOpen('track');
 
   const [docOverrides, setDocOverrides] = useState({});
@@ -146,7 +146,7 @@ export default function Tracking() {
       title: pa.title, desc: pa.desc, tone: pa.tone, icon: pa.icon, actionLabel: 'View appointment',
       run: () => {
         if (pa.kind !== 'appt') return;
-        const appt = APPOINTMENTS.find((a) => a.agency === app.agency) || APPOINTMENTS[0];
+        const appt = appointments.find((a) => a.agency === app.agency) || appointments[0];
         if (appt) openOverlay('apptDetail', { id: appt.id });
       },
     })),
@@ -166,7 +166,7 @@ export default function Tracking() {
     } else {
       actionLabel = 'View appointment details';
       doAction = () => {
-        const appt = APPOINTMENTS.find((a) => a.agency === app.agency) || APPOINTMENTS[0];
+        const appt = appointments.find((a) => a.agency === app.agency) || appointments[0];
         if (appt) openOverlay('apptDetail', { id: appt.id });
       };
     }

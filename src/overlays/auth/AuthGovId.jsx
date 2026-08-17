@@ -187,8 +187,8 @@ export function GovContact({ st, on }) {
       { id: 'email', icon: 'mail', label: 'Email', value: st.manualFields.email || 'your email', pick: () => on.manualSendCode('email') },
     ]
     : [
-      { id: 'phone', icon: 'smartphone', label: 'Text message', value: '••• ••• 4820', pick: () => on.govSendCode('phone') },
-      { id: 'email', icon: 'mail', label: 'Email', value: 'n••••••@example.gy', pick: () => on.govSendCode('email') },
+      { id: 'phone', icon: 'smartphone', label: 'Text message', value: st.govCitizen?.phoneMasked || '••• ••• 4820', pick: () => on.govSendCode('phone') },
+      { id: 'email', icon: 'mail', label: 'Email', value: st.govCitizen?.emailMasked || 'n••••••@example.gy', pick: () => on.govSendCode('email') },
     ];
   return (
     <Screen onBack={on.govIdBack}>
