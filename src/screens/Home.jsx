@@ -71,9 +71,9 @@ export default function Home() {
   const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
 
   const connected = persona.connectedAgencies || [];
-  // Same rule as the source: MoPS alone doesn't count as "having an agency" —
-  // it's how you first arrive, not what the ecosystem is for.
-  const hasNoAgencies = connected.filter((id) => id !== 'mops').length === 0;
+  // Any connected agency (including MoPS) counts — once the citizen adds one, the
+  // dial replaces the "your agencies will gather here" empty state.
+  const hasNoAgencies = connected.length === 0;
   const firstName = persona.name.split(' ')[0];
   const regionName = REGIONS.find((r) => r.id === persona.region)?.name || '';
   const dayGreeting = getDayGreeting();

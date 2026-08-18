@@ -28,9 +28,13 @@ export default function AddAgencyDiscoverySheet() {
   const { isOpen, closeOverlay, openOverlay, persona, showToast } = useAppState();
   const open = isOpen('addAgency');
 
+  // Only agencies with a hub in the app can be "connected" here. Immigration and
+  // the Ministry of Finance are reached through their services (Passport, Cash
+  // Grant) under Services, so they aren't listed as connectable agencies.
+  const CONNECTABLE = ['nis', 'gpl', 'mops'];
   const connected = persona.connectedAgencies || [];
   const candidates = Object.values(AGENCIES).filter((a) => !connected.includes(a.id));
-  const available = candidates.filter((a) => !a.comingSoon);
+  const available = candidates.filter((a) => !a.comingSoon && CONNECTABLE.includes(a.id));
   const comingSoon = candidates.filter((a) => a.comingSoon);
 
   const addAgency = (agencyId) => {

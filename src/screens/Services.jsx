@@ -5,7 +5,6 @@ import Icon from '../components/ui/Icon';
 import Surface from '../components/ui/Surface';
 import ListRow from '../components/ui/ListRow';
 import SegmentedTabs from '../components/ui/SegmentedTabs';
-import Sheet from '../components/ui/Sheet';
 import NotificationBell from '../components/ui/NotificationBell';
 
 // Short blurbs per category — the source design writes these per-agency;
@@ -87,8 +86,7 @@ export default function Services() {
   const { openOverlay, showToast } = useAppState();
   const [viewMode, setViewMode] = useState('agency'); // 'agency' | 'service'
   const [search, setSearch] = useState('');
-  const [selectedCatId, setSelectedCatId] = useState(SERVICE_DIRECTORY[0].id);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [openCat, setOpenCat] = useState(SERVICE_DIRECTORY[0].id); // accordion: which agency is expanded
 
   const flat = flattenServices();
   const q = search.trim().toLowerCase();
@@ -96,14 +94,9 @@ export default function Services() {
     ? flat.filter((s) => `${s.name} ${s.categoryName}`.toLowerCase().includes(q)).slice(0, 8)
     : [];
 
-  const selectedCategory = SERVICE_DIRECTORY.find((c) => c.id === selectedCatId) || SERVICE_DIRECTORY[0];
-  const selectedAgency = AGENCIES[selectedCategory.agency];
-  const selectedServices = flat.filter((s) => s.categoryId === selectedCategory.id);
-
-  function handleServiceTap(svc, closeSheet) {
+  function handleServiceTap(svc) {
     if (svc.comingSoon) return;
     resolveServiceAction(svc.name, { openOverlay, showToast })();
-    if (closeSheet) setSheetOpen(false);
   }
 
   return (
@@ -194,105 +187,63 @@ export default function Services() {
             })}
         </div>
       ) : (
-        <>
-          <div className="no-scrollbar" style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '2px 2px 4px' }}>
-            {SERVICE_DIRECTORY.map((cat) => {
-              const active = cat.id === selectedCatId;
-              const agency = AGENCIES[cat.agency];
-              return (
-                <button
-                  key={cat.id}
-                  className="press focus-ring"
-                  onClick={() => setSelectedCatId(cat.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', minHeight: 38, flexShrink: 0, padding: '0 15px',
-                    borderRadius: 999, border: `1px solid ${active ? agency?.mark : 'var(--surface-border)'}`,
-                    background: active ? agency?.mark : 'var(--surface-1)', color: active ? '#fff' : 'var(--fg-1)',
-                    fontSize: 'var(--text-2xs)', fontWeight: active ? 800 : 600, whiteSpace: 'nowrap', fontFamily: 'inherit',
-                  }}
-                >
-                  {cat.name}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            className="press focus-ring"
-            onClick={() => setSheetOpen(true)}
-            style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: 'var(--agency-accent)', fontSize: 'var(--text-2xs)', fontWeight: 700, padding: '2px 2px' }}
-          >
-            <Icon name="layout-grid" size={14} color="var(--agency-accent)" />
-            All services
-          </button>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h2 className="ds-h3" style={{ margin: 0 }}>{selectedCategory.name}</h2>
-              {selectedCategory.comingSoon && (
-                <span style={{ flexShrink: 0, minHeight: 22, padding: '0 9px', borderRadius: 999, background: 'var(--surface-4)', color: 'var(--fg-2)', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                  Coming soon
-                </span>
-              )}
-            </div>
-            <p style={{ margin: 0, fontSize: 'var(--text-xs)', lineHeight: 1.5, color: 'var(--fg-2)' }}>
-              {CATEGORY_DESC[selectedCategory.id]}
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <h3 className="ds-eyebrow" style={{ margin: 0 }}>Services</h3>
-            <Surface style={{ overflow: 'hidden', padding: 0 }}>
-              {selectedServices.map((svc, i) => (
-                <ListRow
-                  key={svc.id}
-                  icon={svc.icon}
-                  iconColor={svc.comingSoon ? 'var(--fg-4)' : selectedAgency?.mark}
-                  iconBg={svc.comingSoon ? 'var(--surface-4)' : `color-mix(in oklch, ${selectedAgency?.mark} 14%, transparent)`}
-                  title={svc.name}
-                  onClick={svc.comingSoon ? undefined : () => handleServiceTap(svc)}
-                  chevron={!svc.comingSoon}
-                  style={{ borderBottom: i < selectedServices.length - 1 ? '1px solid var(--surface-hairline)' : 'none', opacity: svc.comingSoon ? 0.55 : 1 }}
-                />
-              ))}
-            </Surface>
-            {selectedCategory.comingSoon && (
-              <div style={{ border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-md)', background: 'var(--surface-2)', padding: 14, textAlign: 'center', fontSize: 'var(--text-2xs)', color: 'var(--fg-3)' }}>
-                {selectedAgency?.name} isn't connected to My Guyana yet — these services will appear here once it is.
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="All services">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {SERVICE_DIRECTORY.map((cat) => {
             const agency = AGENCIES[cat.agency];
             const services = flat.filter((s) => s.categoryId === cat.id);
+            const expanded = openCat === cat.id;
             return (
-              <div key={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <h3 className="ds-eyebrow" style={{ margin: '0 0 2px', color: agency?.mark }}>{cat.name}</h3>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {services.map((svc, i) => (
-                    <ListRow
-                      key={svc.id}
-                      icon={svc.icon}
-                      iconColor={svc.comingSoon ? 'var(--fg-4)' : agency?.mark}
-                      iconBg={svc.comingSoon ? 'var(--surface-4)' : `color-mix(in oklch, ${agency?.mark} 14%, transparent)`}
-                      title={svc.name}
-                      subtitle={svc.comingSoon ? 'Coming soon' : undefined}
-                      onClick={svc.comingSoon ? undefined : () => handleServiceTap(svc, true)}
-                      chevron={!svc.comingSoon}
-                      style={{ padding: '10px 4px', opacity: svc.comingSoon ? 0.55 : 1 }}
-                    />
-                  ))}
-                </div>
+              <div key={cat.id} style={{ border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', overflow: 'hidden' }}>
+                <button
+                  className="press focus-ring"
+                  onClick={() => setOpenCat(expanded ? null : cat.id)}
+                  aria-expanded={expanded}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: 14, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+                >
+                  <span aria-hidden="true" style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 12, background: `color-mix(in oklch, ${agency?.mark} 14%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name={cat.icon} size={19} color={agency?.mark} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>{cat.name}</span>
+                      {cat.comingSoon && (
+                        <span style={{ flexShrink: 0, minHeight: 18, padding: '0 7px', borderRadius: 999, background: 'var(--surface-4)', color: 'var(--fg-3)', fontSize: 9.5, fontWeight: 800, display: 'inline-flex', alignItems: 'center', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Soon</span>
+                      )}
+                    </span>
+                    <span style={{ display: 'block', marginTop: 1, fontSize: 12, color: 'var(--fg-3)' }}>
+                      {`${services.length} service${services.length === 1 ? '' : 's'}`}
+                    </span>
+                  </span>
+                  <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color="var(--fg-3)" />
+                </button>
+
+                {expanded && (
+                  <div style={{ borderTop: '1px solid var(--surface-hairline)' }}>
+                    {CATEGORY_DESC[cat.id] && (
+                      <p style={{ margin: 0, padding: '11px 14px 5px', fontSize: 12, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+                        {CATEGORY_DESC[cat.id]}
+                      </p>
+                    )}
+                    {services.map((svc, i) => (
+                      <ListRow
+                        key={svc.id}
+                        icon={svc.icon}
+                        iconColor={svc.comingSoon ? 'var(--fg-4)' : agency?.mark}
+                        iconBg={svc.comingSoon ? 'var(--surface-4)' : `color-mix(in oklch, ${agency?.mark} 14%, transparent)`}
+                        title={svc.name}
+                        subtitle={svc.comingSoon ? 'Coming soon' : undefined}
+                        onClick={svc.comingSoon ? undefined : () => handleServiceTap(svc)}
+                        chevron={!svc.comingSoon}
+                        style={{ borderBottom: i < services.length - 1 ? '1px solid var(--surface-hairline)' : 'none', padding: '12px 14px', opacity: svc.comingSoon ? 0.55 : 1 }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
-      </Sheet>
+      )}
     </div>
   );
 }

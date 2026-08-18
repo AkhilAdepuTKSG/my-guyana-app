@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import Icon from '../../components/ui/Icon';
 import {
   Screen, Heading, PrimaryButton, SecondaryButton, TextButton, Row, ListCard,
@@ -69,32 +70,39 @@ export function SignInDevice({ st, on, persona }) {
   );
 }
 
-// SIGN IN · look the returning citizen up by their e-ID number + date of birth
+// SIGN IN · read the citizen's e-ID by tapping the card (NFC) or scanning it.
+// No number is ever typed by hand.
 export function EidSignIn({ st, on }) {
+  const scanRef = useRef(null);
   return (
     <Screen onBack={on.backToSplash}>
       <IconBadgeEid />
       <Heading
         eyebrow="Sign in"
         title="Sign in with your e-ID"
-        sub="Enter your e-ID number and date of birth. We find your record with the Digital Identity Card Registry and take you straight in."
+        sub="Tap your card to the phone, or scan it — we read your e-ID on your device and send a one-time code to confirm it's you. Nothing to type."
       />
-      <Field label="e-ID number">
-        <input
-          type="text" inputMode="text" autoCapitalize="characters" enterKeyHint="next"
-          placeholder="e.g. E1234567890" value={st.eidSignInNo} onChange={on.updateEidSignInNo}
-          style={textInputStyle(!!st.eidSignInError, { fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', fontSize: 17 })}
+      <input
+        ref={scanRef} type="file" accept="image/*"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) on.eidSignInScanFile(f); }}
+        style={{ display: 'none' }}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+        <Row
+          icon="nfc" iconBg="var(--brand-600)" iconFg="#fff" border="var(--brand-600)"
+          title="Tap my e-ID card"
+          sub="Hold your card to the phone — the chip proves it's yours"
+          onClick={on.eidSignInTap}
         />
-      </Field>
-      <Field label="Date of birth">
-        <input
-          type="text" enterKeyHint="go" placeholder="DD / MM / YYYY"
-          value={st.eidSignInDob} onChange={on.updateEidSignInDob} style={textInputStyle(!!st.eidSignInError)}
+        <Row
+          icon="scan-line"
+          title="Scan or upload my e-ID card"
+          sub="Photograph your card — we read it on your device to sign you in"
+          onClick={() => scanRef.current?.click()}
         />
-      </Field>
+      </div>
       {st.eidSignInError && <ErrorBox>{st.eidSignInError}</ErrorBox>}
-      <PrimaryButton onClick={on.eidSignInSubmit}>Sign in</PrimaryButton>
-      <DemoHint>Demo: e-ID <strong>E1234567890</strong> with date of birth <strong>12/04/1990</strong> signs you in as Nicole Persaud.</DemoHint>
+      <DemoHint>Demo: “Tap my e-ID card” signs you in as Nicole Persaud. Or scan the sample e-ID card from <strong>/sample-docs.html</strong>.</DemoHint>
     </Screen>
   );
 }

@@ -22,6 +22,7 @@ export const GOV_CITIZENS = [
     dob: '1990-04-12',
     gender: 'f',
     region: 'r4', // Region 4 — Demerara-Mahaica
+    placeOfBirth: 'Georgetown, Guyana',
     address: 'Lot 22 Republic Road, Georgetown',
     phone: '+592 611 4820',
     phoneMasked: '••• ••• 4820',
@@ -46,6 +47,7 @@ export const GOV_CITIZENS = [
     dob: '1985-09-30',
     gender: 'm',
     region: 'r4', // Region 4 — Demerara-Mahaica
+    placeOfBirth: 'New Amsterdam, Guyana',
     address: 'Lot 8 Sheriff Street, Georgetown',
     phone: '+592 645 7391',
     phoneMasked: '••• ••• 7391',
@@ -147,9 +149,12 @@ export function toSessionGov(citizen) {
   if (!citizen) return null;
   return {
     citizenId: citizen.id,
+    firstName: citizen.firstName,
+    lastName: citizen.lastName,
     dob: citizen.dob,
     gender: citizen.gender,
     region: citizen.region,
+    placeOfBirth: citizen.placeOfBirth,
     address: citizen.address,
     phone: citizen.phone,
     phoneMasked: citizen.phoneMasked,

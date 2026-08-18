@@ -136,8 +136,9 @@ export default function AuthSplash({ onSignIn, onCreateAccount }) {
       <WaterfallScene />
       <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '52%', background: 'linear-gradient(180deg, rgba(4,24,42,0) 0%, rgba(4,24,42,0.55) 40%, rgba(4,24,42,0.92) 76%, #04182a 100%)' }} />
 
-      <span aria-hidden="true" style={{ position: 'relative', width: 76, height: 76, borderRadius: 18, background: '#fff', border: '1px solid rgba(255,255,255,0.17)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20, boxShadow: '0 8px 22px rgba(0,0,0,0.35)' }}>
-        <img src={coatOfArms} alt="Coat of arms of Guyana" style={{ width: 58, height: 'auto', display: 'block' }} />
+      {/* Coat of arms, pinned to the top-left corner. */}
+      <span style={{ position: 'absolute', top: 'calc(22px + env(safe-area-inset-top, 0px))', left: 24, zIndex: 2, width: 56, height: 56, borderRadius: 15, background: '#fff', border: '1px solid rgba(255,255,255,0.17)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 18px rgba(0,0,0,0.3)' }}>
+        <img src={coatOfArms} alt="Coat of arms of Guyana" style={{ width: 42, height: 'auto', display: 'block' }} />
       </span>
 
       <h1 style={{ position: 'relative', margin: 0, fontSize: 34, fontWeight: 800, letterSpacing: '-0.035em', lineHeight: 1.04, color: '#fff' }}>My Guyana</h1>

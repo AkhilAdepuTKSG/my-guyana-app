@@ -13,7 +13,7 @@ import { Recovery, RecoveryFix } from './AuthRecovery';
 import { EidBook } from './AuthEidApply';
 import { isBiometricSupported, hasEnrolledBiometric, authenticateBiometric, enrolBiometric, clearBiometric } from './biometric';
 import { recognizeImage, parseFields } from '../../lib/ocr';
-import { findByEid, findByDocument, dobMatches, toSessionGov, GOV_CITIZENS } from '../../state/govRegistry';
+import { findByEid, findByDocument, toSessionGov, GOV_CITIZENS } from '../../state/govRegistry';
 import { formatEidDate } from '../eid/eidData';
 
 const CONTACT_PLACEHOLDER = { phone: '••• ••• 4820', email: 'n••••••@example.gy' };
@@ -64,7 +64,7 @@ function makeInitialState(persona) {
     // (see govRegistry). Everything the "we found your record" screens show, and
     // everything we prepopulate the new account with, comes from here.
     govCitizen: null,
-    eidSignInNo: '', eidSignInDob: '', eidSignInError: '', eidSignInBusy: false,
+    eidSignInError: '',
 
     manualFields: { first, last: rest.join(' '), dob: '', country: '', gender: '', phone: '', email: '', password: '' },
     docType: '', docUploaded: false, manualDocNo: '', limitedReason: 'nodoc',
@@ -297,18 +297,38 @@ export default function AuthFlow({ gate = false }) {
     otherWaysBack: () => patch({ authStep: 'signin-device' }),
     useOtherAccount: () => patch({ authStep: 'identifier', authIntent: 'signin', contactValue: '', contactError: '' }),
 
-    // --- sign in with e-ID number (look the returning citizen up by their e-ID) ---
-    signInWithEid: () => patch({ authStep: 'eid-signin', authIntent: 'signin', eidSignInNo: '', eidSignInDob: '', eidSignInError: '', eidSignInBusy: false }),
-    updateEidSignInNo: (e) => patch({ eidSignInNo: e.target.value.replace(/[^0-9a-zA-Z]/g, '').toUpperCase().slice(0, 12), eidSignInError: '' }),
-    updateEidSignInDob: (e) => patch({ eidSignInDob: e.target.value, eidSignInError: '' }),
-    eidSignInSubmit: () => {
-      if (!(st.eidSignInNo || '').trim()) { patch({ eidSignInError: 'Enter your e-ID number.' }); return; }
-      if (!(st.eidSignInDob || '').trim()) { patch({ eidSignInError: 'Enter your date of birth so we know the card is yours.' }); return; }
-      const citizen = findByEid(st.eidSignInNo);
-      if (!citizen) { patch({ eidSignInError: "We couldn't find an e-ID with that number. Check it and try again." }); return; }
-      if (!dobMatches(st.eidSignInDob, citizen.dob)) { patch({ eidSignInError: "That date of birth doesn't match this e-ID." }); return; }
-      patch({ govCitizen: citizen, eidSignInError: '', authStep: 'face' });
-      after(1500, () => finish(`Welcome back, ${citizen.firstName}`, citizen));
+    // --- sign in with e-ID: tap the card (NFC) or scan/upload it (OCR). We never
+    // ask for the number by hand. Either way we resolve the citizen, then send a
+    // one-time code (MFA) before showing their profile. ---
+    signInWithEid: () => patch({ authStep: 'eid-signin', authIntent: 'signin', eidSignInError: '' }),
+    goToEidOtp: (citizen) => {
+      setSt((s) => ({ ...s, govCitizen: citizen, contactMode: 'phone', contactValue: citizen.phoneMasked, otpSource: 'eidsignin', authStep: 'otp', otpValue: '', otpError: '', otpTries: 0, otpExpired: false }));
+      startOtpClock();
+    },
+    eidSignInTap: () => {
+      const citizen = EID_CITIZEN;
+      patch({ authStep: 'idscan', eidSignInError: '' });
+      after(1500, () => {
+        if (!citizen) { setSt((s) => ({ ...s, authStep: 'eid-signin', eidSignInError: 'No e-ID could be read. Try scanning it instead.' })); return; }
+        on.goToEidOtp(citizen);
+      });
+    },
+    eidSignInScanFile: async (file) => {
+      if (!file) return;
+      patch({ authStep: 'idscan', eidSignInError: '' });
+      try {
+        const text = await recognizeImage(file);
+        const parsed = parseFields(text);
+        const num = parsed.documentNumber || (text.match(/\bE\d{9,10}\b/i)?.[0]) || '';
+        const citizen = findByEid(num);
+        if (!citizen) {
+          setSt((s) => ({ ...s, authStep: 'eid-signin', eidSignInError: "We couldn't read a known e-ID from that image. Try tapping the card, or create an account." }));
+          return;
+        }
+        after(300, () => on.goToEidOtp(citizen));
+      } catch {
+        setSt((s) => ({ ...s, authStep: 'eid-signin', eidSignInError: 'We could not read that card. Try tapping it instead.' }));
+      }
     },
     signInSendCode: (channel) => {
       patch({ contactMode: channel, otpSource: 'otherways', contactValue: CONTACT_PLACEHOLDER[channel], authStep: 'otp', otpValue: '', otpError: '', otpTries: 0, otpExpired: false });
@@ -482,6 +502,7 @@ export default function AuthFlow({ gate = false }) {
         return;
       }
       if (st.otpSource === 'govrecord') { patch({ otpSource: 'contact', authStep: 'pol' }); return; }
+      if (st.otpSource === 'eidsignin') { finish(`Welcome back, ${st.govCitizen?.firstName || ''}`.trim(), st.govCitizen); return; }
       // 'contact' / 'otherways'
       if (st.authIntent === 'signin' && st.contactValue.trim().toLowerCase() === 'new') { patch({ authStep: 'no-account' }); return; }
       finish(st.authIntent === 'signin' ? 'Welcome back' : null);
@@ -498,8 +519,9 @@ export default function AuthFlow({ gate = false }) {
       patch({
         authStep: st.otpSource === 'registry' ? 'eid-card'
           : st.otpSource === 'govrecord' ? 'govcontact'
-            : st.otpSource === 'otherways' ? 'otherways'
-              : st.otpSource === 'manual' ? 'manual' : 'identifier',
+            : st.otpSource === 'eidsignin' ? 'eid-signin'
+              : st.otpSource === 'otherways' ? 'otherways'
+                : st.otpSource === 'manual' ? 'manual' : 'identifier',
       });
     },
     visitCentre: () => showToast('Nearest centre: Camp Street, Georgetown · 08:00–16:00'),

@@ -4,6 +4,7 @@ import Icon from '../../components/ui/Icon';
 import Surface from '../../components/ui/Surface';
 import Button from '../../components/ui/Button';
 import StepProgress from '../../components/ui/StepProgress';
+import { AGENCIES } from '../../state/mockData';
 import { useAppState } from '../../state/AppStateContext';
 
 // ---- copy fixtures (mirrors the source's onboardUnlocks / empRegSteps-style lists) ----
@@ -13,6 +14,30 @@ const NIS_UNLOCKS = [
   { icon: 'file-plus-2', label: 'Apply for services' },
   { icon: 'landmark', label: 'Check your progress towards pension' },
 ];
+
+// What connecting a non-NIS/GPL agency (e.g. MoPS) unlocks, with a sensible
+// fallback for any other agency.
+const AGENCY_UNLOCKS = {
+  mops: [
+    { icon: 'fingerprint', label: 'Apply for and manage your e-ID' },
+    { icon: 'calendar-check', label: 'Book Service Centre appointments' },
+    { icon: 'file-text', label: 'Request certificates and civil records' },
+  ],
+};
+const DEFAULT_UNLOCKS = [
+  { icon: 'file-plus-2', label: 'Apply for services online' },
+  { icon: 'calendar-check', label: 'Book appointments' },
+  { icon: 'bell', label: 'Get updates and reminders' },
+];
+
+// Per-agency data that connecting unlocks, so the agency's hub has content.
+const DEMO_CONTRIB = { paid: 500, required: 750, weeks: 500, requiredWeeks: 750 };
+const demoGplAccount = (account) => ({
+  account: account && account.trim() ? (/^GPL-/i.test(account.trim()) ? account.trim() : `GPL-${account.trim()}`) : 'GPL-88213-4',
+  balance: 14250, dueDate: '2026-08-28', status: 'unpaid',
+  usageKwh: [210, 198, 225, 240, 230, 260, 250, 245, 238, 255, 262, 248],
+});
+const AGENCIES_WITH_HUB = ['nis', 'gpl', 'mops'];
 const GPL_UNLOCKS = [
   { icon: 'receipt', label: 'Pay your bill in-app' },
   { icon: 'gauge', label: 'See usage history' },
@@ -157,9 +182,10 @@ function makeRef() {
 }
 
 export default function OnboardingFlow() {
-  const { isOpen, closeOverlay, openOverlay, getPayload, navigate, persona, showToast } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, getPayload, navigate, persona, user, showToast, connectAgency } = useAppState();
   const open = isOpen('onboard');
   const payload = getPayload('onboard');
+  const otpChannel = user?.gov?.phoneMasked || '••• ••• 4820';
 
   const [agency, setAgency] = useState(null); // 'nis' | 'gpl' | null
   const [step, setStep] = useState('pick-agency');
@@ -177,6 +203,12 @@ export default function OnboardingFlow() {
   const [gplNewStep, setGplNewStep] = useState(1);
   const [gplNewRef] = useState(makeRef);
 
+  // OTP gate — every agency addition is confirmed with a one-time code before
+  // anything is connected.
+  const [otpValue, setOtpValue] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [otpReturnStep, setOtpReturnStep] = useState('confirm');
+
   // Reset the whole wizard fresh every time it opens, reading the payload
   // the caller handed us (e.g. { agency: 'gpl', intent: 'new' }).
   useEffect(() => {
@@ -186,6 +218,7 @@ export default function OnboardingFlow() {
     setGplAccount(''); setGplAddress(''); setGplScanning(false);
     setGplForm(initialGplForm(persona));
     setGplNewStep(1);
+    setOtpValue(''); setOtpError(''); setOtpReturnStep('confirm');
     if (p.agency === 'gpl') {
       setAgency('gpl');
       setStep(p.intent === 'new' ? 'gpl-new' : 'gpl-choice');
@@ -194,6 +227,11 @@ export default function OnboardingFlow() {
       setAgency('nis');
       setStep('nis-number');
       setFlowKind('nis');
+    } else if (p.agency && AGENCIES[p.agency]) {
+      // Any other agency (MoPS, …) uses the generic connect flow.
+      setAgency(p.agency);
+      setStep('connect');
+      setFlowKind('generic');
     } else {
       setAgency(null);
       setStep('pick-agency');
@@ -264,22 +302,40 @@ export default function OnboardingFlow() {
     if (!gplForm.occupation.trim()) { showToast("Add your occupation"); return; }
     if (!gplForm.agreed) { showToast("Confirm the details and accept GPL's terms"); return; }
     setFlowKind('gpl-new');
-    setStep('matching');
+    setOtpReturnStep('gpl-new'); setOtpValue(''); setOtpError(''); setStep('otp');
   };
 
   const confirmSubmit = () => {
-    setStep('matching');
+    setOtpReturnStep('confirm'); setOtpValue(''); setOtpError(''); setStep('otp');
   };
 
-  // Drive the "matching" step to its result automatically.
+  const verifyOtp = () => {
+    if (otpValue.replace(/\D/g, '').length < 6) { setOtpError('Enter the 6-digit code we sent you.'); return; }
+    if (otpValue === '000000') { setOtpError('That code is wrong. Check it and try again.'); return; }
+    setOtpError(''); setStep('matching');
+  };
+
+  const connectGeneric = () => {
+    setOtpReturnStep('connect'); setOtpValue(''); setOtpError(''); setStep('otp');
+  };
+
+  // Drive the "matching" step to its result automatically, and — once verified —
+  // actually connect the agency so it persists and shows on Home.
   useEffect(() => {
     if (step !== 'matching') return;
     const t = setTimeout(() => {
+      if (flowKind === 'nis') {
+        connectAgency('nis', { nisAccountState: 'active', nisNumber: nisNumber.trim() || 'NIS-2201-84732', contributions: DEMO_CONTRIB });
+      } else if (flowKind === 'gpl-link') {
+        connectAgency('gpl', { gpl: demoGplAccount(gplAccount) });
+      } else if (flowKind === 'generic' && agency) {
+        connectAgency(agency);
+      }
       if (flowKind === 'gpl-new') showToast('Application sent to GPL — we will track it for you');
       setStep('success');
     }, 1500);
     return () => clearTimeout(t);
-  }, [step, flowKind, showToast]);
+  }, [step, flowKind, agency, nisNumber, gplAccount, connectAgency, showToast]);
 
   const handleBack = () => {
     switch (step) {
@@ -288,6 +344,10 @@ export default function OnboardingFlow() {
         setStep('gpl-choice'); break;
       case 'confirm':
         setStep(agency === 'gpl' ? 'gpl-existing' : 'nis-number'); break;
+      case 'connect':
+        close(); break;
+      case 'otp':
+        setStep(otpReturnStep === 'gpl-new' ? 'gpl-new' : otpReturnStep === 'connect' ? 'connect' : 'confirm'); break;
       default:
         close();
     }
@@ -298,13 +358,26 @@ export default function OnboardingFlow() {
     navigate(screen);
   };
 
-  const agencyShort = agency === 'gpl' ? 'GPL' : 'NIS';
-  const agencyIcon = agency === 'gpl' ? 'zap' : 'shield-check';
+  const agencyDef = agency ? AGENCIES[agency] : null;
+  const agencyShort = agency === 'gpl' ? 'GPL' : agency === 'nis' ? 'NIS' : (agencyDef?.shortName || 'the agency');
+  const agencyIcon = agency === 'gpl' ? 'zap' : agency === 'nis' ? 'shield-check' : (agencyDef?.icon || 'building-2');
+  const isHubAgency = AGENCIES_WITH_HUB.includes(agency);
+  const successHeading = agency === 'gpl' ? 'Electricity account linked' : agency === 'nis' ? 'NIS connected' : `${agencyDef?.shortName || 'Agency'} connected`;
+  const successBody = agency === 'gpl'
+    ? 'Your GPL account is now part of My Guyana. Bills, usage and outages live here from now on.'
+    : agency === 'nis'
+      ? 'Your NIS record is now part of My Guyana. Contributions, employer details and pension are all in one place.'
+      : `${agencyDef?.name || 'This agency'} is now connected to My Guyana. Its services live here from now on.`;
+  const successUnlocks = agency === 'gpl' ? GPL_UNLOCKS : agency === 'nis' ? NIS_UNLOCKS : (AGENCY_UNLOCKS[agency] || DEFAULT_UNLOCKS);
+  const openLabel = agency === 'gpl' ? 'Open Electricity' : agency === 'nis' ? 'Open NIS' : `Open ${agencyDef?.shortName || 'agency'}`;
+  const openTarget = isHubAgency ? agency : 'home';
 
   let title = 'Add an agency';
   let subtitle;
   if (agency === 'nis') { title = 'Connect NIS'; subtitle = 'National Insurance Scheme'; }
-  if (agency === 'gpl') { title = 'Connect GPL'; subtitle = 'Guyana Power & Light'; }
+  else if (agency === 'gpl') { title = 'Connect GPL'; subtitle = 'Guyana Power & Light'; }
+  else if (agencyDef) { title = `Connect ${agencyDef.shortName}`; subtitle = agencyDef.name; }
+  if (step === 'otp') { title = "Confirm it's you"; subtitle = undefined; }
   if (step === 'matching') { title = `Checking with ${agencyShort}`; subtitle = undefined; }
   if (step === 'success') { title = flowKind === 'gpl-new' ? 'Application submitted' : "You're connected"; subtitle = undefined; }
 
@@ -595,6 +668,65 @@ export default function OnboardingFlow() {
           </>
         )}
 
+        {step === 'connect' && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ width: 48, height: 48, flexShrink: 0, borderRadius: 14, background: 'var(--agency-accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={agencyIcon} size={24} color="var(--agency-accent-strong)" />
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--fg-1)', lineHeight: 1.2 }}>Connect {agencyDef?.name}</h2>
+                <p style={{ margin: '2px 0 0', fontSize: 12.5, color: 'var(--fg-2)' }}>Add {agencyShort} to your account</p>
+              </div>
+            </div>
+            <SectionCard title="What you'll get">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {successUnlocks.map((u) => (
+                  <div key={u.label} style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <Icon name={u.icon} size={19} color="var(--agency-accent-strong)" style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--fg-1)' }}>{u.label}</span>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+            <InfoNote icon="shield-check">We confirm it&apos;s you with a one-time code before connecting {agencyShort} to your account.</InfoNote>
+            <div style={{ marginTop: 'auto', paddingTop: 12, display: 'flex', gap: 10 }}>
+              <Button variant="outline" onClick={close} style={{ flex: 1 }}>Cancel</Button>
+              <Button onClick={connectGeneric} style={{ flex: 2 }}>Connect {agencyShort}</Button>
+            </div>
+          </>
+        )}
+
+        {step === 'otp' && (
+          <>
+            <InfoNote icon="shield-check">Adding an agency to your account needs a one-time code, so only you can connect your records.</InfoNote>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--fg-1)', lineHeight: 1.25 }}>Enter your code</h2>
+              <p style={{ margin: '2px 0 0', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>We sent a 6-digit code to your registered number {otpChannel}.</p>
+            </div>
+            <Field label="6-digit code">
+              <input
+                type="text" inputMode="numeric" autoComplete="one-time-code" enterKeyHint="go" placeholder="000000"
+                value={otpValue}
+                onChange={(e) => { setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6)); setOtpError(''); }}
+                style={{ ...inputStyle, minHeight: 52, fontSize: 22, letterSpacing: '0.35em', textAlign: 'center', fontFamily: 'var(--font-mono)', borderColor: otpError ? 'var(--status-error)' : 'var(--surface-border)' }}
+              />
+              {otpError && (
+                <p style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 12.5, lineHeight: 1.5, fontWeight: 700, color: 'var(--status-error)' }}>
+                  <Icon name="triangle-alert" size={15} color="currentColor" style={{ flexShrink: 0, marginTop: 1 }} />{otpError}
+                </p>
+              )}
+            </Field>
+            <button className="press focus-ring" onClick={() => showToast('New code sent')} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--agency-accent-strong)', fontSize: 13, fontWeight: 700, cursor: 'pointer', minHeight: 38, padding: '0 2px' }}>
+              Send a new code
+            </button>
+            <div style={{ marginTop: 'auto', paddingTop: 12, display: 'flex', gap: 10 }}>
+              <Button variant="outline" onClick={handleBack} style={{ flex: 1 }}>Back</Button>
+              <Button onClick={verifyOtp} style={{ flex: 2 }}>Verify and connect</Button>
+            </div>
+          </>
+        )}
+
         {step === 'matching' && (
           <MatchingScreen
             icon={agencyIcon} agencyShort={agencyShort}
@@ -647,16 +779,12 @@ export default function OnboardingFlow() {
                   <Icon name={agencyIcon} size={30} color="var(--agency-accent-strong)" />
                 </span>
                 <div style={{ animation: 'successFadeUp 0.4s ease-out 0.1s both' }}>
-                  <h2 className="ds-h3" style={{ margin: 0, fontSize: 20 }}>{agency === 'gpl' ? 'Electricity account linked' : 'NIS connected'}</h2>
-                  <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
-                    {agency === 'gpl'
-                      ? 'Your GPL account is now part of My Guyana. Bills, usage and outages live here from now on.'
-                      : 'Your NIS record is now part of My Guyana. Contributions, employer details and pension are all in one place.'}
-                  </p>
+                  <h2 className="ds-h3" style={{ margin: 0, fontSize: 20 }}>{successHeading}</h2>
+                  <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>{successBody}</p>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '6px 2px 2px' }}>
-                {(agency === 'gpl' ? GPL_UNLOCKS : NIS_UNLOCKS).map((u, i) => (
+                {successUnlocks.map((u, i) => (
                   <div key={u.label} style={{ display: 'flex', alignItems: 'center', gap: 11, animation: `successFadeUp 0.4s ease-out ${(0.18 + i * 0.09).toFixed(2)}s both` }}>
                     <Icon name={u.icon} size={20} color="var(--agency-accent-strong)" style={{ flexShrink: 0 }} />
                     <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-1)', lineHeight: 1.3 }}>{u.label}</span>
@@ -665,7 +793,7 @@ export default function OnboardingFlow() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12 }}>
-              <Button fullWidth onClick={() => finishToScreen(agency === 'gpl' ? 'gpl' : 'nis')}>{agency === 'gpl' ? 'Open Electricity' : 'Open NIS'}</Button>
+              <Button fullWidth onClick={() => finishToScreen(openTarget)}>{openLabel}</Button>
               <Button variant="outline" fullWidth onClick={() => finishToScreen('home')}>Back to Home</Button>
             </div>
           </>

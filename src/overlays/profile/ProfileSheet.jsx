@@ -13,6 +13,7 @@ export default function ProfileSheet() {
     ? [
       { id: 'email', icon: 'mail', label: 'Email', value: gov.email },
       { id: 'phone', icon: 'smartphone', label: 'Mobile', value: gov.phone },
+      { id: 'address', icon: 'map-pin', label: 'Address', value: gov.address },
       { id: 'tin', icon: 'receipt', label: 'TIN', value: gov.tin },
     ].filter((r) => r.value)
     : [];

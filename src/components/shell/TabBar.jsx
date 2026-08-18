@@ -4,7 +4,7 @@ import Icon from '../ui/Icon';
 const TABS = [
   { id: 'home', label: 'Home', icon: 'house' },
   { id: 'services', label: 'Services', icon: 'layout-grid' },
-  { id: 'calendar', label: 'Schedule', icon: 'calendar' },
+  { id: 'calendar', label: 'Appointments', icon: 'calendar' },
   { id: 'wallet', label: 'Wallet', icon: 'wallet' },
 ];
 

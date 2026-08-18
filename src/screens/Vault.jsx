@@ -1,7 +1,20 @@
+import { useRef, useState } from 'react';
 import { useAppState } from '../state/AppStateContext';
 import Icon from '../components/ui/Icon';
 import ListRow from '../components/ui/ListRow';
+import Sheet from '../components/ui/Sheet';
+import Button from '../components/ui/Button';
 import NotificationBell from '../components/ui/NotificationBell';
+
+// The kinds of document a citizen can store in their Vault (DigiLocker-style).
+const DOC_TYPES = [
+  { id: 'national-id', label: 'National ID', icon: 'id-card' },
+  { id: 'passport', label: 'Passport', icon: 'book-user' },
+  { id: 'licence', label: "Driver's licence", icon: 'car' },
+  { id: 'birth-cert', label: 'Birth certificate', icon: 'file-text' },
+  { id: 'certificate', label: 'Certificate', icon: 'file-badge' },
+  { id: 'other', label: 'Other document', icon: 'file' },
+];
 
 // Invented locally — mockData.js has no eID number field.
 const EID_NUMBER = 'GUY-0447-1029';
@@ -28,16 +41,6 @@ function buildWalletCards(persona) {
       holder: persona.name, number: persona.nisNumber,
       statusLabel: 'Active', statusBg: 'rgba(255,255,255,0.2)',
       foot: `${persona.contributions.weeks} contributions on record`,
-    });
-  }
-
-  if (persona.connectedAgencies.includes('gpl') && persona.gpl) {
-    cards.push({
-      id: 'gpl', key: null, title: 'Electricity account', sub: 'Guyana Power & Light', icon: 'zap',
-      bg: 'linear-gradient(160deg, #2d2e67 0%, #404293 60%, #2d2e67 100%)', subFg: 'rgba(255,255,255,0.75)',
-      holder: persona.name, number: persona.gpl.account,
-      statusLabel: 'Linked', statusBg: 'rgba(255,255,255,0.2)',
-      foot: `G$ ${persona.gpl.balance.toLocaleString()} due ${persona.gpl.dueDate}`,
     });
   }
 
@@ -104,11 +107,44 @@ function WalletCard({ card, onOpen }) {
   );
 }
 
+function formatAdded(iso) {
+  if (!iso) return '';
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export default function Vault() {
-  const { navigate, openOverlay, persona, showToast } = useAppState();
+  const { navigate, openOverlay, persona, showToast, vaultDocs, addVaultDoc, removeVaultDoc } = useAppState();
   const cards = buildWalletCards(persona);
-  const docs = buildDocuments(persona);
-  const empty = cards.length === 0;
+  const builtDocs = buildDocuments(persona);
+  const fileRef = useRef(null);
+
+  const [adding, setAdding] = useState(false);
+  const [docType, setDocType] = useState('national-id');
+  const [docLabel, setDocLabel] = useState('');
+  const [fileName, setFileName] = useState('');
+
+  const resetForm = () => { setDocType('national-id'); setDocLabel(''); setFileName(''); };
+
+  const onFilePicked = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setFileName(file.name);
+    if (!docLabel.trim()) setDocLabel(file.name.replace(/\.[^.]+$/, ''));
+  };
+
+  const saveDoc = () => {
+    const typeDef = DOC_TYPES.find((t) => t.id === docType) || DOC_TYPES[DOC_TYPES.length - 1];
+    const label = docLabel.trim() || typeDef.label;
+    if (!fileName) { showToast('Attach a file or photo to store'); return; }
+    addVaultDoc({ label, typeId: typeDef.id, typeLabel: typeDef.label, icon: typeDef.icon, fileName });
+    setAdding(false);
+    resetForm();
+    showToast(`${label} added to your Vault`);
+  };
+
+  const noCards = cards.length === 0;
+  const noDocs = builtDocs.length === 0 && vaultDocs.length === 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -129,55 +165,130 @@ export default function Vault() {
           <NotificationBell size={40} />
         </div>
         <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--fg-1)' }}>Vault</div>
-        <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 500, color: 'var(--fg-3)', marginTop: 2 }}>Your IDs, cards and documents</div>
+        <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 500, color: 'var(--fg-3)', marginTop: 2 }}>Your IDs, cards and documents — all in one secure place</div>
       </div>
 
-      {empty && (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center',
-          padding: '34px 20px', border: '1px dashed var(--surface-border)', borderRadius: 20, background: 'var(--surface-1)',
-        }}>
-          <span aria-hidden="true" style={{ width: 46, height: 46, borderRadius: 14, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="wallet" size={21} color="var(--fg-3)" />
-          </span>
-          <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--fg-1)' }}>Nothing here yet</p>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--fg-2)', maxWidth: 250 }}>
-            Cards and IDs land here as you use government services. Start with your e-ID at MoPS.
-          </p>
-        </div>
-      )}
-
-      {!empty && (
+      {!noCards && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {cards.map((card) => (
-            <WalletCard
-              key={card.id}
-              card={card}
-              onOpen={() => (card.key ? openOverlay(card.key) : navigate('gpl'))}
-            />
+            <WalletCard key={card.id} card={card} onOpen={() => card.key && openOverlay(card.key)} />
           ))}
         </div>
       )}
 
-      {docs.length > 0 && (
+      {/* Documents — DigiLocker-style store of IDs, certificates and files. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <h2 className="ds-eyebrow" style={{ fontSize: 12, margin: 0 }}>Documents</h2>
-        <div style={{ border: '1px solid var(--surface-border)', borderRadius: 18, background: 'var(--surface-1)', overflow: 'hidden' }}>
-          {docs.map((d, i) => (
-            <ListRow
-              key={d.label}
-              icon={d.icon}
-              iconColor="var(--fg-2)"
-              iconBg="var(--surface-2)"
-              title={d.label}
-              subtitle={d.sub}
-              onClick={() => showToast(`${d.label} — coming soon`)}
-              style={{ borderBottom: i < docs.length - 1 ? '1px solid var(--surface-hairline)' : 'none', padding: '13px 14px' }}
-            />
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h2 className="ds-eyebrow" style={{ flex: 1, minWidth: 0, fontSize: 12, margin: 0 }}>Documents</h2>
+          <button
+            className="press focus-ring"
+            onClick={() => { resetForm(); setAdding(true); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, minHeight: 32, padding: '0 12px', border: 'none', borderRadius: 999, background: 'var(--brand-600)', color: '#fff', fontSize: 12.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            <Icon name="plus" size={14} color="#fff" />Add
+          </button>
         </div>
+
+        {noDocs ? (
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center',
+            padding: '30px 20px', border: '1px dashed var(--surface-border)', borderRadius: 18, background: 'var(--surface-1)',
+          }}>
+            <span aria-hidden="true" style={{ width: 44, height: 44, borderRadius: 13, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="folder-lock" size={20} color="var(--fg-3)" />
+            </span>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--fg-1)' }}>No documents yet</p>
+            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-2)', maxWidth: 250 }}>
+              Store your IDs and certificates here. Tap <b>Add</b> to save one, or they arrive as you use government services.
+            </p>
+          </div>
+        ) : (
+          <div style={{ border: '1px solid var(--surface-border)', borderRadius: 18, background: 'var(--surface-1)', overflow: 'hidden' }}>
+            {builtDocs.map((d, i) => (
+              <ListRow
+                key={`built-${d.label}`}
+                icon={d.icon}
+                iconColor="var(--fg-2)"
+                iconBg="var(--surface-2)"
+                title={d.label}
+                subtitle={d.sub}
+                onClick={() => showToast(`${d.label} — issued by government`)}
+                style={{ borderBottom: (i < builtDocs.length - 1 || vaultDocs.length > 0) ? '1px solid var(--surface-hairline)' : 'none', padding: '13px 14px' }}
+              />
+            ))}
+            {vaultDocs.map((d, i) => (
+              <ListRow
+                key={d.id}
+                icon={d.icon || 'file'}
+                iconColor="var(--brand-600)"
+                iconBg="var(--brand-100)"
+                title={d.label}
+                subtitle={`${d.typeLabel || 'Document'} · added ${formatAdded(d.addedOn)}`}
+                chevron={false}
+                trailing={(
+                  <button
+                    className="press focus-ring"
+                    onClick={(e) => { e.stopPropagation(); removeVaultDoc(d.id); showToast(`${d.label} removed`); }}
+                    aria-label={`Remove ${d.label}`}
+                    style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 999, border: 'none', background: 'var(--surface-2)', color: 'var(--status-error)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  >
+                    <Icon name="trash-2" size={15} />
+                  </button>
+                )}
+                style={{ borderBottom: i < vaultDocs.length - 1 ? '1px solid var(--surface-hairline)' : 'none', padding: '13px 14px' }}
+              />
+            ))}
+          </div>
+        )}
       </div>
-      )}
+
+      <Sheet open={adding} onClose={() => setAdding(false)} title="Add a document">
+        <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={onFilePicked} style={{ display: 'none' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--fg-1)' }}>Document type</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {DOC_TYPES.map((t) => {
+                const active = docType === t.id;
+                return (
+                  <button
+                    key={t.id} className="press focus-ring" onClick={() => setDocType(t.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6, minHeight: 40, padding: '0 13px', borderRadius: 999,
+                      border: `1px solid ${active ? 'var(--brand-600)' : 'var(--surface-border)'}`,
+                      background: active ? 'var(--brand-100)' : 'var(--surface-1)', color: active ? 'var(--brand-700)' : 'var(--fg-1)',
+                      fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    <Icon name={t.icon} size={15} color={active ? 'var(--brand-700)' : 'var(--fg-3)'} />{t.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--fg-1)' }}>Name (optional)</label>
+            <input
+              value={docLabel} onChange={(e) => setDocLabel(e.target.value)} placeholder="e.g. My birth certificate"
+              style={{ width: '100%', boxSizing: 'border-box', minHeight: 48, padding: '12px 14px', border: '1px solid var(--surface-border)', borderRadius: 12, background: 'var(--surface-2)', fontFamily: 'inherit', fontSize: 15, color: 'var(--fg-1)', outline: 'none' }}
+            />
+          </div>
+
+          <button
+            className="press focus-ring" onClick={() => fileRef.current?.click()}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 64, padding: '12px 14px', borderRadius: 14, border: `1.5px dashed ${fileName ? 'var(--status-success)' : 'var(--surface-border)'}`, background: fileName ? 'var(--status-success-bg)' : 'var(--surface-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+          >
+            <Icon name={fileName ? 'check-circle-2' : 'upload'} size={18} color={fileName ? 'var(--status-success)' : 'var(--fg-3)'} />
+            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--fg-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileName || 'Upload a file or photo'}</span>
+              <span style={{ fontSize: 11.5, color: 'var(--fg-3)' }}>{fileName ? 'Tap to choose a different file' : 'JPG, PNG or PDF'}</span>
+            </span>
+          </button>
+
+          <Button fullWidth onClick={saveDoc}>Save to Vault</Button>
+        </div>
+      </Sheet>
     </div>
   );
 }

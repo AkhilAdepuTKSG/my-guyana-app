@@ -19,6 +19,23 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Pre-fill an application's fields from the citizen's government record, matching
+// each field by what it asks for (name parts, date of birth, place of birth, …).
+function prefillFromGov(def, gov, fullName) {
+  if (!def || !gov) return {};
+  const out = {};
+  def.fields.forEach((f) => {
+    const k = f.key.toLowerCase();
+    if (f.type === 'date' && /birth|dob/.test(k) && gov.dob) out[f.key] = gov.dob;
+    else if (k.includes('surname') && gov.lastName) out[f.key] = gov.lastName;
+    else if ((k.includes('given') || /first/.test(k)) && gov.firstName) out[f.key] = gov.firstName;
+    else if ((k === 'fullname' || k === 'name') && fullName) out[f.key] = fullName;
+    else if (k.includes('placeofbirth') && gov.placeOfBirth) out[f.key] = gov.placeOfBirth;
+    else if (k.includes('address') && gov.address) out[f.key] = gov.address;
+  });
+  return out;
+}
+
 function FieldRow({ field, value, onChange }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -41,7 +58,7 @@ function FieldRow({ field, value, onChange }) {
 }
 
 export default function ApplyFlow() {
-  const { isOpen, getPayload, closeOverlay, navigate, addApplication, addNotification, showToast } = useAppState();
+  const { isOpen, getPayload, closeOverlay, openOverlay, navigate, user, addApplication, addAppointment, addNotification, showToast } = useAppState();
   const open = isOpen('apply');
   const payload = getPayload('apply');
   const def = getApplicationDef(payload?.serviceId);
@@ -66,7 +83,9 @@ export default function ApplyFlow() {
   useEffect(() => {
     if (open) {
       revokeDocUrls();
-      setStep(1); setFields({}); setDocStatus({}); setDocFiles({}); setAppt({ office: '', date: '', time: '' });
+      setStep(1);
+      setFields(prefillFromGov(def, user?.gov, user?.name)); // start from what government already has
+      setDocStatus({}); setDocFiles({}); setAppt({ office: '', date: '', time: '' });
       setSubmitting(false); setDone(false); setScan({ status: 'idle', pct: 0, text: '', error: '' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,6 +177,18 @@ export default function ApplyFlow() {
         pendingActions: [],
       };
       const id = addApplication(application);
+      // A booked in-person visit becomes a real appointment in the Appointments tab.
+      if (def.appointment && appt.date) {
+        addAppointment({
+          id: `appt-${def.id}`,
+          agency: def.agency,
+          title: `${def.title} appointment`,
+          location: appt.office,
+          date: appt.date,
+          time: appt.time,
+          applicationId: id,
+        });
+      }
       addNotification({
         agency: def.agency,
         icon: agency?.icon || 'file-text',
@@ -200,6 +231,9 @@ export default function ApplyFlow() {
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', marginTop: 8 }}>
             <Button onClick={() => { closeOverlay('apply'); navigate('applications'); }}>See my applications</Button>
+            {def.appointment && appt.date && (
+              <Button variant="outline" onClick={() => { closeOverlay('apply'); navigate('calendar'); openOverlay('apptDetail', { id: `appt-${def.id}` }); }}>View appointment</Button>
+            )}
             <Button variant="outline" onClick={() => closeOverlay('apply')}>Done</Button>
           </div>
         </div>

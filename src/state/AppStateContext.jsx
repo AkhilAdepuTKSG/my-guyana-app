@@ -30,6 +30,12 @@ function loadSession() {
 const APPLICATIONS_KEY = 'myguyana.applications.v1';
 const NOTIFICATIONS_KEY = 'myguyana.notifications.v1';
 const APPOINTMENTS_KEY = 'myguyana.appointments.v1';
+const VAULT_DOCS_KEY = 'myguyana.vaultDocs.v1';
+// Which agencies the citizen has connected, and the per-agency data that
+// connecting them unlocks (NIS record state, GPL account, …). Reset on sign-out
+// so a different citizen starts with an empty ecosystem.
+const CONNECTED_AGENCIES_KEY = 'myguyana.connectedAgencies.v1';
+const AGENCY_PROFILE_KEY = 'myguyana.agencyProfile.v1';
 
 function loadArray(key) {
   try {
@@ -38,6 +44,16 @@ function loadArray(key) {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+}
+
+function loadObject(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
   }
 }
 
@@ -60,6 +76,9 @@ export function AppStateProvider({ children }) {
   const [applications, setApplications] = useState(() => loadArray(APPLICATIONS_KEY));
   const [notifications, setNotifications] = useState(() => loadArray(NOTIFICATIONS_KEY));
   const [appointments, setAppointments] = useState(() => loadArray(APPOINTMENTS_KEY));
+  const [vaultDocs, setVaultDocs] = useState(() => loadArray(VAULT_DOCS_KEY));
+  const [connectedAgencies, setConnectedAgencies] = useState(() => loadArray(CONNECTED_AGENCIES_KEY));
+  const [agencyProfile, setAgencyProfile] = useState(() => loadObject(AGENCY_PROFILE_KEY));
   useEffect(() => {
     try { localStorage.setItem(APPLICATIONS_KEY, JSON.stringify(applications)); } catch { /* ignore */ }
   }, [applications]);
@@ -69,6 +88,15 @@ export function AppStateProvider({ children }) {
   useEffect(() => {
     try { localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(appointments)); } catch { /* ignore */ }
   }, [appointments]);
+  useEffect(() => {
+    try { localStorage.setItem(VAULT_DOCS_KEY, JSON.stringify(vaultDocs)); } catch { /* ignore */ }
+  }, [vaultDocs]);
+  useEffect(() => {
+    try { localStorage.setItem(CONNECTED_AGENCIES_KEY, JSON.stringify(connectedAgencies)); } catch { /* ignore */ }
+  }, [connectedAgencies]);
+  useEffect(() => {
+    try { localStorage.setItem(AGENCY_PROFILE_KEY, JSON.stringify(agencyProfile)); } catch { /* ignore */ }
+  }, [agencyProfile]);
 
   const navigate = useCallback((next) => {
     setScreenState(next);
@@ -109,14 +137,16 @@ export function AppStateProvider({ children }) {
   const persona = useMemo(() => {
     const base = PERSONAS.citizen;
     const u = sessionUser;
-    if (!u) return base;
+    // Service data (NIS record, GPL account) is empty until the citizen connects
+    // that agency — connectAgency() writes it into agencyProfile.
+    const service = { ...agencyProfile, connectedAgencies };
+    if (!u) return { ...base, ...service };
     const name = (u.name || '').trim();
     const initials = name
       ? name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
       : base.initials;
     // Identity fields come from the government record resolved at sign-in
-    // (see govRegistry / AuthFlow.buildUser). Service data (connected agencies,
-    // NIS, GPL) stays empty — those only populate through real use.
+    // (see govRegistry / AuthFlow.buildUser).
     return {
       ...base,
       name: name || base.name,
@@ -127,14 +157,29 @@ export function AppStateProvider({ children }) {
       nationalId: u.gov?.nationalId || null,
       region: u.gov?.region || base.region,
       dob: u.gov?.dob || base.dob,
+      ...service,
     };
-  }, [sessionUser]);
+  }, [sessionUser, connectedAgencies, agencyProfile]);
 
   // --- session actions ---
   const signIn = useCallback((user) => {
     setSession({ status: 'authenticated', user: user || {}, at: Date.now() });
   }, []);
-  const signOut = useCallback(() => setSession(null), []);
+  const signOut = useCallback(() => {
+    setSession(null);
+    // A different citizen must start with an empty ecosystem.
+    setConnectedAgencies([]);
+    setAgencyProfile({});
+  }, []);
+  // Connect an agency to the citizen's account (persisted). `patch` carries the
+  // per-agency data that connecting unlocks (e.g. NIS record state, GPL account).
+  const connectAgency = useCallback((id, patch = {}) => {
+    setConnectedAgencies((list) => (list.includes(id) ? list : [...list, id]));
+    if (patch && Object.keys(patch).length) setAgencyProfile((p) => ({ ...p, ...patch }));
+  }, []);
+  const disconnectAgency = useCallback((id) => {
+    setConnectedAgencies((list) => list.filter((a) => a !== id));
+  }, []);
   const updateUser = useCallback((patch) => {
     setSession((s) => (s ? { ...s, user: { ...s.user, ...patch } } : s));
   }, []);
@@ -169,6 +214,14 @@ export function AppStateProvider({ children }) {
   const removeAppointment = useCallback((id) => {
     setAppointments((list) => list.filter((a) => a.id !== id));
   }, []);
+  const addVaultDoc = useCallback((doc) => {
+    const id = doc.id || `doc-${Date.now()}`;
+    setVaultDocs((list) => [{ ...doc, id, addedOn: doc.addedOn || new Date().toISOString().slice(0, 10) }, ...list]);
+    return id;
+  }, []);
+  const removeVaultDoc = useCallback((id) => {
+    setVaultDocs((list) => list.filter((d) => d.id !== id));
+  }, []);
   const markNotificationsRead = useCallback(() => {
     setNotifications((list) => list.map((n) => (n.read ? n : { ...n, read: true })));
   }, []);
@@ -183,7 +236,9 @@ export function AppStateProvider({ children }) {
     applications, addApplication, updateApplication,
     notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount,
     appointments, addAppointment, updateAppointment, removeAppointment,
-  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, appointments, addAppointment, updateAppointment, removeAppointment]);
+    vaultDocs, addVaultDoc, removeVaultDoc,
+    connectedAgencies, connectAgency, disconnectAgency,
+  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, appointments, addAppointment, updateAppointment, removeAppointment, vaultDocs, addVaultDoc, removeVaultDoc, connectedAgencies, connectAgency, disconnectAgency]);
 
   return (
     <AppStateContext.Provider value={value}>
