@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useAppState } from '../state/AppStateContext';
 import { AGENCIES, SERVICE_CENTRES } from '../state/mockData';
 import { buildEidDateOptions, EID_TIME_OPTIONS, formatEidDate } from '../overlays/eid/eidData';
-import { findSlotClash, appointmentPurpose } from '../lib/appointments';
+import { findSlotClash, appointmentPurpose, dateClashSummary } from '../lib/appointments';
 import Icon from '../components/ui/Icon';
 import Sheet from '../components/ui/Sheet';
 import Button from '../components/ui/Button';
@@ -169,19 +169,25 @@ export default function Calendar() {
             <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '2px 2px 4px' }}>
               {dateOptions.map((dt) => {
                 const active = date === dt.iso;
+                const summary = dateClashSummary(appointments, { location: office, date: dt.iso, times: EID_TIME_OPTIONS });
                 return (
                   <button
                     key={dt.iso} className="press focus-ring" onClick={() => !dt.isFull && setDate(dt.iso)} disabled={dt.isFull}
+                    title={summary.hasBooking ? 'You already have a booking this day' : undefined}
                     style={{
+                      position: 'relative',
                       flexShrink: 0, width: 56, minHeight: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
                       borderRadius: 14, border: `1px solid ${active ? 'var(--brand-600)' : 'var(--surface-border)'}`,
                       background: active ? 'var(--brand-600)' : 'var(--surface-1)', cursor: dt.isFull ? 'not-allowed' : 'pointer',
                       opacity: dt.isFull ? 0.45 : 1, fontFamily: 'inherit',
                     }}
                   >
+                    {summary.hasBooking && (
+                      <span aria-hidden="true" style={{ position: 'absolute', top: 5, right: 5, width: 6, height: 6, borderRadius: 999, background: active ? '#fff' : 'var(--status-warning)' }} />
+                    )}
                     <span style={{ fontSize: 10.5, fontWeight: 800, color: active ? '#fff' : 'var(--fg-1)' }}>{dt.dayAbbr}</span>
                     <span style={{ fontSize: 18, fontWeight: 800, color: active ? '#fff' : 'var(--fg-1)' }}>{dt.dateNum}</span>
-                    <span style={{ fontSize: 9, fontWeight: 700, color: active ? '#fff' : (dt.isFull ? 'var(--status-error)' : 'var(--status-success)') }}>{dt.isFull ? 'Full' : 'Open'}</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: active ? '#fff' : (dt.isFull ? 'var(--status-error)' : summary.allBooked ? 'var(--status-warning)' : 'var(--status-success)') }}>{dt.isFull ? 'Full' : summary.allBooked ? 'Booked' : 'Open'}</span>
                   </button>
                 );
               })}
@@ -203,7 +209,7 @@ export default function Calendar() {
                       background: active ? 'var(--brand-600)' : clash ? 'var(--surface-2)' : 'var(--surface-1)',
                       color: active ? '#fff' : clash ? 'var(--fg-3)' : 'var(--fg-1)',
                       fontSize: 13, fontWeight: 700, cursor: clash ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                     }}
                   >
                     <span>{t}</span>

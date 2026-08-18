@@ -5,13 +5,13 @@ import Button from '../../components/ui/Button';
 import StepProgress from '../../components/ui/StepProgress';
 import { useAppState } from '../../state/AppStateContext';
 import { SERVICE_CENTRES } from '../../state/mockData';
-import { findSlotClash } from '../../lib/appointments';
+import { findSlotClash, dateClashSummary } from '../../lib/appointments';
 import EidAbout from './EidAbout';
 import EidStep1 from './EidStep1';
 import EidStep2 from './EidStep2';
 import EidStep3 from './EidStep3';
 import EidSuccess from './EidSuccess';
-import { EID_CITIZENSHIP_OPTIONS, buildEidDocDefs, buildEidDateOptions } from './eidData';
+import { EID_CITIZENSHIP_OPTIONS, buildEidDocDefs, buildEidDateOptions, EID_TIME_OPTIONS } from './eidData';
 import { recognizeImage, parseFields } from '../../lib/ocr';
 
 const EMPTY_FIELDS = {
@@ -165,6 +165,7 @@ export default function EidApplicationFlow() {
           onSelectDate={(iso) => setAppointment((a) => ({ ...a, date: iso }))}
           onSelectTime={(t) => setAppointment((a) => ({ ...a, time: t }))}
           slotClash={(t) => findSlotClash(appointments, { location: appointment.office, date: appointment.date, time: t })}
+          dateSummary={(iso) => dateClashSummary(appointments, { location: appointment.office, date: iso, times: EID_TIME_OPTIONS })}
         />
       )}
 

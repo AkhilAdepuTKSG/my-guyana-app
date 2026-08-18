@@ -4,7 +4,7 @@ import Sheet from '../../components/ui/Sheet';
 import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
 import { AGENCIES } from '../../state/mockData';
-import { findSlotClash, appointmentPurpose } from '../../lib/appointments';
+import { findSlotClash, appointmentPurpose, dateClashSummary } from '../../lib/appointments';
 
 // Fixed "what happens at your visit" copy — the source design hard-codes
 // this to the e-ID enrolment flow (the only appointment type it models),
@@ -249,12 +249,15 @@ export default function AppointmentDetail() {
             <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
               {dateOptions.map((d) => {
                 const active = selectedDate === d.id;
+                const summary = dateClashSummary(appointments, { location: appt.location, date: d.id, times: TIME_OPTIONS, excludeId: baseAppt?.id });
                 return (
                   <button
                     key={d.id}
                     className="press focus-ring"
                     onClick={() => setSelectedDate(d.id)}
+                    title={summary.hasBooking ? 'You already have a booking this day' : undefined}
                     style={{
+                      position: 'relative',
                       flexShrink: 0, width: 64, minHeight: 74, padding: '10px 6px', borderRadius: 14,
                       border: `1px solid ${active ? 'var(--agency-accent)' : 'var(--surface-border)'}`,
                       background: active ? 'var(--agency-accent)' : 'var(--surface-1)',
@@ -262,9 +265,12 @@ export default function AppointmentDetail() {
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer',
                     }}
                   >
+                    {summary.hasBooking && (
+                      <span aria-hidden="true" style={{ position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: 999, background: active ? 'var(--agency-contrast)' : 'var(--status-warning)' }} />
+                    )}
                     <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.03em' }}>{d.dow}</span>
                     <span style={{ fontSize: 18, fontWeight: 800 }}>{d.day}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: active ? 'var(--agency-contrast)' : 'var(--status-success)' }}>Open</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: active ? 'var(--agency-contrast)' : (summary.allBooked ? 'var(--status-warning)' : 'var(--status-success)') }}>{summary.allBooked ? 'Booked' : 'Open'}</span>
                   </button>
                 );
               })}
@@ -289,7 +295,7 @@ export default function AppointmentDetail() {
                       background: active ? 'var(--agency-accent)' : clash ? 'var(--surface-2)' : 'var(--surface-1)',
                       color: active ? 'var(--agency-contrast)' : clash ? 'var(--fg-3)' : 'var(--fg-1)',
                       fontSize: 14, fontWeight: 600, cursor: clash ? 'not-allowed' : 'pointer',
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                     }}
                   >
                     <span>{t}</span>

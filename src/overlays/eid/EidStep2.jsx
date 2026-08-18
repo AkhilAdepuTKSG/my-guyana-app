@@ -10,7 +10,7 @@ const STATUS_META = {
 
 export default function EidStep2({
   docs, onUpload, centres, appointment, onSelectCentre, onUseLocation,
-  dateOptions, onSelectDate, onSelectTime, slotClash,
+  dateOptions, onSelectDate, onSelectTime, slotClash, dateSummary,
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -145,19 +145,25 @@ export default function EidStep2({
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '2px 2px 4px' }}>
             {dateOptions.map((dt) => {
               const active = appointment.date === dt.iso;
+              const summary = dateSummary ? dateSummary(dt.iso) : { hasBooking: false, allBooked: false };
               return (
                 <button
                   key={dt.iso} className="press focus-ring" onClick={() => !dt.isFull && onSelectDate(dt.iso)} disabled={dt.isFull}
+                  title={summary.hasBooking ? 'You already have a booking this day' : undefined}
                   style={{
+                    position: 'relative',
                     flexShrink: 0, width: 56, minHeight: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
                     borderRadius: 14, border: `1px solid ${active ? 'var(--agency-accent)' : 'var(--surface-border)'}`,
                     background: active ? 'var(--agency-accent)' : 'var(--surface-1)', cursor: dt.isFull ? 'not-allowed' : 'pointer',
                     opacity: dt.isFull ? 0.45 : 1, fontFamily: 'inherit',
                   }}
                 >
+                  {summary.hasBooking && (
+                    <span aria-hidden="true" style={{ position: 'absolute', top: 5, right: 5, width: 6, height: 6, borderRadius: 999, background: active ? 'var(--agency-contrast)' : 'var(--status-warning)' }} />
+                  )}
                   <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.03em', color: active ? 'var(--agency-contrast)' : 'var(--fg-1)' }}>{dt.dayAbbr}</span>
                   <span style={{ fontSize: 18, fontWeight: 800, color: active ? 'var(--agency-contrast)' : 'var(--fg-1)' }}>{dt.dateNum}</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: active ? 'var(--agency-contrast)' : (dt.isFull ? 'var(--status-error)' : 'var(--status-success)') }}>{dt.isFull ? 'Full' : 'Open'}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: active ? 'var(--agency-contrast)' : (dt.isFull ? 'var(--status-error)' : summary.allBooked ? 'var(--status-warning)' : 'var(--status-success)') }}>{dt.isFull ? 'Full' : summary.allBooked ? 'Booked' : 'Open'}</span>
                 </button>
               );
             })}
@@ -177,7 +183,7 @@ export default function EidStep2({
                     minHeight: 40, padding: clash ? '5px 13px' : '0 16px', borderRadius: clash ? 12 : 999, border: `1px solid ${active ? 'var(--agency-accent)' : 'var(--surface-border)'}`,
                     background: active ? 'var(--agency-accent)' : clash ? 'var(--surface-2)' : 'var(--surface-1)', color: active ? 'var(--agency-contrast)' : clash ? 'var(--fg-3)' : 'var(--fg-1)',
                     fontSize: 13, fontWeight: 700, cursor: clash ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                   }}
                 >
                   <span>{t}</span>

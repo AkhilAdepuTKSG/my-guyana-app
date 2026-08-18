@@ -25,3 +25,24 @@ export function findSlotClash(appointments, { location, date, time, excludeId } 
     ) || null
   );
 }
+
+// Summarise a citizen's own bookings on one Service Centre + date, across the
+// set of candidate time slots. Used to mark date cells in the pickers: a date
+// where you already hold a booking gets a marker, and one where every slot is
+// taken is flagged as fully booked for you. `excludeId` skips the appointment
+// being rescheduled so it doesn't count against its own date.
+export function dateClashSummary(appointments, { location, date, times, excludeId } = {}) {
+  const slots = times || [];
+  const empty = { bookedCount: 0, total: slots.length, hasBooking: false, allBooked: false };
+  if (!location || !date || slots.length === 0) return empty;
+  let bookedCount = 0;
+  for (const t of slots) {
+    if (findSlotClash(appointments, { location, date, time: t, excludeId })) bookedCount += 1;
+  }
+  return {
+    bookedCount,
+    total: slots.length,
+    hasBooking: bookedCount > 0,
+    allBooked: bookedCount >= slots.length,
+  };
+}
