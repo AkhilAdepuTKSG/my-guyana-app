@@ -12,7 +12,7 @@ const OUTAGE_TYPES = [
 ];
 
 export default function GplOutage() {
-  const { isOpen, closeOverlay, openOverlay, persona, showToast } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, persona, showToast, requireOtp } = useAppState();
   const open = isOpen('gplOutage');
   const gpl = persona.gpl;
 
@@ -112,7 +112,7 @@ export default function GplOutage() {
 
           <button
             className="press focus-ring"
-            onClick={submit}
+            onClick={() => requireOtp({ title: 'Confirm your report', confirmLabel: 'Send report', onConfirm: submit })}
             disabled={!type}
             style={{
               width: '100%', minHeight: 50, border: 'none', borderRadius: 14, background: 'var(--agency-accent)',

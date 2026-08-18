@@ -97,7 +97,7 @@ function resolveApp(payload) {
 }
 
 export default function Tracking() {
-  const { isOpen, closeOverlay, openOverlay, navigate, showToast, getPayload, appointments } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, navigate, showToast, getPayload, appointments, requireOtp } = useAppState();
   const open = isOpen('track');
 
   const [docOverrides, setDocOverrides] = useState({});
@@ -328,7 +328,7 @@ export default function Tracking() {
           <Button variant="outline" fullWidth icon={<Icon name="sparkles" size={16} />} onClick={() => openOverlay('askGov')}>
             Ask Gov
           </Button>
-          <Button variant="outline" fullWidth icon={<Icon name="flag" size={16} />} onClick={() => showToast("Issue reported — we'll follow up.")}>
+          <Button variant="outline" fullWidth icon={<Icon name="flag" size={16} />} onClick={() => requireOtp({ title: 'Report an issue', confirmLabel: 'Report issue', onConfirm: () => showToast("Issue reported — we'll follow up.") })}>
             Report issue
           </Button>
         </div>
@@ -338,7 +338,7 @@ export default function Tracking() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button
             className="press focus-ring"
-            onClick={confirmUpload}
+            onClick={() => requireOtp({ title: uploadTarget ? `Provide ${uploadTarget}` : 'Provide document', confirmLabel: 'Confirm upload', onConfirm: confirmUpload })}
             style={{
               display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: 12,
               borderRadius: 14, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', cursor: 'pointer', textAlign: 'left',
@@ -351,7 +351,7 @@ export default function Tracking() {
           </button>
           <button
             className="press focus-ring"
-            onClick={confirmUpload}
+            onClick={() => requireOtp({ title: uploadTarget ? `Provide ${uploadTarget}` : 'Provide document', confirmLabel: 'Confirm upload', onConfirm: confirmUpload })}
             style={{
               display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: 12,
               borderRadius: 14, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', cursor: 'pointer', textAlign: 'left',

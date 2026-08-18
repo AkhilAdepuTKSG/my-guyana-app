@@ -24,7 +24,7 @@ const PURPOSES = [
 ];
 
 export default function Calendar() {
-  const { openOverlay, appointments, addAppointment, showToast } = useAppState();
+  const { openOverlay, appointments, addAppointment, showToast, requireOtp } = useAppState();
   const [booking, setBooking] = useState(false);
   const [purpose, setPurpose] = useState('general');
   const [office, setOffice] = useState('');
@@ -208,7 +208,7 @@ export default function Calendar() {
             </div>
           </div>
 
-          <Button fullWidth onClick={confirmBooking} disabled={!ready} style={{ opacity: ready ? 1 : 0.5 }}>
+          <Button fullWidth onClick={() => requireOtp({ title: 'Confirm your appointment', confirmLabel: 'Confirm appointment', onConfirm: confirmBooking })} disabled={!ready} style={{ opacity: ready ? 1 : 0.5 }}>
             Confirm appointment
           </Button>
         </div>

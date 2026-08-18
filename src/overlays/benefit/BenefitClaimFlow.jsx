@@ -240,7 +240,7 @@ function DocCard({ doc, uploadLabel = 'Upload a photo' }) {
 }
 
 export default function BenefitClaimFlow() {
-  const { isOpen, closeOverlay, getPayload, showToast, navigate, persona } = useAppState();
+  const { isOpen, closeOverlay, getPayload, showToast, navigate, persona, requireOtp } = useAppState();
   const open = isOpen('benefit');
   const payload = getPayload('benefit');
   const wasOpen = useRef(false);
@@ -875,7 +875,7 @@ export default function BenefitClaimFlow() {
         {step === 3 && (
           <div style={{ position: 'sticky', bottom: 0, marginTop: 20, paddingTop: 14, borderTop: '1px solid var(--surface-hairline)', background: 'var(--surface-1)', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {!canSubmit && <p style={{ margin: 0, padding: '10px 14px', fontSize: 13.5, fontWeight: 700, color: 'var(--status-error)', background: 'var(--status-error-bg)', borderRadius: 10, textAlign: 'center' }}>{blockReason}</p>}
-            <Button variant="primary" fullWidth disabled={!canSubmit || submitting} onClick={submitClaim} style={{ opacity: canSubmit ? 1 : 0.45 }}>
+            <Button variant="primary" fullWidth disabled={!canSubmit || submitting} onClick={() => requireOtp({ title: 'Submit your benefit claim', confirmLabel: 'Submit claim', onConfirm: submitClaim })} style={{ opacity: canSubmit ? 1 : 0.45 }}>
               {submitting ? 'Submitting…' : 'Submit claim'}
             </Button>
           </div>

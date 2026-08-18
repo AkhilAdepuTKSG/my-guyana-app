@@ -19,7 +19,7 @@ const APPEAL_TIMELINE = [
 ];
 
 export default function AppealForm() {
-  const { isOpen, closeOverlay, showToast } = useAppState();
+  const { isOpen, closeOverlay, showToast, requireOtp } = useAppState();
   const open = isOpen('appeal');
   const [what, setWhat] = useState('');
   const [why, setWhy] = useState('');
@@ -85,7 +85,7 @@ export default function AppealForm() {
             </div>
           ))}
         </div>
-        <Button fullWidth disabled={!canSubmit} style={{ opacity: canSubmit ? 1 : 0.5 }} onClick={submit}>Submit appeal</Button>
+        <Button fullWidth disabled={!canSubmit} style={{ opacity: canSubmit ? 1 : 0.5 }} onClick={() => requireOtp({ title: 'Submit your appeal', confirmLabel: 'Submit appeal', onConfirm: submit })}>Submit appeal</Button>
       </div>
     </PageOverlay>
   );

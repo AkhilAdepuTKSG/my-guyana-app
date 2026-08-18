@@ -89,7 +89,7 @@ const STATUS_META = {
 const INITIAL_FIELDS = { employer: '', job: '', start: '', empNo: '', workType: '', location: '', business: '', tin: '' };
 
 export default function NisRegistrationFlow() {
-  const { isOpen, closeOverlay, showToast, navigate, persona } = useAppState();
+  const { isOpen, closeOverlay, showToast, navigate, persona, requireOtp } = useAppState();
   const open = isOpen('nisReg');
   const wasOpen = useRef(false);
 
@@ -430,7 +430,7 @@ export default function NisRegistrationFlow() {
         {step === 3 && (
           <div style={{ position: 'sticky', bottom: 0, marginTop: 20, paddingTop: 14, borderTop: '1px solid var(--surface-hairline)', background: 'var(--surface-1)', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {!canSubmit && <p style={{ margin: 0, fontSize: 12, color: 'var(--fg-2)', textAlign: 'center' }}>Resolve required documents to continue.</p>}
-            <Button variant="primary" fullWidth disabled={!canSubmit || submitting} onClick={submitReg} style={{ opacity: canSubmit ? 1 : 0.45 }}>
+            <Button variant="primary" fullWidth disabled={!canSubmit || submitting} onClick={() => requireOtp({ title: 'Submit your NIS registration', confirmLabel: 'Submit application', onConfirm: submitReg })} style={{ opacity: canSubmit ? 1 : 0.45 }}>
               {submitting ? 'Submitting…' : 'Submit application'}
             </Button>
           </div>

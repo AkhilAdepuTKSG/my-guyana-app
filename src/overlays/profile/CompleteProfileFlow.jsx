@@ -27,7 +27,7 @@ function Field({ label, hint, children }) {
 }
 
 export default function CompleteProfileFlow() {
-  const { isOpen, closeOverlay, persona, user, updateUser, showToast, addNotification } = useAppState();
+  const { isOpen, closeOverlay, persona, user, updateUser, showToast, addNotification, requireOtp } = useAppState();
   const open = isOpen('completeProfile');
   const [fields, setFields] = useState(EMPTY);
   const [submitting, setSubmitting] = useState(false);
@@ -93,7 +93,7 @@ export default function CompleteProfileFlow() {
           <input type="date" value={fields.dob} onChange={set('dob')} style={fieldStyle} />
         </Field>
 
-        <Button style={{ opacity: complete ? 1 : 0.5 }} disabled={!complete || submitting} onClick={submit}>
+        <Button style={{ opacity: complete ? 1 : 0.5 }} disabled={!complete || submitting} onClick={() => requireOtp({ title: 'Confirm your details', confirmLabel: 'Save and finish', onConfirm: submit })}>
           {submitting ? 'Saving…' : 'Save and finish'}
         </Button>
         <p style={{ margin: 0, textAlign: 'center', fontSize: 11.5, lineHeight: 1.5, color: 'var(--fg-4)' }}>

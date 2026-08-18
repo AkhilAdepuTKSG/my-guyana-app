@@ -31,7 +31,7 @@ const STEP_META = {
 // All data is local component state backed by mock lookups — nothing here
 // touches the shared AppStateContext beyond the 'eid' overlay open/close key.
 export default function EidApplicationFlow() {
-  const { isOpen, closeOverlay, openOverlay, navigate, persona } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, navigate, persona, requireOtp } = useAppState();
   const open = isOpen('eid');
 
   const [step, setStep] = useState('about');
@@ -175,7 +175,7 @@ export default function EidApplicationFlow() {
           <Button variant="outline" style={{ flex: 1 }} onClick={goBack}>Back</Button>
           {step === 1 && <Button style={{ flex: 2, opacity: canSubmitDetails ? 1 : 0.5 }} disabled={!canSubmitDetails} onClick={() => setStep(2)}>Continue</Button>}
           {step === 2 && <Button style={{ flex: 2, opacity: canSubmitAppointment ? 1 : 0.5 }} disabled={!canSubmitAppointment} onClick={() => setStep(3)}>Continue</Button>}
-          {step === 3 && <Button style={{ flex: 2 }} disabled={submitting} onClick={submit}>{submitting ? 'Submitting…' : 'Submit application'}</Button>}
+          {step === 3 && <Button style={{ flex: 2 }} disabled={submitting} onClick={() => requireOtp({ title: 'Submit your e-ID application', confirmLabel: 'Submit application', onConfirm: submit })}>{submitting ? 'Submitting…' : 'Submit application'}</Button>}
         </div>
       )}
 

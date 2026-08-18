@@ -54,7 +54,7 @@ function resolveAppointment(payload, appointments) {
 }
 
 export default function AppointmentDetail() {
-  const { isOpen, closeOverlay, getPayload, showToast, appointments, updateAppointment, removeAppointment } = useAppState();
+  const { isOpen, closeOverlay, getPayload, showToast, appointments, updateAppointment, removeAppointment, requireOtp } = useAppState();
   const open = isOpen('apptDetail');
 
   const baseAppt = resolveAppointment(getPayload('apptDetail'), appointments);
@@ -297,7 +297,7 @@ export default function AppointmentDetail() {
 
           <button
             className="press focus-ring"
-            onClick={confirmReschedule}
+            onClick={() => requireOtp({ title: 'Confirm the new time', confirmLabel: 'Confirm new time', onConfirm: confirmReschedule })}
             disabled={!selectedDate || !selectedTime}
             style={{
               width: '100%', minHeight: 50, border: 'none', borderRadius: 14,
@@ -329,7 +329,7 @@ export default function AppointmentDetail() {
           </div>
           <button
             className="press focus-ring"
-            onClick={submitIssue}
+            onClick={() => requireOtp({ title: 'Submit your report', confirmLabel: 'Submit report', onConfirm: submitIssue })}
             disabled={!issueComment.trim()}
             style={{
               width: '100%', minHeight: 50, border: 'none', borderRadius: 14, background: 'var(--agency-accent)',
@@ -360,7 +360,7 @@ export default function AppointmentDetail() {
             </button>
             <button
               className="press focus-ring"
-              onClick={confirmCancel}
+              onClick={() => requireOtp({ title: 'Cancel this appointment', confirmLabel: 'Cancel appointment', onConfirm: confirmCancel })}
               style={{
                 flex: 1, minHeight: 46, borderRadius: 12, border: 'none',
                 background: 'var(--status-error)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',

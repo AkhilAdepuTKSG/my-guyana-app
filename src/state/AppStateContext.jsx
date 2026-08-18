@@ -123,6 +123,17 @@ export function AppStateProvider({ children }) {
   const isOpen = useCallback((key) => overlays.has(key), [overlays]);
   const getPayload = useCallback((key) => overlays.get(key), [overlays]);
 
+  // Gate a sensitive action behind a one-time code. `opts.onConfirm` runs only
+  // after a valid code (see overlays/security/OtpGate). Every submission,
+  // request, payment and change routes its final action through this.
+  const requireOtp = useCallback((opts = {}) => {
+    setOverlays((prev) => {
+      const next = new Map(prev);
+      next.set('otpGate', opts);
+      return next;
+    });
+  }, []);
+
   const showToast = useCallback((message, opts = {}) => {
     setToast({ message, ...opts });
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -230,7 +241,7 @@ export function AppStateProvider({ children }) {
   const value = useMemo(() => ({
     screen, navigate,
     persona,
-    overlays, openOverlay, closeOverlay, isOpen, getPayload,
+    overlays, openOverlay, closeOverlay, isOpen, getPayload, requireOtp,
     toast, showToast,
     session, user, isAuthenticated, signIn, signOut, updateUser,
     applications, addApplication, updateApplication,
@@ -238,7 +249,7 @@ export function AppStateProvider({ children }) {
     appointments, addAppointment, updateAppointment, removeAppointment,
     vaultDocs, addVaultDoc, removeVaultDoc,
     connectedAgencies, connectAgency, disconnectAgency,
-  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, appointments, addAppointment, updateAppointment, removeAppointment, vaultDocs, addVaultDoc, removeVaultDoc, connectedAgencies, connectAgency, disconnectAgency]);
+  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, requireOtp, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, appointments, addAppointment, updateAppointment, removeAppointment, vaultDocs, addVaultDoc, removeVaultDoc, connectedAgencies, connectAgency, disconnectAgency]);
 
   return (
     <AppStateContext.Provider value={value}>

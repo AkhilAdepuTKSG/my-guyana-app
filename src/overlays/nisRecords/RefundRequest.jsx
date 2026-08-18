@@ -16,7 +16,7 @@ const REFUND_SITUATIONS = [
 const REFUND_DOCS = ['Bank statement showing the payment', 'NIS contribution card or receipt'];
 
 export default function RefundRequest() {
-  const { isOpen, closeOverlay, openOverlay, showToast } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, showToast, requireOtp } = useAppState();
   const open = isOpen('refund');
   const [phase, setPhase] = useState('pick'); // pick | out | checked
   const [account, setAccount] = useState('');
@@ -117,7 +117,7 @@ export default function RefundRequest() {
               style={{ width: '100%', minHeight: 48, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', fontSize: 16, color: 'var(--fg-1)', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
             />
           </div>
-          <Button fullWidth onClick={submit}>Send refund request</Button>
+          <Button fullWidth onClick={() => requireOtp({ title: 'Send your refund request', confirmLabel: 'Send request', onConfirm: submit })}>Send refund request</Button>
         </div>
       )}
     </PageOverlay>

@@ -58,7 +58,7 @@ function FieldRow({ field, value, onChange }) {
 }
 
 export default function ApplyFlow() {
-  const { isOpen, getPayload, closeOverlay, openOverlay, navigate, user, addApplication, addAppointment, addNotification, showToast } = useAppState();
+  const { isOpen, getPayload, closeOverlay, openOverlay, navigate, user, addApplication, addAppointment, addNotification, showToast, requireOtp } = useAppState();
   const open = isOpen('apply');
   const payload = getPayload('apply');
   const def = getApplicationDef(payload?.serviceId);
@@ -433,7 +433,7 @@ export default function ApplyFlow() {
           <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
             {step > 1 && <Button variant="outline" style={{ flex: 1 }} onClick={() => setStep((s) => s - 1)}>Back</Button>}
             {step < totalSteps && <Button style={{ flex: 2, opacity: canContinue ? 1 : 0.5 }} disabled={!canContinue} onClick={() => setStep((s) => s + 1)}>Continue</Button>}
-            {step === totalSteps && <Button style={{ flex: 2 }} disabled={submitting} onClick={submit}>{submitting ? 'Submitting…' : 'Submit application'}</Button>}
+            {step === totalSteps && <Button style={{ flex: 2 }} disabled={submitting} onClick={() => requireOtp({ title: `Submit your ${def.title} application`, confirmLabel: 'Submit application', onConfirm: submit })}>{submitting ? 'Submitting…' : 'Submit application'}</Button>}
           </div>
         </>
       )}

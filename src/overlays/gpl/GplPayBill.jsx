@@ -11,7 +11,7 @@ const PAY_METHODS = [
 ];
 
 export default function GplPayBill() {
-  const { isOpen, closeOverlay, persona, navigate, showToast } = useAppState();
+  const { isOpen, closeOverlay, persona, navigate, showToast, requireOtp } = useAppState();
   const open = isOpen('gplPay');
   const gpl = persona.gpl;
 
@@ -187,7 +187,7 @@ export default function GplPayBill() {
             </button>
             <button
               className="press focus-ring"
-              onClick={confirmPay}
+              onClick={() => requireOtp({ title: 'Confirm your payment', message: `Enter the one-time code we sent you to pay ${amountLabel}.`, confirmLabel: `Pay ${amountLabel}`, onConfirm: confirmPay })}
               style={{
                 flex: 2, minHeight: 50, border: 'none', borderRadius: 14, background: 'var(--agency-accent)',
                 color: 'var(--fg-on-accent)', fontSize: 14.5, fontWeight: 700, cursor: 'pointer',

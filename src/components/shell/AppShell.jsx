@@ -14,6 +14,7 @@ import Applications from '../../screens/Applications';
 
 import EidApplicationFlow from '../../overlays/eid/EidApplicationFlow';
 import ApplyFlow from '../../overlays/apply/ApplyFlow';
+import OtpGate from '../../overlays/security/OtpGate';
 import NisRegistrationFlow from '../../overlays/nisReg/NisRegistrationFlow';
 import BenefitClaimFlow from '../../overlays/benefit/BenefitClaimFlow';
 import GplPayBill from '../../overlays/gpl/GplPayBill';
@@ -101,6 +102,9 @@ export default function AppShell() {
       <CompleteProfileFlow />
       <NotificationsSheet />
       <RegionSheet />
+
+      {/* Sits above every flow — gates sensitive submissions behind a code. */}
+      <OtpGate />
     </div>
   );
 }
