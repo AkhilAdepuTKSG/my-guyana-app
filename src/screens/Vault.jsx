@@ -113,10 +113,18 @@ function formatAdded(iso) {
 }
 
 export default function Vault() {
-  const { navigate, openOverlay, persona, showToast, vaultDocs, addVaultDoc, removeVaultDoc } = useAppState();
+  const { navigate, openOverlay, persona, showToast, user, vaultDocs, addVaultDoc, removeVaultDoc } = useAppState();
   const cards = buildWalletCards(persona);
   const builtDocs = buildDocuments(persona);
   const fileRef = useRef(null);
+  const otpChannel = user?.gov?.phoneMasked || '••• ••• 4820';
+
+  // The Vault is locked every time it's opened — a one-time code is required
+  // before any cards or documents are shown (and, therefore, before anything
+  // can be added).
+  const [unlocked, setUnlocked] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [otpError, setOtpError] = useState('');
 
   const [adding, setAdding] = useState(false);
   const [docType, setDocType] = useState('national-id');
@@ -146,27 +154,83 @@ export default function Vault() {
   const noCards = cards.length === 0;
   const noDocs = builtDocs.length === 0 && vaultDocs.length === 0;
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+  const unlockVault = () => {
+    if (otp.replace(/\D/g, '').length < 6) { setOtpError('Enter the 6-digit code we sent you.'); return; }
+    if (otp === '000000') { setOtpError('That code is wrong. Check it and try again.'); return; }
+    setOtpError(''); setUnlocked(true);
+  };
+
+  const header = (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <button
+          className="press focus-ring"
+          onClick={() => navigate('home')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 3, minHeight: 36, padding: '0 12px 0 8px',
+            borderRadius: 999, background: 'var(--surface-2)', border: '1px solid var(--surface-border)',
+            color: 'var(--fg-1)', fontSize: 'var(--text-xs)', fontWeight: 700,
+          }}
+        >
+          <Icon name="chevron-left" size={18} color="var(--fg-1)" />Home
+        </button>
+        <div style={{ flex: 1 }} />
+        <NotificationBell size={40} />
+      </div>
+      <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--fg-1)' }}>Vault</div>
+      <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 500, color: 'var(--fg-3)', marginTop: 2 }}>Your IDs, cards and documents — all in one secure place</div>
+    </div>
+  );
+
+  // Locked — verify with a one-time code before anything in the Vault is shown.
+  if (!unlocked) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {header}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '24px 18px', borderRadius: 20, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', boxShadow: 'var(--shadow-sm)' }}>
+          <span aria-hidden="true" style={{ width: 52, height: 52, borderRadius: 16, background: 'var(--brand-100)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="lock" size={24} color="var(--brand-700)" />
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--fg-1)' }}>Your Vault is protected</h2>
+            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: 'var(--fg-2)' }}>
+              Enter the one-time code we sent to {otpChannel} to open your cards and documents.
+            </p>
+          </div>
+          <input
+            type="text" inputMode="numeric" autoComplete="one-time-code" enterKeyHint="go" placeholder="000000"
+            value={otp}
+            onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setOtpError(''); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') unlockVault(); }}
+            aria-label="One-time code"
+            style={{
+              width: '100%', boxSizing: 'border-box', minHeight: 54, padding: '13px 15px', borderRadius: 13,
+              border: `1.5px solid ${otpError ? 'var(--status-error)' : 'var(--surface-border)'}`, background: 'var(--surface-2)',
+              fontFamily: 'var(--font-mono)', fontSize: 22, letterSpacing: '0.35em', textAlign: 'center', color: 'var(--fg-1)', outline: 'none',
+            }}
+          />
+          {otpError && (
+            <p style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 12.5, fontWeight: 700, color: 'var(--status-error)' }}>
+              <Icon name="triangle-alert" size={15} color="currentColor" style={{ flexShrink: 0, marginTop: 1 }} />{otpError}
+            </p>
+          )}
+          <Button fullWidth onClick={unlockVault} icon={<Icon name="lock-open" size={17} color="#fff" />}>Unlock Vault</Button>
           <button
             className="press focus-ring"
-            onClick={() => navigate('home')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 3, minHeight: 36, padding: '0 12px 0 8px',
-              borderRadius: 999, background: 'var(--surface-2)', border: '1px solid var(--surface-border)',
-              color: 'var(--fg-1)', fontSize: 'var(--text-xs)', fontWeight: 700,
-            }}
+            onClick={() => { setOtp(''); setOtpError(''); showToast('New code sent'); }}
+            style={{ alignSelf: 'center', background: 'none', border: 'none', color: 'var(--brand-600)', fontSize: 13, fontWeight: 700, cursor: 'pointer', minHeight: 38, fontFamily: 'inherit' }}
           >
-            <Icon name="chevron-left" size={18} color="var(--fg-1)" />Home
+            Send a new code
           </button>
-          <div style={{ flex: 1 }} />
-          <NotificationBell size={40} />
+          <p style={{ margin: 0, textAlign: 'center', fontSize: 11, lineHeight: 1.5, color: 'var(--fg-4)' }}>Demo: any six digits open the Vault. Type 000000 to see the error.</p>
         </div>
-        <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--fg-1)' }}>Vault</div>
-        <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 500, color: 'var(--fg-3)', marginTop: 2 }}>Your IDs, cards and documents — all in one secure place</div>
       </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {header}
 
       {!noCards && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
