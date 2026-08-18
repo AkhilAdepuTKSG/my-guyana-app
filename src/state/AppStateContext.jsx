@@ -178,9 +178,14 @@ export function AppStateProvider({ children }) {
   }, []);
   const signOut = useCallback(() => {
     setSession(null);
-    // A different citizen must start with an empty ecosystem.
+    // A different citizen must start with a clean, empty account — clear every
+    // piece of per-citizen state so nothing leaks across sign-ins.
     setConnectedAgencies([]);
     setAgencyProfile({});
+    setApplications([]);
+    setNotifications([]);
+    setAppointments([]);
+    setVaultDocs([]);
   }, []);
   // Connect an agency to the citizen's account (persisted). `patch` carries the
   // per-agency data that connecting unlocks (e.g. NIS record state, GPL account).
