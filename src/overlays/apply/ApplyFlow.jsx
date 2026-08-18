@@ -8,7 +8,7 @@ import { AGENCIES, SERVICE_CENTRES } from '../../state/mockData';
 import { getApplicationDef } from '../../state/requirements';
 import { buildEidDateOptions, EID_TIME_OPTIONS, formatEidDate } from '../eid/eidData';
 import { recognizeImage, parseFields } from '../../lib/ocr';
-import { findSlotClash, appointmentPurpose } from '../../lib/appointments';
+import { findSlotClash, appointmentPurpose, dateClashSummary } from '../../lib/appointments';
 
 const fieldStyle = {
   width: '100%', boxSizing: 'border-box', minHeight: 48, padding: '12px 14px',
@@ -153,6 +153,17 @@ export default function ApplyFlow() {
       const next = { ...prev }; delete next[id]; return next;
     });
     setDocStatus((s) => { const next = { ...s }; delete next[id]; return next; });
+  };
+  // "Add from Vault" — a static placeholder that pretends to pull a document the
+  // citizen already stored in their Vault, so they don't re-upload what
+  // government holds. No backend, so we attach a stand-in record.
+  const attachFromVault = (id, label) => {
+    setDocFiles((prev) => {
+      if (prev[id]?.url) URL.revokeObjectURL(prev[id].url);
+      return { ...prev, [id]: { name: `${label} (from Vault)`, url: null, size: null, source: 'vault' } };
+    });
+    setDocStatus((s) => ({ ...s, [id]: 'uploaded' }));
+    showToast('Added from your Vault');
   };
   const fmtSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
@@ -318,9 +329,11 @@ export default function ApplyFlow() {
                     {uploaded ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 10, background: 'var(--status-success-bg)', border: '1px solid color-mix(in oklch, var(--status-success) 30%, transparent)' }}>
-                          <Icon name="paperclip" size={14} color="var(--status-success)" style={{ flexShrink: 0 }} />
+                          <Icon name={docFiles[d.id]?.source === 'vault' ? 'folder-lock' : 'paperclip'} size={14} color="var(--status-success)" style={{ flexShrink: 0 }} />
                           <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, color: 'var(--fg-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{docFiles[d.id]?.name || 'Attached'}</span>
-                          {docFiles[d.id]?.size != null && <span style={{ fontSize: 11, color: 'var(--fg-3)', flexShrink: 0 }}>{fmtSize(docFiles[d.id].size)}</span>}
+                          {docFiles[d.id]?.source === 'vault'
+                            ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', flexShrink: 0 }}>From Vault</span>
+                            : docFiles[d.id]?.size != null && <span style={{ fontSize: 11, color: 'var(--fg-3)', flexShrink: 0 }}>{fmtSize(docFiles[d.id].size)}</span>}
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           {docFiles[d.id]?.url && (
@@ -340,10 +353,16 @@ export default function ApplyFlow() {
                         </div>
                       </div>
                     ) : (
-                      <button className="press focus-ring" onClick={() => pickDoc(d.id)}
-                        style={{ minHeight: 40, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        <Icon name="upload" size={13} />{d.required ? 'Upload file' : 'Add file'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="press focus-ring" onClick={() => pickDoc(d.id)}
+                          style={{ flex: 1, minHeight: 40, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <Icon name="upload" size={13} />{d.required ? 'Upload file' : 'Add file'}
+                        </button>
+                        <button className="press focus-ring" onClick={() => attachFromVault(d.id, d.label)}
+                          style={{ flex: 1, minHeight: 40, borderRadius: 10, border: `1px solid color-mix(in oklch, ${mark} 35%, var(--surface-border))`, background: `color-mix(in oklch, ${mark} 8%, transparent)`, color: mark, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <Icon name="folder-lock" size={13} />From Vault
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
@@ -373,9 +392,14 @@ export default function ApplyFlow() {
                   <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '2px 2px 4px' }}>
                     {dateOptions.map((dt) => {
                       const active = appt.date === dt.iso;
+                      const summary = dateClashSummary(appointments, { location: appt.office, date: dt.iso, times: EID_TIME_OPTIONS });
                       return (
                         <button key={dt.iso} className="press focus-ring" onClick={() => !dt.isFull && setAppt((a) => ({ ...a, date: dt.iso }))} disabled={dt.isFull}
-                          style={{ flexShrink: 0, width: 54, minHeight: 62, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 13, border: `1px solid ${active ? mark : 'var(--surface-border)'}`, background: active ? mark : 'var(--surface-1)', color: active ? '#fff' : 'var(--fg-1)', cursor: dt.isFull ? 'not-allowed' : 'pointer', opacity: dt.isFull ? 0.45 : 1, fontFamily: 'inherit' }}>
+                          title={summary.hasBooking ? 'You already have a booking this day' : undefined}
+                          style={{ position: 'relative', flexShrink: 0, width: 54, minHeight: 62, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 13, border: `1px solid ${active ? mark : 'var(--surface-border)'}`, background: active ? mark : 'var(--surface-1)', color: active ? '#fff' : 'var(--fg-1)', cursor: dt.isFull ? 'not-allowed' : 'pointer', opacity: dt.isFull ? 0.45 : 1, fontFamily: 'inherit' }}>
+                          {summary.hasBooking && (
+                            <span aria-hidden="true" style={{ position: 'absolute', top: 4, right: 4, width: 6, height: 6, borderRadius: 999, background: active ? '#fff' : 'var(--status-warning)' }} />
+                          )}
                           <span style={{ fontSize: 10.5, fontWeight: 800 }}>{dt.dayAbbr}</span>
                           <span style={{ fontSize: 17, fontWeight: 800 }}>{dt.dateNum}</span>
                         </button>
@@ -388,7 +412,7 @@ export default function ApplyFlow() {
                       const clash = findSlotClash(appointments, { location: appt.office, date: appt.date, time: t });
                       return (
                         <button key={t} className="press focus-ring" disabled={!!clash} onClick={() => { if (!clash) setAppt((a) => ({ ...a, time: t })); }}
-                          style={{ minHeight: 38, padding: clash ? '5px 13px' : '0 15px', borderRadius: clash ? 12 : 999, border: `1px solid ${active ? mark : 'var(--surface-border)'}`, background: active ? mark : clash ? 'var(--surface-2)' : 'var(--surface-1)', color: active ? '#fff' : clash ? 'var(--fg-3)' : 'var(--fg-1)', fontSize: 13, fontWeight: 700, cursor: clash ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                          style={{ minHeight: 38, padding: clash ? '5px 13px' : '0 15px', borderRadius: clash ? 12 : 999, border: `1px solid ${active ? mark : 'var(--surface-border)'}`, background: active ? mark : clash ? 'var(--surface-2)' : 'var(--surface-1)', color: active ? '#fff' : clash ? 'var(--fg-3)' : 'var(--fg-1)', fontSize: 13, fontWeight: 700, cursor: clash ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                           <span>{t}</span>
                           {clash && <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--status-warning)' }}>Booked · {appointmentPurpose(clash)}</span>}
                         </button>
