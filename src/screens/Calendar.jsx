@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useAppState } from '../state/AppStateContext';
 import { AGENCIES, SERVICE_CENTRES } from '../state/mockData';
 import { buildEidDateOptions, EID_TIME_OPTIONS, formatEidDate } from '../overlays/eid/eidData';
+import { findSlotClash, appointmentPurpose } from '../lib/appointments';
 import Icon from '../components/ui/Icon';
 import Sheet from '../components/ui/Sheet';
 import Button from '../components/ui/Button';
@@ -192,16 +193,25 @@ export default function Calendar() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {EID_TIME_OPTIONS.map((t) => {
                 const active = time === t;
+                const clash = findSlotClash(appointments, { location: office, date, time: t });
                 return (
                   <button
-                    key={t} className="press focus-ring" onClick={() => setTime(t)}
+                    key={t} className="press focus-ring" disabled={!!clash} onClick={() => { if (!clash) setTime(t); }}
                     style={{
-                      minHeight: 40, padding: '0 16px', borderRadius: 999, border: `1px solid ${active ? 'var(--brand-600)' : 'var(--surface-border)'}`,
-                      background: active ? 'var(--brand-600)' : 'var(--surface-1)', color: active ? '#fff' : 'var(--fg-1)',
-                      fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                      minHeight: 40, padding: clash ? '5px 13px' : '0 16px', borderRadius: clash ? 12 : 999,
+                      border: `1px solid ${active ? 'var(--brand-600)' : 'var(--surface-border)'}`,
+                      background: active ? 'var(--brand-600)' : clash ? 'var(--surface-2)' : 'var(--surface-1)',
+                      color: active ? '#fff' : clash ? 'var(--fg-3)' : 'var(--fg-1)',
+                      fontSize: 13, fontWeight: 700, cursor: clash ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
                     }}
                   >
-                    {t}
+                    <span>{t}</span>
+                    {clash && (
+                      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--status-warning)' }}>
+                        Booked · {appointmentPurpose(clash)}
+                      </span>
+                    )}
                   </button>
                 );
               })}

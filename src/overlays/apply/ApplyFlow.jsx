@@ -8,6 +8,7 @@ import { AGENCIES, SERVICE_CENTRES } from '../../state/mockData';
 import { getApplicationDef } from '../../state/requirements';
 import { buildEidDateOptions, EID_TIME_OPTIONS, formatEidDate } from '../eid/eidData';
 import { recognizeImage, parseFields } from '../../lib/ocr';
+import { findSlotClash, appointmentPurpose } from '../../lib/appointments';
 
 const fieldStyle = {
   width: '100%', boxSizing: 'border-box', minHeight: 48, padding: '12px 14px',
@@ -58,7 +59,7 @@ function FieldRow({ field, value, onChange }) {
 }
 
 export default function ApplyFlow() {
-  const { isOpen, getPayload, closeOverlay, openOverlay, navigate, user, addApplication, addAppointment, addNotification, showToast, requireOtp } = useAppState();
+  const { isOpen, getPayload, closeOverlay, openOverlay, navigate, user, appointments, addApplication, addAppointment, addNotification, showToast, requireOtp } = useAppState();
   const open = isOpen('apply');
   const payload = getPayload('apply');
   const def = getApplicationDef(payload?.serviceId);
@@ -384,10 +385,12 @@ export default function ApplyFlow() {
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {EID_TIME_OPTIONS.map((t) => {
                       const active = appt.time === t;
+                      const clash = findSlotClash(appointments, { location: appt.office, date: appt.date, time: t });
                       return (
-                        <button key={t} className="press focus-ring" onClick={() => setAppt((a) => ({ ...a, time: t }))}
-                          style={{ minHeight: 38, padding: '0 15px', borderRadius: 999, border: `1px solid ${active ? mark : 'var(--surface-border)'}`, background: active ? mark : 'var(--surface-1)', color: active ? '#fff' : 'var(--fg-1)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                          {t}
+                        <button key={t} className="press focus-ring" disabled={!!clash} onClick={() => { if (!clash) setAppt((a) => ({ ...a, time: t })); }}
+                          style={{ minHeight: 38, padding: clash ? '5px 13px' : '0 15px', borderRadius: clash ? 12 : 999, border: `1px solid ${active ? mark : 'var(--surface-border)'}`, background: active ? mark : clash ? 'var(--surface-2)' : 'var(--surface-1)', color: active ? '#fff' : clash ? 'var(--fg-3)' : 'var(--fg-1)', fontSize: 13, fontWeight: 700, cursor: clash ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                          <span>{t}</span>
+                          {clash && <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--status-warning)' }}>Booked · {appointmentPurpose(clash)}</span>}
                         </button>
                       );
                     })}

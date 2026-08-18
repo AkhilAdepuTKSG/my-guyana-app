@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button';
 import StepProgress from '../../components/ui/StepProgress';
 import { useAppState } from '../../state/AppStateContext';
 import { SERVICE_CENTRES } from '../../state/mockData';
+import { findSlotClash } from '../../lib/appointments';
 import EidAbout from './EidAbout';
 import EidStep1 from './EidStep1';
 import EidStep2 from './EidStep2';
@@ -31,7 +32,7 @@ const STEP_META = {
 // All data is local component state backed by mock lookups — nothing here
 // touches the shared AppStateContext beyond the 'eid' overlay open/close key.
 export default function EidApplicationFlow() {
-  const { isOpen, closeOverlay, openOverlay, navigate, persona, requireOtp } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, navigate, persona, requireOtp, appointments } = useAppState();
   const open = isOpen('eid');
 
   const [step, setStep] = useState('about');
@@ -163,6 +164,7 @@ export default function EidApplicationFlow() {
           dateOptions={dateOptions}
           onSelectDate={(iso) => setAppointment((a) => ({ ...a, date: iso }))}
           onSelectTime={(t) => setAppointment((a) => ({ ...a, time: t }))}
+          slotClash={(t) => findSlotClash(appointments, { location: appointment.office, date: appointment.date, time: t })}
         />
       )}
 

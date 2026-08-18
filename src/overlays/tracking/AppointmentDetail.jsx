@@ -4,6 +4,7 @@ import Sheet from '../../components/ui/Sheet';
 import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
 import { AGENCIES } from '../../state/mockData';
+import { findSlotClash, appointmentPurpose } from '../../lib/appointments';
 
 // Fixed "what happens at your visit" copy — the source design hard-codes
 // this to the e-ID enrolment flow (the only appointment type it models),
@@ -275,20 +276,24 @@ export default function AppointmentDetail() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {TIME_OPTIONS.map((t) => {
                 const active = selectedTime === t;
+                const clash = findSlotClash(appointments, { location: appt.location, date: selectedDate, time: t, excludeId: baseAppt?.id });
                 return (
                   <button
                     key={t}
                     className="press focus-ring"
-                    onClick={() => setSelectedTime(t)}
+                    disabled={!!clash}
+                    onClick={() => { if (!clash) setSelectedTime(t); }}
                     style={{
-                      minHeight: 44, padding: '0 18px', borderRadius: 999,
+                      minHeight: 44, padding: clash ? '6px 15px' : '0 18px', borderRadius: clash ? 12 : 999,
                       border: `1px solid ${active ? 'var(--agency-accent)' : 'var(--surface-border)'}`,
-                      background: active ? 'var(--agency-accent)' : 'var(--surface-1)',
-                      color: active ? 'var(--agency-contrast)' : 'var(--fg-1)',
-                      fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                      background: active ? 'var(--agency-accent)' : clash ? 'var(--surface-2)' : 'var(--surface-1)',
+                      color: active ? 'var(--agency-contrast)' : clash ? 'var(--fg-3)' : 'var(--fg-1)',
+                      fontSize: 14, fontWeight: 600, cursor: clash ? 'not-allowed' : 'pointer',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
                     }}
                   >
-                    {t}
+                    <span>{t}</span>
+                    {clash && <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--status-warning)' }}>Booked · {appointmentPurpose(clash)}</span>}
                   </button>
                 );
               })}

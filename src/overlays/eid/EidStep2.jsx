@@ -1,5 +1,6 @@
 import Icon from '../../components/ui/Icon';
 import { EID_TIME_OPTIONS } from './eidData';
+import { appointmentPurpose } from '../../lib/appointments';
 
 const STATUS_META = {
   uploaded: { text: 'Uploaded', bg: 'var(--status-success-bg)', fg: 'var(--status-success)' },
@@ -9,7 +10,7 @@ const STATUS_META = {
 
 export default function EidStep2({
   docs, onUpload, centres, appointment, onSelectCentre, onUseLocation,
-  dateOptions, onSelectDate, onSelectTime,
+  dateOptions, onSelectDate, onSelectTime, slotClash,
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -168,16 +169,19 @@ export default function EidStep2({
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {EID_TIME_OPTIONS.map((t) => {
               const active = appointment.time === t;
+              const clash = slotClash ? slotClash(t) : null;
               return (
                 <button
-                  key={t} className="press focus-ring" onClick={() => onSelectTime(t)}
+                  key={t} className="press focus-ring" disabled={!!clash} onClick={() => { if (!clash) onSelectTime(t); }}
                   style={{
-                    minHeight: 40, padding: '0 16px', borderRadius: 999, border: `1px solid ${active ? 'var(--agency-accent)' : 'var(--surface-border)'}`,
-                    background: active ? 'var(--agency-accent)' : 'var(--surface-1)', color: active ? 'var(--agency-contrast)' : 'var(--fg-1)',
-                    fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                    minHeight: 40, padding: clash ? '5px 13px' : '0 16px', borderRadius: clash ? 12 : 999, border: `1px solid ${active ? 'var(--agency-accent)' : 'var(--surface-border)'}`,
+                    background: active ? 'var(--agency-accent)' : clash ? 'var(--surface-2)' : 'var(--surface-1)', color: active ? 'var(--agency-contrast)' : clash ? 'var(--fg-3)' : 'var(--fg-1)',
+                    fontSize: 13, fontWeight: 700, cursor: clash ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
                   }}
                 >
-                  {t}
+                  <span>{t}</span>
+                  {clash && <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--status-warning)' }}>Booked · {appointmentPurpose(clash)}</span>}
                 </button>
               );
             })}
