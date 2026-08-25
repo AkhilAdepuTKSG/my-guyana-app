@@ -70,9 +70,8 @@ export default function AppShell() {
       <TabBar />
       <Toast />
 
-      {/* Services category drill-down — takes over the screen but sits BELOW
-          the tab bar (zIndex 40 vs 50) so the contextual Back stays visible
-          (backlog 3.3–3.5). */}
+      {/* Services category drill-down — covers the entire screen, bottom nav
+          included; its own back arrow is the way out (backlog 3.3/3.4). */}
       <CategoryDrillDown />
 
       {/* Full-screen flows and sheets — layered above the primary screens.

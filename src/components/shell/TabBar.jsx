@@ -10,26 +10,14 @@ const TABS = [
 const PRIMARY_IDS = TABS.map((t) => t.id);
 
 export default function TabBar() {
-  const { screen, navigate, openOverlay, closeOverlay, isOpen } = useAppState();
+  const { screen, navigate, openOverlay } = useAppState();
 
-  // "Inside a flow" (backlog 3.5): the services category drill-down is open, or
-  // the current screen is one reached from within a tab (agency hubs, Vault)
-  // rather than a primary tab itself. In that state the Home slot becomes a
-  // contextual Back; at the top level it is Home again.
-  const drilledIn = isOpen('category');
-  const inFlow = drilledIn || !PRIMARY_IDS.includes(screen);
-
-  const goBack = () => {
-    if (drilledIn) { closeOverlay('category'); return; } // back to the Services top level
-    navigate('home'); // hub/Vault screens sit one level below Home
-  };
-
-  // The other tabs keep working everywhere — leaving via a tab first closes the
-  // drill-down so navigation never happens underneath it.
-  const goTab = (id) => {
-    if (drilledIn) closeOverlay('category');
-    navigate(id);
-  };
+  // "Inside a flow" (backlog 3.5): the current screen is one reached from
+  // within a tab (agency hubs, Vault) rather than a primary tab itself. In
+  // that state the Home slot becomes a contextual Back; at the top level it
+  // is Home again. Full-screen flows (service drill-downs, wizards) cover the
+  // whole screen including this bar, so their back action is their own.
+  const inFlow = !PRIMARY_IDS.includes(screen);
 
   // While inside a flow the contextual Back is the highlighted, primary action;
   // on a primary tab the active highlight follows the screen as before.
@@ -40,11 +28,11 @@ export default function TabBar() {
           key="back"
           tab={{ id: 'back', label: 'Back', icon: 'arrow-left' }}
           active
-          onClick={goBack}
+          onClick={() => navigate('home')} // hub/Vault screens sit one level below Home
         />
       );
     }
-    return <TabButton key={tab.id} tab={tab} active={!inFlow && screen === tab.id} onClick={() => goTab(tab.id)} />;
+    return <TabButton key={tab.id} tab={tab} active={!inFlow && screen === tab.id} onClick={() => navigate(tab.id)} />;
   };
 
   return (

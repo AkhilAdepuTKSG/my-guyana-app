@@ -5,13 +5,11 @@ import Icon from '../../components/ui/Icon';
 import ListRow from '../../components/ui/ListRow';
 import { SERVICE_ICONS, resolveServiceAction } from '../../lib/serviceCatalog';
 
-// Full-screen category drill-down (backlog 3.3/3.4): tapping a category on the
-// Services screen takes over the whole screen and shows only that category's
-// services. The only chrome is a back action and a search field — no screen
-// header, no bell, no tabs. It deliberately sits BELOW the tab bar (zIndex 40
-// vs the bar's 50) so the bottom nav stays visible with its contextual Back
-// (backlog 3.5); flows launched from here are ordinary overlays (zIndex 100+)
-// and still cover everything.
+// Full-screen category drill-down (backlog 3.3/3.4): tapping a category or a
+// service tile takes over the ENTIRE screen — bottom nav included — and shows
+// only that category's services. The only chrome is the back arrow and a
+// search field — no screen header, no bell, no tabs. Flows launched from here
+// are ordinary overlays at the same layer or above and cover it in turn.
 export default function CategoryDrillDown() {
   const { isOpen, closeOverlay, getPayload, openOverlay, showToast } = useAppState();
   const open = isOpen('category');
@@ -39,7 +37,7 @@ export default function CategoryDrillDown() {
 
   return (
     <div style={{
-      position: 'absolute', inset: 0, zIndex: 40, background: 'var(--bg-page)',
+      position: 'absolute', inset: 0, zIndex: 100, background: 'var(--bg-page)',
       display: 'flex', flexDirection: 'column',
       animation: 'pageSlideIn var(--dur-slow) var(--ease-emphasis)',
     }}>
@@ -76,7 +74,7 @@ export default function CategoryDrillDown() {
       </div>
 
       {/* Only this category's services — the owning agency as a grouping label (3.1) */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px calc(96px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px calc(28px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 999, background: agency?.mark, flexShrink: 0 }} />
           <h1 style={{ margin: 0, fontSize: 17, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--fg-1)', flex: 1, minWidth: 0 }}>{cat.name}</h1>
