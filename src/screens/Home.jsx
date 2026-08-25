@@ -31,28 +31,17 @@ function getDayGreeting() {
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-// Same "socket" family as the source dial: up to three slots around the
-// citizen. Which agencies fill them is dynamic (backlog 2.1) — pinned first,
-// then most-frequently-used, then this system-recommended trio for a
-// first-time user. Colors match the design's dial/socket-tile treatment
-// (bright on dark hero) rather than the app-wide navy accent; agencies
-// outside the trio derive their tile colors from their agency mark.
-const RECOMMENDED_AGENCIES = ['nis', 'gpl', 'mops'];
-const DIAL_DEFS = {
-  nis: { color: '#4ade9b', bg: 'rgba(0,155,103,0.20)', ring: 'rgba(74,222,155,0.5)' },
-  gpl: { color: '#9ea3ff', bg: 'rgba(100,104,220,0.24)', ring: 'rgba(158,163,255,0.45)' },
-  mops: { color: '#ff9ebb', bg: 'rgba(190,60,110,0.24)', ring: 'rgba(255,158,187,0.45)' },
+// Hero "socket" tiles (per the Final design): citizen-facing service names,
+// not agency acronyms. Which agencies fill the sockets is dynamic (backlog
+// 2.1) — pinned first, then most-frequently-used, then this recommended trio
+// for a first-time citizen. Colors are the design's socket treatment (bright
+// on the dark hero); agencies outside the trio derive from their agency mark.
+const RECOMMENDED_AGENCIES = ['mops', 'nis', 'gpl'];
+const SOCKET_DEFS = {
+  mops: { label: 'Digital ID', icon: 'id-card', color: '#ff9ebb', bg: 'rgba(190,60,110,0.24)', ring: 'rgba(255,158,187,0.45)' },
+  nis: { label: 'Social Security', icon: 'shield-check', color: '#4ade9b', bg: 'rgba(0,155,103,0.20)', ring: 'rgba(74,222,155,0.5)' },
+  gpl: { label: 'Electricity', icon: 'zap', color: '#fbbf24', bg: 'rgba(180,83,9,0.26)', ring: 'rgba(251,191,36,0.45)' },
 };
-const DIAL_BOX = { width: 272, height: 202, cx: 136, cy: 144, r: 86, size: 60 };
-
-function arcPosition(index, count) {
-  const t = count === 1 ? 0.5 : index / (count - 1);
-  const angle = ((200 + (340 - 200) * t) * Math.PI) / 180;
-  return {
-    left: Math.round(DIAL_BOX.cx + DIAL_BOX.r * Math.cos(angle) - DIAL_BOX.size / 2),
-    top: Math.round(DIAL_BOX.cy + DIAL_BOX.r * Math.sin(angle) - DIAL_BOX.size / 2),
-  };
-}
 
 const ELIGIBILITY_DEFS = [
   {
@@ -71,7 +60,7 @@ const ELIGIBILITY_DEFS = [
 ];
 
 export default function Home() {
-  const { navigate, openOverlay, showToast, persona, user, pinnedAgencies, agencyUsage, recordAgencyUse } = useAppState();
+  const { navigate, openOverlay, showToast, persona, user, updateUser, pinnedAgencies, agencyUsage, recordAgencyUse } = useAppState();
   const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
 
   const connected = persona.connectedAgencies || [];
@@ -83,17 +72,11 @@ export default function Home() {
   const mostUsed = useMemo(() => connected
     .filter((id) => (agencyUsage[id] || 0) > 0)
     .sort((a, b) => (agencyUsage[b] || 0) - (agencyUsage[a] || 0)), [connected, agencyUsage]);
-  const featured = (pinned.length ? pinned : mostUsed.length ? mostUsed : RECOMMENDED_AGENCIES).slice(0, 3);
-
-  // The extension row below: every other pinned/used agency, ending in a door
-  // to the full list so all connected agencies stay reachable.
-  const agencyChips = useMemo(() => {
-    const seen = new Set(featured);
-    return [...pinned, ...mostUsed, ...RECOMMENDED_AGENCIES.filter((id) => connected.includes(id))]
-      .filter((id) => (seen.has(id) ? false : (seen.add(id), true)))
-      .slice(0, 8);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pinned.join(','), mostUsed.join(','), featured.join(','), connected]);
+  // Pinned services fill up to six sockets (the design's cap); otherwise the
+  // top three most-used, or the recommended trio for a first-time citizen.
+  const featured = pinned.length
+    ? pinned.slice(0, 6)
+    : (mostUsed.length ? mostUsed : RECOMMENDED_AGENCIES).slice(0, 3);
 
   // Open an agency: its hub screen when one exists, otherwise its services
   // category — and count the use either way (drives most-frequently-used).
@@ -112,15 +95,6 @@ export default function Home() {
   const dayGreeting = getDayGreeting();
   const heroStatusLabel = persona.eidStatus === 'issued' ? 'Identity verified · e-ID active' : 'Identity verified';
   const showHowItWorks = connected.length <= 1;
-
-  const socketCaption = connected.length === 0
-    ? 'Tap an agency to bring it into My Guyana'
-    : `${connected.length} ${connected.length === 1 ? 'agency' : 'agencies'} connected`;
-
-  const agencyRowTitle = connected.length === 0 ? 'Connect your first agency' : 'Add another agency';
-  const agencyRowSub = connected.length === 0
-    ? 'NIS, electricity, appointments and more'
-    : `Browse everything you can connect, or manage the ${connected.length} you have`;
 
   const billIsNextStep = persona.eidStatus === 'issued' && persona.gpl?.status === 'unpaid';
 
@@ -274,85 +248,8 @@ export default function Home() {
       <div style={{
         margin: '0 -20px', padding: '24px 20px 28px', background: 'var(--hero-navy-gradient)',
         color: '#fff', display: 'flex', flexDirection: 'column', gap: 18,
+        borderRadius: '0 0 24px 24px',
       }}>
-        {hasNoAgencies ? (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 12, padding: '14px 4px 2px',
-          }}>
-            <span aria-hidden="true" style={{
-              width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,0.1)',
-              border: '2px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', fontSize: 15, fontWeight: 800, flexShrink: 0,
-            }}>{persona.initials}</span>
-            <span style={{ fontSize: 13, lineHeight: 1.5, color: 'rgba(255,255,255,0.7)' }}>
-              Your agencies will gather here as you connect them.
-            </span>
-          </div>
-        ) : (
-          <div
-            role="group" aria-label="Your government ecosystem: agencies connected to your My Guyana"
-            style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
-          >
-            <div style={{ position: 'relative', width: DIAL_BOX.width, height: DIAL_BOX.height, margin: '0 auto' }}>
-              {featured.map((id, i) => {
-                const agency = AGENCIES[id];
-                const def = DIAL_DEFS[id] || {
-                  color: '#fff',
-                  bg: hexToRgba(agency?.mark || '#4577d0', 0.3),
-                  ring: hexToRgba(agency?.mark || '#4577d0', 0.55),
-                };
-                const on = connected.includes(id);
-                const isPinned = pinned.includes(id);
-                const pos = arcPosition(i, featured.length);
-                const hasAlert = on && (attentionByAgency[id] || 0) > 0;
-                return (
-                  <div key={id} style={{
-                    position: 'absolute', left: pos.left, top: pos.top, width: DIAL_BOX.size,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                  }}>
-                    <button
-                      className="press focus-ring"
-                      aria-label={`${agency.name}${isPinned ? ' — pinned' : ''}${on ? ' — connected' : ' — not connected yet'}`}
-                      onClick={() => (on ? openAgency(id) : openOverlay('addAgency'))}
-                      style={{
-                        position: 'relative', width: DIAL_BOX.size, height: DIAL_BOX.size, borderRadius: '999px',
-                        background: on ? def.bg : 'rgba(255,255,255,0.05)',
-                        border: on ? `1.5px solid ${def.ring}` : '1.5px dashed rgba(255,255,255,0.3)',
-                        color: on ? def.color : 'rgba(255,255,255,0.55)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                      }}
-                    >
-                      <Icon name={agency.icon} size={24} color={on ? def.color : 'rgba(255,255,255,0.55)'} />
-                      {hasAlert && (
-                        <span aria-hidden="true" style={{
-                          position: 'absolute', top: -3, right: -3, width: 14, height: 14, borderRadius: '999px',
-                          background: '#e11d2e', border: '2px solid #0a1424',
-                        }} />
-                      )}
-                      {isPinned && (
-                        <span aria-hidden="true" style={{
-                          position: 'absolute', top: -4, left: -4, width: 18, height: 18, borderRadius: 999,
-                          background: '#0a1424', border: '1.5px solid rgba(255,255,255,0.35)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          <Icon name="pin" size={10} color="#fff" />
-                        </span>
-                      )}
-                    </button>
-                    <span style={{
-                      fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
-                      color: on ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.5)',
-                    }}>{agency.shortName}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,0.55)', textAlign: 'center' }}>
-              {socketCaption}
-            </p>
-          </div>
-        )}
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, lineHeight: 1.22, color: '#fff', letterSpacing: '-0.015em' }}>
             {dayGreeting}, {firstName}
@@ -370,12 +267,92 @@ export default function Home() {
           </span>
         </div>
 
+        {/* The citizen's sockets (Final design): the services pinned to Home,
+            as square tiles with citizen-facing names — greeting above, tiles
+            below, "See all" as the door to everything else. */}
+        {hasNoAgencies ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px 2px' }}>
+            <span aria-hidden="true" style={{
+              width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,0.1)',
+              border: '2px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', fontSize: 15, fontWeight: 800, flexShrink: 0,
+            }}>{persona.initials}</span>
+            <span style={{ fontSize: 13, lineHeight: 1.5, color: 'rgba(255,255,255,0.7)' }}>
+              Your services will gather here as you connect agencies.
+            </span>
+          </div>
+        ) : (
+          <div
+            role="group" aria-label="Your government: the services you pinned to Home"
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, 64px)', justifyContent: 'center', gap: '20px 52px', margin: '16px 0' }}
+          >
+            {featured.map((id) => {
+              const agency = AGENCIES[id];
+              const def = SOCKET_DEFS[id] || {
+                label: agency?.shortName, icon: agency?.icon || 'building-2',
+                color: '#fff',
+                bg: hexToRgba(agency?.mark || '#4577d0', 0.3),
+                ring: hexToRgba(agency?.mark || '#4577d0', 0.55),
+              };
+              const on = connected.includes(id);
+              const isPinned = pinned.includes(id);
+              const hasAlert = on && (attentionByAgency[id] || 0) > 0;
+              return (
+                <button
+                  key={id}
+                  className="press focus-ring"
+                  aria-label={`${def.label || agency?.name}${isPinned ? ' — pinned' : ''}${on ? '' : ' — not connected yet'}`}
+                  onClick={() => (on ? openAgency(id) : openOverlay('addAgency'))}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: 0, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  <span aria-hidden="true" style={{
+                    position: 'relative', width: 54, height: 54, borderRadius: 17,
+                    background: on ? def.bg : 'rgba(255,255,255,0.05)',
+                    border: on ? `1.5px solid ${def.ring}` : '1.5px dashed rgba(255,255,255,0.3)',
+                    color: on ? def.color : 'rgba(255,255,255,0.55)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Icon name={def.icon} size={23} color={on ? def.color : 'rgba(255,255,255,0.55)'} />
+                    {hasAlert && (
+                      <span aria-hidden="true" style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: 999, background: 'var(--status-error)', border: '2px solid #091A2B' }} />
+                    )}
+                    {isPinned && (
+                      <span aria-hidden="true" style={{
+                        position: 'absolute', top: -4, left: -4, width: 16, height: 16, borderRadius: 999,
+                        background: '#0a1424', border: '1.5px solid rgba(255,255,255,0.35)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Icon name="pin" size={9} color="#fff" />
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: on ? '#fff' : 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap' }}>{def.label || agency?.shortName}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* See all — the one door to everything else (Final design). */}
+        <button
+          className="press focus-ring" onClick={() => navigate('services')}
+          aria-label="See all services"
+          style={{
+            minHeight: 40, padding: '0 15px', borderRadius: 18, background: 'rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.18)', cursor: 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: '-0.005em' }}>See all</span>
+        </button>
+
         {showHowItWorks && (
           <button
             className="press focus-ring" onClick={() => openOverlay('welcome')}
             style={{
               display: 'flex', alignItems: 'center', gap: 11, width: '100%', padding: '12px 14px',
-              borderRadius: 16, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: 16, background: 'linear-gradient(120deg, rgba(214,79,79,0.35), rgba(47,95,191,0.35))',
+              border: '1px solid rgba(255,255,255,0.16)',
               cursor: 'pointer', textAlign: 'left',
             }}
           >
@@ -394,57 +371,33 @@ export default function Home() {
         )}
       </div>
 
-      {/* Add-an-agency row — overlaps the hero's bottom edge, constant height
-          no matter how many agencies are already connected. */}
-      <button
-        className="press focus-ring" onClick={() => openOverlay('addAgency')}
-        aria-label={agencyRowTitle}
-        style={{
-          position: 'relative', marginTop: -16, width: '100%', minHeight: 64, padding: '13px 15px',
-          borderRadius: 18, background: 'var(--surface-1)', border: '1px solid var(--surface-border)',
-          boxShadow: 'var(--shadow-md)', cursor: 'pointer', textAlign: 'left',
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}
-      >
-        <span aria-hidden="true" style={{
-          width: 38, height: 38, flexShrink: 0, borderRadius: 12, background: 'var(--brand-50)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Icon name="plus" size={19} color="var(--brand-600)" />
-        </span>
-        <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--brand-600)', letterSpacing: '-0.005em' }}>{agencyRowTitle}</span>
-          <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'var(--fg-3)' }}>{agencyRowSub}</span>
-        </span>
-        <Icon name="chevron-right" size={16} color="var(--brand-600)" />
-      </button>
-
       <div style={{ paddingTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-        {/* Complete-your-profile prompt — shown while the profile has missing
-            fields. Opens the same profile the top-nav avatar opens, where the
-            sections with pending fields are badged (backlog 2.3 / 2.4). */}
-        {user && user.profileComplete === false && (
-          <button
-            className="press focus-ring" onClick={() => openOverlay('profile')}
-            aria-label="Complete your profile"
-            style={{
-              width: '100%', padding: '15px 16px', borderRadius: 18, background: 'var(--brand-600)',
-              border: 'none', boxShadow: 'var(--shadow-md)', cursor: 'pointer', textAlign: 'left',
-              display: 'flex', alignItems: 'center', gap: 13, color: '#fff',
-            }}
-          >
-            <span aria-hidden="true" style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 12, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="user-round-pen" size={20} color="#fff" />
+        {/* Complete-your-profile banner (Final design) — shown while the
+            profile has missing fields, dismissible. Opens the same profile the
+            top-nav avatar opens, where the pending sections are badged
+            (backlog 2.3 / 2.4). */}
+        {user && user.profileComplete === false && !user.profileBannerDismissed && (
+          <div style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--brand-200, var(--surface-border))', borderRadius: 18, background: 'var(--brand-50)', padding: 15, display: 'flex', alignItems: 'center', gap: 13 }}>
+            <span aria-hidden="true" style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 12, background: 'var(--brand-600)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="user-round" size={19} color="#fff" />
             </span>
-            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 14.5, fontWeight: 800 }}>Complete your profile</span>
-              <span style={{ fontSize: 12.5, lineHeight: 1.4, color: 'rgba(255,255,255,0.85)' }}>
-                {user.eidApplied ? 'e-ID booked. Add a few details to open your records.' : 'Add a few details to open your personal records and services.'}
+            <button
+              className="press focus-ring" onClick={() => openOverlay('profile')}
+              style={{ flex: 1, minWidth: 0, textAlign: 'left', cursor: 'pointer', border: 'none', background: 'none', padding: 0, fontFamily: 'inherit' }}
+            >
+              <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>Complete your profile</span>
+              <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, lineHeight: 1.4, color: 'var(--fg-2)' }}>
+                Add your region and contact details so government services can reach you.
               </span>
-            </span>
-            <Icon name="arrow-right" size={17} color="rgba(255,255,255,0.9)" />
-          </button>
+            </button>
+            <button
+              className="press focus-ring" onClick={() => updateUser({ profileBannerDismissed: true })} aria-label="Dismiss"
+              style={{ flexShrink: 0, width: 30, height: 30, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Icon name="x" size={16} color="var(--fg-3)" />
+            </button>
+          </div>
         )}
 
         {/* Next step nudge — only while something is actually pending */}

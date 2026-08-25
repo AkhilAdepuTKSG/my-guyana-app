@@ -132,6 +132,23 @@ export default function ProfileSheet() {
           </button>
         )}
 
+        {/* Your agencies — the pin/manage sheet stays reachable now that the
+            Home hero (Final design) carries only the pinned tiles + "See all". */}
+        <button
+          className="press focus-ring"
+          onClick={() => { closeOverlay('profile'); openOverlay('addAgency'); }}
+          style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: '12px 14px', border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+        >
+          <span style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: 'var(--surface-2)', color: 'var(--fg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="layout-grid" size={18} />
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>Your agencies</span>
+            <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, color: 'var(--fg-2)' }}>Pin the ones you use most — they lead your Home</span>
+          </span>
+          <Icon name="chevron-right" size={17} color="var(--fg-3)" />
+        </button>
+
         {/* Personal Information — badged while fields are pending (backlog 2.4);
             tapping it opens the fill-in bottom sheet with only what's missing (2.5). */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
