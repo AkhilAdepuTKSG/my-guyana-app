@@ -96,8 +96,12 @@ function resolveApp(payload) {
   return ONGOING_APPLICATIONS[0] || null;
 }
 
+// The e-ID number the simulated back office issues on approval — MoPS 3-5-4
+// format (backlog 1.1). Only citizens without an e-ID ever reach this state.
+const DEMO_ISSUED_EID_NO = 'GUY-09876-5432';
+
 export default function Tracking() {
-  const { isOpen, closeOverlay, openOverlay, navigate, showToast, getPayload, appointments, requireOtp } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, navigate, showToast, getPayload, appointments, requireOtp, user, updateUser, updateApplication, addNotification } = useAppState();
   const open = isOpen('track');
 
   const [docOverrides, setDocOverrides] = useState({});
@@ -161,8 +165,9 @@ export default function Tracking() {
     doAction = () => setUploadTarget(outstandingDoc.name);
   } else if (isMopsEid) {
     if (approved) {
-      actionLabel = 'View e-ID in Wallet';
-      doAction = () => { closeOverlay('track'); navigate('wallet'); openOverlay('eidCard'); };
+      // The e-ID lives in the Vault (backlog 2.2).
+      actionLabel = 'View e-ID in Vault';
+      doAction = () => { closeOverlay('track'); navigate('vault'); openOverlay('eidCard'); };
     } else {
       actionLabel = 'View appointment details';
       doAction = () => {
@@ -183,6 +188,25 @@ export default function Tracking() {
     setDocOverrides((prev) => ({ ...prev, [uploadTarget]: 'Uploaded' }));
     showToast(`Uploaded ${uploadTarget}`);
     setUploadTarget(null);
+  }
+
+  // "Approve e-ID" — the walkthrough step the design drives from its presenter
+  // controls: the MoPS back office approves the pending application, the e-ID
+  // is issued (3-5-4 number), and every surface downstream flips — the Vault
+  // card goes Active, Home's status chip reads "e-ID active", and the pending
+  // action clears. Only offered while this citizen's e-ID is still pending.
+  const canDemoApprove = isMopsEid && !approved && user?.eidStatus === 'applied';
+  function approveEidNow() {
+    const patch = { status: 'Approved — card ready for collection', step: app.totalSteps || 4, pendingActions: [], eta: '' };
+    updateApplication(app.id, patch);
+    updateUser({ eidStatus: 'issued', eidNo: DEMO_ISSUED_EID_NO });
+    addNotification({
+      agency: 'mops', icon: 'badge-check', title: 'Your e-ID is approved',
+      body: `MoPS approved your application. Your e-ID ${DEMO_ISSUED_EID_NO} is active — see it in your Vault.`,
+    });
+    // Refresh this overlay's payload so the screen flips to the approved state.
+    openOverlay('track', { ...app, ...patch });
+    showToast('e-ID approved and issued');
   }
 
   return (
@@ -322,6 +346,19 @@ export default function Tracking() {
           )}
 
           <Button variant="outline" fullWidth onClick={doAction}>{actionLabel}</Button>
+
+          {canDemoApprove && (
+            <button
+              className="press focus-ring"
+              onClick={approveEidNow}
+              style={{
+                width: '100%', minHeight: 44, border: '1px dashed var(--surface-border)', borderRadius: 12,
+                background: 'none', color: 'var(--fg-4)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Demo: MoPS back office approves this application
+            </button>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--surface-hairline)' }}>
