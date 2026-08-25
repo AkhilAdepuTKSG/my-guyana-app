@@ -16,8 +16,8 @@ const DOC_TYPES = [
   { id: 'other', label: 'Other document', icon: 'file' },
 ];
 
-// Invented locally — mockData.js has no eID number field.
-const EID_NUMBER = 'GUY-0447-1029';
+// Display fallback only — MoPS 3-5-4 e-ID format (backlog 1.1).
+const EID_NUMBER = 'GUY-04471-0928';
 
 function buildWalletCards(persona) {
   const cards = [];

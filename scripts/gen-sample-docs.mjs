@@ -11,7 +11,7 @@
 // IMPORTANT: every value below is kept in lock-step with src/state/govRegistry.js
 // so a scanned/typed number resolves to the same citizen. Two people, each with
 // a fully self-consistent set of documents (nothing shared or mismatched):
-//   • Nicole Persaud — has an e-ID (E1234567890)
+//   • Nicole Persaud — has an e-ID (GUY-04471-0928, the MoPS 3-5-4 format)
 //   • John Doe       — no e-ID yet
 import { createCanvas } from '@napi-rs/canvas';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -34,7 +34,7 @@ const PEOPLE = [
     address: 'Lot 22 Republic Road, Georgetown',
     placeOfBirth: 'Georgetown, Guyana',
     hasEid: true,
-    eidNo: 'E1234567890',
+    eidNo: 'GUY-04471-0928',
     eidCardNo: '0000 1234 5678',
     nationalId: 'N1234567890',
     passport: 'P1234567890',
