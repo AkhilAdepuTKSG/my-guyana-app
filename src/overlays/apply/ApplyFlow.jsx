@@ -218,12 +218,16 @@ export default function ApplyFlow() {
 
   const canContinue = step === 1 ? fieldsOk : (docsOk && apptOk);
 
+  // Ask Gov, scoped to this service (backlog 4.2) — opening it from here gives
+  // quick actions for this service; closing it lands right back on this screen.
   const supportButton = (
     <button
-      className="press focus-ring" onClick={() => openApplyHelp(showToast)} aria-label="Help"
+      className="press focus-ring"
+      onClick={() => openOverlay('askGov', { serviceId: payload?.serviceId, serviceTitle: def.title })}
+      aria-label={`Ask Gov about ${def.title}`}
       style={{ width: 34, height: 34, borderRadius: 999, border: 'none', background: mark, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
     >
-      <Icon name="help-circle" size={17} color="#fff" />
+      <Icon name="sparkles" size={17} color="#fff" />
     </button>
   );
 
@@ -468,6 +472,3 @@ export default function ApplyFlow() {
   );
 }
 
-function openApplyHelp(showToast) {
-  showToast('Bring your original documents to any appointment. Need help? Ask Gov once you\'re signed in.');
-}
