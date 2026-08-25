@@ -59,7 +59,7 @@ function FieldRow({ field, value, onChange }) {
 }
 
 export default function ApplyFlow() {
-  const { isOpen, getPayload, closeOverlay, openOverlay, navigate, user, appointments, addApplication, addAppointment, addNotification, showToast, requireOtp } = useAppState();
+  const { isOpen, getPayload, closeOverlay, openOverlay, navigate, user, persona, applications, appointments, addApplication, addAppointment, addNotification, showToast, requireOtp } = useAppState();
   const open = isOpen('apply');
   const payload = getPayload('apply');
   const def = getApplicationDef(payload?.serviceId);
@@ -72,6 +72,7 @@ export default function ApplyFlow() {
   const [appt, setAppt] = useState({ office: '', date: '', time: '' });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [eligPassed, setEligPassed] = useState(false); // eligibility gate cleared (backlog 3.8)
   const [scan, setScan] = useState({ status: 'idle', pct: 0, text: '', error: '' });
   const timers = useRef([]);
   const fileRef = useRef(null);
@@ -87,7 +88,7 @@ export default function ApplyFlow() {
       setStep(1);
       setFields(prefillFromGov(def, user?.gov, user?.name)); // start from what government already has
       setDocStatus({}); setDocFiles({}); setAppt({ office: '', date: '', time: '' });
-      setSubmitting(false); setDone(false); setScan({ status: 'idle', pct: 0, text: '', error: '' });
+      setSubmitting(false); setDone(false); setEligPassed(false); setScan({ status: 'idle', pct: 0, text: '', error: '' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, payload?.serviceId]);
@@ -218,6 +219,18 @@ export default function ApplyFlow() {
 
   const canContinue = step === 1 ? fieldsOk : (docsOk && apptOk);
 
+  // Eligibility gate (backlog 3.8) — evaluated against the signed-in citizen's
+  // real state. The application form stays locked until every rule passes.
+  const eligRules = (def.eligibility || []).map((r) => ({ ...r, ok: r.passes({ user, persona, applications }) }));
+  const eligOk = eligRules.every((r) => r.ok);
+  const showEligibility = eligRules.length > 0 && !eligPassed;
+
+  const runEligAction = (action) => {
+    if (!action) return;
+    if (action.screen) { closeOverlay('apply'); navigate(action.screen); return; }
+    if (action.overlay) openOverlay(action.overlay, action.payload ?? true);
+  };
+
   // Ask Gov, scoped to this service (backlog 4.2) — opening it from here gives
   // quick actions for this service; closing it lands right back on this screen.
   const supportButton = (
@@ -251,6 +264,57 @@ export default function ApplyFlow() {
               <Button variant="outline" onClick={() => { closeOverlay('apply'); navigate('calendar'); openOverlay('apptDetail', { id: `appt-${def.id}` }); }}>View appointment</Button>
             )}
             <Button variant="outline" onClick={() => closeOverlay('apply')}>Done</Button>
+          </div>
+        </div>
+      ) : showEligibility ? (
+        /* Eligibility check before anything is asked for (backlog 3.8). */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--fg-3)' }}>Before you apply</span>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--fg-1)' }}>
+              {eligOk ? 'You appear eligible' : 'Checking your eligibility'}
+            </h2>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--fg-2)' }}>
+              We checked these against your account and government record — nothing to look up yourself.
+            </p>
+          </div>
+
+          <div style={{ border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', overflow: 'hidden' }}>
+            {eligRules.map((r, i) => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '13px 14px', borderBottom: i < eligRules.length - 1 ? '1px solid var(--surface-hairline)' : 'none' }}>
+                <span aria-hidden="true" style={{
+                  width: 26, height: 26, flexShrink: 0, borderRadius: 999, marginTop: 1,
+                  background: r.ok ? 'var(--status-success-bg)' : 'var(--status-error-bg)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Icon name={r.ok ? 'check' : 'x'} size={14} color={r.ok ? 'var(--status-success)' : 'var(--status-error)'} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, lineHeight: 1.4, color: 'var(--fg-1)' }}>
+                    {r.ok ? r.passLabel : r.failLabel}
+                  </span>
+                  {!r.ok && r.failHint && (
+                    <span style={{ display: 'block', marginTop: 2, fontSize: 12, lineHeight: 1.45, color: 'var(--fg-2)' }}>{r.failHint}</span>
+                  )}
+                  {!r.ok && r.failAction && (
+                    <button
+                      className="press focus-ring" onClick={() => runEligAction(r.failAction)}
+                      style={{ marginTop: 8, minHeight: 36, padding: '0 13px', border: 'none', borderRadius: 999, background: mark, color: '#fff', fontSize: 12.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      {r.failAction.label}
+                    </button>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 'auto', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {eligOk ? (
+              <Button fullWidth onClick={() => setEligPassed(true)} style={{ background: mark }}>Start my application</Button>
+            ) : (
+              <Button fullWidth variant="outline" onClick={() => closeOverlay('apply')}>Close for now</Button>
+            )}
           </div>
         </div>
       ) : (

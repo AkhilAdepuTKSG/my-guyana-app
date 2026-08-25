@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { useAppState } from '../state/AppStateContext';
-import { AGENCIES, SERVICE_DIRECTORY } from '../state/mockData';
+import { AGENCIES } from '../state/mockData';
 import Icon from '../components/ui/Icon';
 import Surface from '../components/ui/Surface';
 import ListRow from '../components/ui/ListRow';
 import NotificationBell from '../components/ui/NotificationBell';
 import { flattenServices, resolveServiceAction } from '../lib/serviceCatalog';
 
-// One browse axis only: services, grouped into categories, with the owning
-// agency shown as a label on each card (backlog 3.1 — no Agencies tab). The
-// cards carry no "View all" links (3.2); tapping one opens the full-screen
-// category drill-down (3.3).
+// One browse axis only: services as a 2-column tile grid (backlog 3.1/3.6 —
+// no Agencies tab, tiles like the earlier build), each tile labelled with its
+// category in the owning agency's color. No "View all" links (3.2). Tapping a
+// tile opens the full-screen page listing every service under that category
+// (3.3); coming-soon services are greyed out, never hidden (3.8).
 export default function Services() {
   const { openOverlay, showToast } = useAppState();
   const [search, setSearch] = useState('');
@@ -77,42 +78,37 @@ export default function Services() {
         </Surface>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          {SERVICE_DIRECTORY.map((cat) => {
-            const agency = AGENCIES[cat.agency];
-            return (
-              <button
-                key={cat.id}
-                className="press focus-ring"
-                onClick={() => openOverlay('category', { id: cat.id })}
-                aria-label={`${cat.name} — ${cat.services.length} services`}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10,
-                  minHeight: 124, padding: 14, border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-xl)',
-                  background: 'var(--surface-1)', boxShadow: 'var(--shadow-sm)', cursor: 'pointer',
-                  textAlign: 'left', fontFamily: 'inherit',
-                }}
-              >
-                <span aria-hidden="true" style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 'var(--radius-md)', background: `color-mix(in oklch, ${agency?.mark} 14%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={cat.icon} size={17} color={agency?.mark} />
-                </span>
-                <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, lineHeight: 1.3, color: 'var(--fg-1)' }}>{cat.name}</span>
-                    {cat.comingSoon && (
-                      <span style={{ flexShrink: 0, minHeight: 17, padding: '0 6px', borderRadius: 999, background: 'var(--surface-4)', color: 'var(--fg-3)', fontSize: 9, fontWeight: 800, display: 'inline-flex', alignItems: 'center', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Soon</span>
-                    )}
+          {flat
+            .slice()
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((svc) => {
+              const agency = AGENCIES[svc.agency];
+              return (
+                <button
+                  key={svc.id}
+                  className={svc.comingSoon ? '' : 'press focus-ring'}
+                  onClick={svc.comingSoon ? undefined : () => openOverlay('category', { id: svc.categoryId })}
+                  aria-label={svc.comingSoon ? `${svc.name} — coming soon` : `${svc.name} — see all ${svc.categoryName} services`}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10,
+                    minHeight: 112, padding: 14, border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-xl)',
+                    background: 'var(--surface-1)', boxShadow: 'var(--shadow-sm)', cursor: svc.comingSoon ? 'default' : 'pointer',
+                    textAlign: 'left', fontFamily: 'inherit', opacity: svc.comingSoon ? 0.55 : 1,
+                  }}
+                >
+                  <span aria-hidden="true" style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 'var(--radius-md)', background: `color-mix(in oklch, ${agency?.mark} 14%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name={svc.icon} size={17} color={agency?.mark} />
                   </span>
-                  <span style={{ fontSize: 11.5, color: 'var(--fg-3)' }}>
-                    {`${cat.services.length} service${cat.services.length === 1 ? '' : 's'}`}
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, lineHeight: 1.3, color: 'var(--fg-1)' }}>{svc.name}</span>
+                    {/* Category label in the owning agency's color (3.1/3.6) */}
+                    <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: svc.comingSoon ? 'var(--fg-4)' : agency?.mark }}>
+                      {svc.comingSoon ? 'Coming soon' : svc.categoryName}
+                    </span>
                   </span>
-                  {/* The owning agency as a label, not a browse axis (3.1) */}
-                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: agency?.mark }}>
-                    {agency?.shortName}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
         </div>
       )}
     </div>

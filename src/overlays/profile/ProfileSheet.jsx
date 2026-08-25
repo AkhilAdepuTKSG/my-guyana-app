@@ -1,12 +1,14 @@
+import { useState } from 'react';
 import Sheet from '../../components/ui/Sheet';
 import Icon from '../../components/ui/Icon';
+import Button from '../../components/ui/Button';
 import MissingBadge from '../../components/ui/MissingBadge';
 import { useAppState } from '../../state/AppStateContext';
 import { useRegionName } from './regionStore';
 import BiometricSettings from './BiometricSettings';
 
 export default function ProfileSheet() {
-  const { isOpen, closeOverlay, openOverlay, navigate, persona, user, showToast, signOut: endSession } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, navigate, persona, user, updateUser, requireOtp, addNotification, showToast, signOut: endSession } = useAppState();
   const open = isOpen('profile');
   const region = useRegionName();
   const gov = user?.gov || null;
@@ -39,9 +41,34 @@ export default function ProfileSheet() {
     else navigate('vault'); // application in progress — the card lives in the Vault
   };
 
-  const completeNow = () => {
-    closeOverlay('profile'); // the completion form is a page overlay below the sheet
-    openOverlay('completeProfile');
+  // --- Complete the missing fields in a bottom sheet (backlog 2.5) ---
+  // Only what could NOT be fetched from the master record is asked for; the
+  // pre-filled fields never reappear as a task.
+  const missingRows = profileIncomplete ? personalRows.filter((r) => r.required && !r.value) : [];
+  const [fixOpen, setFixOpen] = useState(false);
+  const [fixVals, setFixVals] = useState({});
+  const openFix = () => { setFixVals({}); setFixOpen(true); };
+  const setFix = (key) => (e) => setFixVals((v) => ({ ...v, [key]: e.target.value }));
+  const fixComplete = missingRows.every((r) => (fixVals[r.id] || '').trim());
+
+  const saveFix = () => {
+    if (!fixComplete) { showToast('Fill in each missing detail'); return; }
+    requireOtp({
+      title: 'Confirm your details',
+      confirmLabel: 'Save and finish',
+      onConfirm: () => {
+        const patch = {};
+        missingRows.forEach((r) => { patch[r.id] = fixVals[r.id].trim(); });
+        updateUser({ profile: { ...filled, ...patch }, profileComplete: true });
+        addNotification({
+          agency: 'mops', icon: 'user-round-check', title: 'Profile completed',
+          body: 'Thanks — your personal records and services are unlocking across My Guyana.',
+        });
+        setFixOpen(false);
+        setFixVals({});
+        showToast('Profile completed — your records are unlocking');
+      },
+    });
   };
 
   const goVault = () => {
@@ -60,6 +87,7 @@ export default function ProfileSheet() {
   };
 
   return (
+    <>
     <Sheet open={open} onClose={() => closeOverlay('profile')}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         {/* Identity summary */}
@@ -104,12 +132,19 @@ export default function ProfileSheet() {
           </button>
         )}
 
-        {/* Personal Information — badged while fields are pending (backlog 2.4) */}
+        {/* Personal Information — badged while fields are pending (backlog 2.4);
+            tapping it opens the fill-in bottom sheet with only what's missing (2.5). */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            className={missingPersonal > 0 ? 'press focus-ring' : ''}
+            onClick={missingPersonal > 0 ? openFix : undefined}
+            aria-label={missingPersonal > 0 ? `Personal Information — ${missingPersonal} missing, tap to complete` : 'Personal Information'}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', padding: 0, cursor: missingPersonal > 0 ? 'pointer' : 'default', textAlign: 'left', fontFamily: 'inherit' }}
+          >
             <h2 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>Personal Information</h2>
             <MissingBadge count={missingPersonal} />
-          </div>
+            {missingPersonal > 0 && <Icon name="chevron-right" size={13} color="var(--fg-4)" />}
+          </button>
           {visibleRows.length > 0 && (
             <div style={{ border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', overflow: 'hidden' }}>
               {visibleRows.map((r, i) => (
@@ -131,7 +166,7 @@ export default function ProfileSheet() {
           {missingPersonal > 0 && (
             <button
               className="press focus-ring"
-              onClick={completeNow}
+              onClick={openFix}
               style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 46, padding: '12px 14px', border: 'none', borderRadius: 14, background: 'var(--brand-600)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
             >
               <Icon name="user-round-pen" size={17} />
@@ -219,5 +254,38 @@ export default function ProfileSheet() {
         </div>
       </div>
     </Sheet>
+
+    {/* Fill in only what the master record couldn't supply (backlog 2.5) —
+        opens from the badged Personal Information section above. */}
+    <Sheet open={fixOpen} onClose={() => setFixOpen(false)} title="Complete your details">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-2)' }}>
+          Everything government already holds is filled in for you. Only {missingRows.length === 1 ? 'this detail is' : `these ${missingRows.length} details are`} still needed.
+        </p>
+        {missingRows.map((r) => (
+          <div key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--fg-3)' }}>{r.label}</label>
+            <input
+              type={r.id === 'email' ? 'email' : r.id === 'phone' ? 'tel' : 'text'}
+              value={fixVals[r.id] || ''}
+              onChange={setFix(r.id)}
+              placeholder={r.id === 'email' ? 'you@example.gy' : r.id === 'phone' ? 'e.g. 677 4820' : r.id === 'address' ? 'Lot, street, village/ward' : 'e.g. Teacher'}
+              style={{
+                width: '100%', boxSizing: 'border-box', minHeight: 48, padding: '12px 14px',
+                border: '1px solid var(--surface-border)', borderRadius: 12, background: 'var(--surface-2)',
+                fontFamily: 'inherit', fontSize: 15, color: 'var(--fg-1)', outline: 'none',
+              }}
+            />
+          </div>
+        ))}
+        <Button fullWidth disabled={!fixComplete} style={{ opacity: fixComplete ? 1 : 0.5 }} onClick={saveFix}>
+          Save and finish
+        </Button>
+        <p style={{ margin: 0, textAlign: 'center', fontSize: 11.5, lineHeight: 1.5, color: 'var(--fg-4)' }}>
+          You can update these any time from your profile.
+        </p>
+      </div>
+    </Sheet>
+    </>
   );
 }

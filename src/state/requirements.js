@@ -49,6 +49,34 @@ export const APPLICATION_DEFS = {
     blurb: 'Apply to the Ministry of Finance for a cash grant. We check your details against your records and pay approved grants to your linked bank account.',
     connectsAgency: true,
     appointment: null, // reviewed remotely, no in-person visit
+    // Backlog 3.8 — eligibility is checked against the signed-in citizen before
+    // the application opens. Each rule reads real session state; ApplyFlow
+    // renders the pass/fail list and only unlocks the form when every rule passes.
+    eligibility: [
+      {
+        id: 'identity',
+        passLabel: 'Your identity is verified',
+        failLabel: 'Your identity is not verified yet',
+        failHint: 'Grants are paid against your government record — confirm your identity from your profile first.',
+        passes: ({ user, persona }) => !!(persona?.verified || user?.verificationLevel === 'verified'),
+        failAction: { label: 'Confirm my identity', overlay: 'idv', payload: { purpose: 'sensitive' } },
+      },
+      {
+        id: 'record',
+        passLabel: 'You are on record as a citizen resident in Guyana',
+        failLabel: 'We could not match you to a government record',
+        failHint: 'Verify your identity so your record can be matched.',
+        passes: ({ user }) => !!user?.gov,
+      },
+      {
+        id: 'once',
+        passLabel: 'No cash grant application on file — one grant per person',
+        failLabel: 'You already have a cash grant application',
+        failHint: 'One grant per person — track your existing application instead.',
+        passes: ({ applications }) => !(applications || []).some((a) => a.serviceId === 'cashGrant'),
+        failAction: { label: 'View my applications', screen: 'applications' },
+      },
+    ],
     fields: [
       {
         key: 'grantType', label: 'Which grant?', type: 'select', required: true,
