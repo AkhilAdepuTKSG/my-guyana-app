@@ -52,6 +52,14 @@ export function resolveServiceAction(name, { openOverlay, showToast }) {
   }
 }
 
+// Agencies with their own hub screen; every other agency is reached through
+// its services category. Shared by the Home tiles and the agencies sheet.
+export const AGENCY_HUBS = ['nis', 'gpl', 'mops'];
+
+export function agencyCategoryId(agencyId) {
+  return SERVICE_DIRECTORY.find((c) => c.agency === agencyId)?.id || null;
+}
+
 export function flattenServices() {
   return SERVICE_DIRECTORY.flatMap((cat) =>
     cat.services.map((name) => ({

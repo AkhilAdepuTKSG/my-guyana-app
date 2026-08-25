@@ -36,6 +36,11 @@ const VAULT_DOCS_KEY = 'myguyana.vaultDocs.v1';
 // so a different citizen starts with an empty ecosystem.
 const CONNECTED_AGENCIES_KEY = 'myguyana.connectedAgencies.v1';
 const AGENCY_PROFILE_KEY = 'myguyana.agencyProfile.v1';
+// Which agencies the citizen pinned to lead their Home, and how often each
+// agency is actually used — the fallback ordering when nothing is pinned
+// (backlog 2.1). Both are per-citizen, so they reset on sign-out.
+const PINNED_AGENCIES_KEY = 'myguyana.pinnedAgencies.v1';
+const AGENCY_USAGE_KEY = 'myguyana.agencyUsage.v1';
 
 function loadArray(key) {
   try {
@@ -79,6 +84,8 @@ export function AppStateProvider({ children }) {
   const [vaultDocs, setVaultDocs] = useState(() => loadArray(VAULT_DOCS_KEY));
   const [connectedAgencies, setConnectedAgencies] = useState(() => loadArray(CONNECTED_AGENCIES_KEY));
   const [agencyProfile, setAgencyProfile] = useState(() => loadObject(AGENCY_PROFILE_KEY));
+  const [pinnedAgencies, setPinnedAgencies] = useState(() => loadArray(PINNED_AGENCIES_KEY));
+  const [agencyUsage, setAgencyUsage] = useState(() => loadObject(AGENCY_USAGE_KEY));
   useEffect(() => {
     try { localStorage.setItem(APPLICATIONS_KEY, JSON.stringify(applications)); } catch { /* ignore */ }
   }, [applications]);
@@ -97,6 +104,12 @@ export function AppStateProvider({ children }) {
   useEffect(() => {
     try { localStorage.setItem(AGENCY_PROFILE_KEY, JSON.stringify(agencyProfile)); } catch { /* ignore */ }
   }, [agencyProfile]);
+  useEffect(() => {
+    try { localStorage.setItem(PINNED_AGENCIES_KEY, JSON.stringify(pinnedAgencies)); } catch { /* ignore */ }
+  }, [pinnedAgencies]);
+  useEffect(() => {
+    try { localStorage.setItem(AGENCY_USAGE_KEY, JSON.stringify(agencyUsage)); } catch { /* ignore */ }
+  }, [agencyUsage]);
 
   const navigate = useCallback((next) => {
     setScreenState(next);
@@ -186,6 +199,8 @@ export function AppStateProvider({ children }) {
     setNotifications([]);
     setAppointments([]);
     setVaultDocs([]);
+    setPinnedAgencies([]);
+    setAgencyUsage({});
   }, []);
   // Connect an agency to the citizen's account (persisted). `patch` carries the
   // per-agency data that connecting unlocks (e.g. NIS record state, GPL account).
@@ -195,6 +210,16 @@ export function AppStateProvider({ children }) {
   }, []);
   const disconnectAgency = useCallback((id) => {
     setConnectedAgencies((list) => list.filter((a) => a !== id));
+  }, []);
+  // Pin/unpin an agency so it leads the Home tiles (backlog 2.1).
+  const togglePinAgency = useCallback((id) => {
+    setPinnedAgencies((list) => (list.includes(id) ? list.filter((a) => a !== id) : [...list, id]));
+  }, []);
+  // Count every real use of an agency (opening its hub or one of its services) —
+  // the most-frequently-used ordering falls out of this when nothing is pinned.
+  const recordAgencyUse = useCallback((id) => {
+    if (!id) return;
+    setAgencyUsage((u) => ({ ...u, [id]: (u[id] || 0) + 1 }));
   }, []);
   const updateUser = useCallback((patch) => {
     setSession((s) => (s ? { ...s, user: { ...s.user, ...patch } } : s));
@@ -254,7 +279,8 @@ export function AppStateProvider({ children }) {
     appointments, addAppointment, updateAppointment, removeAppointment,
     vaultDocs, addVaultDoc, removeVaultDoc,
     connectedAgencies, connectAgency, disconnectAgency,
-  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, requireOtp, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, appointments, addAppointment, updateAppointment, removeAppointment, vaultDocs, addVaultDoc, removeVaultDoc, connectedAgencies, connectAgency, disconnectAgency]);
+    pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse,
+  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, requireOtp, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, appointments, addAppointment, updateAppointment, removeAppointment, vaultDocs, addVaultDoc, removeVaultDoc, connectedAgencies, connectAgency, disconnectAgency, pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse]);
 
   return (
     <AppStateContext.Provider value={value}>

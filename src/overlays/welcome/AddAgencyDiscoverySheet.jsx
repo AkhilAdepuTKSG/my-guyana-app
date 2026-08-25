@@ -2,6 +2,7 @@ import Sheet from '../../components/ui/Sheet';
 import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
 import { AGENCIES } from '../../state/mockData';
+import { AGENCY_HUBS, agencyCategoryId } from '../../lib/serviceCatalog';
 
 // Short one-line pitch for each agency in the discovery list — mockData only
 // carries identity fields (name/icon/mark), so the descriptive copy lives here.
@@ -25,7 +26,10 @@ const ETA = {
 };
 
 export default function AddAgencyDiscoverySheet() {
-  const { isOpen, closeOverlay, openOverlay, persona, showToast } = useAppState();
+  const {
+    isOpen, closeOverlay, openOverlay, navigate, persona, showToast,
+    pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse,
+  } = useAppState();
   const open = isOpen('addAgency');
 
   // Every live agency in the master list is connectable — nothing is
@@ -35,6 +39,30 @@ export default function AddAgencyDiscoverySheet() {
   const candidates = Object.values(AGENCIES).filter((a) => !connected.includes(a.id));
   const available = candidates.filter((a) => !a.comingSoon);
   const comingSoon = candidates.filter((a) => a.comingSoon);
+
+  // Connected agencies, pinned first, then most-used, then the rest by name —
+  // the one place every connected agency is reachable and pinnable (backlog 2.1).
+  const yours = connected
+    .map((id) => AGENCIES[id])
+    .filter(Boolean)
+    .sort((a, b) => {
+      const pa = pinnedAgencies.includes(a.id) ? 0 : 1;
+      const pb = pinnedAgencies.includes(b.id) ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      const ua = agencyUsage[a.id] || 0;
+      const ub = agencyUsage[b.id] || 0;
+      if (ua !== ub) return ub - ua;
+      return a.name.localeCompare(b.name);
+    });
+
+  const openAgency = (id) => {
+    recordAgencyUse(id);
+    closeOverlay('addAgency');
+    if (AGENCY_HUBS.includes(id)) { navigate(id); return; }
+    const catId = agencyCategoryId(id);
+    if (catId) { openOverlay('category', { id: catId }); return; }
+    showToast(`${AGENCIES[id]?.shortName || 'This agency'} services are coming to My Guyana`);
+  };
 
   const addAgency = (agencyId) => {
     closeOverlay('addAgency');
@@ -46,9 +74,9 @@ export default function AddAgencyDiscoverySheet() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <h2 className="ds-h1" style={{ fontSize: 21, margin: 0, letterSpacing: '-0.02em' }}>Add an agency</h2>
+            <h2 className="ds-h1" style={{ fontSize: 21, margin: 0, letterSpacing: '-0.02em' }}>Your agencies</h2>
             <p className="ds-caption" style={{ fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-2)', margin: 0 }}>
-              Agencies join My Guyana one at a time. Add the ones you use.
+              Pin the ones you use most — they lead your Home. Everything you're connected to is here.
             </p>
           </div>
           <button
@@ -60,6 +88,56 @@ export default function AddAgencyDiscoverySheet() {
             <Icon name="x" size={16} />
           </button>
         </div>
+
+        {yours.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <h3 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>
+              Connected · {yours.length}
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {yours.map((a) => {
+                const isPinned = pinnedAgencies.includes(a.id);
+                return (
+                  <div
+                    key={a.id}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 16, background: 'var(--surface-1)', border: `1px solid ${isPinned ? 'var(--brand-400, var(--brand-600))' : 'var(--surface-border)'}` }}
+                  >
+                    <button
+                      className="press focus-ring"
+                      onClick={() => openAgency(a.id)}
+                      style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 11, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+                    >
+                      <span style={{ width: 38, height: 38, flexShrink: 0, borderRadius: 11, background: `color-mix(in oklch, ${a.mark} 14%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon name={a.icon} size={17} color={a.mark} />
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--fg-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span>
+                        <span style={{ display: 'block', marginTop: 1, fontSize: 11.5, color: 'var(--fg-3)' }}>
+                          {isPinned ? 'Pinned to your Home' : (agencyUsage[a.id] || 0) > 0 ? 'Recently used' : 'Connected'}
+                        </span>
+                      </span>
+                    </button>
+                    <button
+                      className="press focus-ring"
+                      onClick={() => togglePinAgency(a.id)}
+                      aria-label={isPinned ? `Unpin ${a.shortName}` : `Pin ${a.shortName} to your Home`}
+                      aria-pressed={isPinned}
+                      style={{
+                        width: 36, height: 36, flexShrink: 0, borderRadius: 999, cursor: 'pointer',
+                        border: `1px solid ${isPinned ? 'var(--brand-600)' : 'var(--surface-border)'}`,
+                        background: isPinned ? 'var(--brand-600)' : 'var(--surface-2)',
+                        color: isPinned ? '#fff' : 'var(--fg-3)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <Icon name={isPinned ? 'pin' : 'pin-off'} size={15} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {available.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

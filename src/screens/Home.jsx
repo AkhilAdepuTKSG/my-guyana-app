@@ -3,6 +3,7 @@ import { useAppState } from '../state/AppStateContext';
 import Icon from '../components/ui/Icon';
 import NotificationBell from '../components/ui/NotificationBell';
 import { AGENCIES, NOTIFICATIONS, ONGOING_APPLICATIONS, REGIONS } from '../state/mockData';
+import { AGENCY_HUBS, agencyCategoryId } from '../lib/serviceCatalog';
 
 // ---------------------------------------------------------------------------
 // Local helpers / mock-derived data. Home reads persona + shared fixtures but
@@ -30,10 +31,13 @@ function getDayGreeting() {
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-// Same "socket" family as the source dial: a fixed, ordered set of slots
-// around the citizen. Colors match the design's dial/socket-tile treatment
-// (bright on dark hero) rather than the app-wide navy accent.
-const DIAL_ORDER = ['nis', 'gpl', 'mops'];
+// Same "socket" family as the source dial: up to three slots around the
+// citizen. Which agencies fill them is dynamic (backlog 2.1) — pinned first,
+// then most-frequently-used, then this system-recommended trio for a
+// first-time user. Colors match the design's dial/socket-tile treatment
+// (bright on dark hero) rather than the app-wide navy accent; agencies
+// outside the trio derive their tile colors from their agency mark.
+const RECOMMENDED_AGENCIES = ['nis', 'gpl', 'mops'];
 const DIAL_DEFS = {
   nis: { color: '#4ade9b', bg: 'rgba(0,155,103,0.20)', ring: 'rgba(74,222,155,0.5)' },
   gpl: { color: '#9ea3ff', bg: 'rgba(100,104,220,0.24)', ring: 'rgba(158,163,255,0.45)' },
@@ -67,10 +71,39 @@ const ELIGIBILITY_DEFS = [
 ];
 
 export default function Home() {
-  const { navigate, openOverlay, showToast, persona, user } = useAppState();
+  const { navigate, openOverlay, showToast, persona, user, pinnedAgencies, agencyUsage, recordAgencyUse } = useAppState();
   const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
 
   const connected = persona.connectedAgencies || [];
+
+  // --- Which agencies lead the Home (backlog 2.1) ---
+  // Pinned first; when nothing is pinned, the most-frequently-used; and for a
+  // first-time citizen with neither, the system-recommended trio.
+  const pinned = pinnedAgencies.filter((id) => connected.includes(id));
+  const mostUsed = useMemo(() => connected
+    .filter((id) => (agencyUsage[id] || 0) > 0)
+    .sort((a, b) => (agencyUsage[b] || 0) - (agencyUsage[a] || 0)), [connected, agencyUsage]);
+  const featured = (pinned.length ? pinned : mostUsed.length ? mostUsed : RECOMMENDED_AGENCIES).slice(0, 3);
+
+  // The extension row below: every other pinned/used agency, ending in a door
+  // to the full list so all connected agencies stay reachable.
+  const agencyChips = useMemo(() => {
+    const seen = new Set(featured);
+    return [...pinned, ...mostUsed, ...RECOMMENDED_AGENCIES.filter((id) => connected.includes(id))]
+      .filter((id) => (seen.has(id) ? false : (seen.add(id), true)))
+      .slice(0, 8);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pinned.join(','), mostUsed.join(','), featured.join(','), connected]);
+
+  // Open an agency: its hub screen when one exists, otherwise its services
+  // category — and count the use either way (drives most-frequently-used).
+  const openAgency = (id) => {
+    recordAgencyUse(id);
+    if (AGENCY_HUBS.includes(id)) { navigate(id); return; }
+    const catId = agencyCategoryId(id);
+    if (catId) { openOverlay('category', { id: catId }); return; }
+    showToast(`${AGENCIES[id]?.shortName || 'This agency'} services are coming to My Guyana`);
+  };
   // Any connected agency (including MoPS) counts — once the citizen adds one, the
   // dial replaces the "your agencies will gather here" empty state.
   const hasNoAgencies = connected.length === 0;
@@ -261,11 +294,16 @@ export default function Home() {
             style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
           >
             <div style={{ position: 'relative', width: DIAL_BOX.width, height: DIAL_BOX.height, margin: '0 auto' }}>
-              {DIAL_ORDER.map((id, i) => {
+              {featured.map((id, i) => {
                 const agency = AGENCIES[id];
-                const def = DIAL_DEFS[id];
+                const def = DIAL_DEFS[id] || {
+                  color: '#fff',
+                  bg: hexToRgba(agency?.mark || '#4577d0', 0.3),
+                  ring: hexToRgba(agency?.mark || '#4577d0', 0.55),
+                };
                 const on = connected.includes(id);
-                const pos = arcPosition(i, DIAL_ORDER.length);
+                const isPinned = pinned.includes(id);
+                const pos = arcPosition(i, featured.length);
                 const hasAlert = on && (attentionByAgency[id] || 0) > 0;
                 return (
                   <div key={id} style={{
@@ -274,8 +312,8 @@ export default function Home() {
                   }}>
                     <button
                       className="press focus-ring"
-                      aria-label={`${agency.name}${on ? ' — connected' : ' — not connected yet'}`}
-                      onClick={() => (on ? navigate(id) : openOverlay('addAgency'))}
+                      aria-label={`${agency.name}${isPinned ? ' — pinned' : ''}${on ? ' — connected' : ' — not connected yet'}`}
+                      onClick={() => (on ? openAgency(id) : openOverlay('addAgency'))}
                       style={{
                         position: 'relative', width: DIAL_BOX.size, height: DIAL_BOX.size, borderRadius: '999px',
                         background: on ? def.bg : 'rgba(255,255,255,0.05)',
@@ -290,6 +328,15 @@ export default function Home() {
                           position: 'absolute', top: -3, right: -3, width: 14, height: 14, borderRadius: '999px',
                           background: '#e11d2e', border: '2px solid #0a1424',
                         }} />
+                      )}
+                      {isPinned && (
+                        <span aria-hidden="true" style={{
+                          position: 'absolute', top: -4, left: -4, width: 18, height: 18, borderRadius: 999,
+                          background: '#0a1424', border: '1.5px solid rgba(255,255,255,0.35)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <Icon name="pin" size={10} color="#fff" />
+                        </span>
                       )}
                     </button>
                     <span style={{
@@ -430,6 +477,56 @@ export default function Home() {
             {nextStep.cta}<Icon name="arrow-right" size={14} color="#fff" />
           </span>
         </button>
+        )}
+
+        {/* Your agencies — the reclaimed space (2.2) extends the agency list
+            (backlog 2.1): pinned first, then most-used, and a door to all of
+            them so every connected agency stays reachable. */}
+        {connected.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--fg-1)', flex: 1 }}>Your agencies</h2>
+              <button
+                className="press focus-ring" onClick={() => openOverlay('addAgency')}
+                style={{ flexShrink: 0, minHeight: 32, padding: '0 12px', border: 'none', borderRadius: 999, background: 'var(--surface-4)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Manage
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+              {agencyChips.map((id) => {
+                const agency = AGENCIES[id];
+                const isPinned = pinned.includes(id);
+                return (
+                  <button
+                    key={id} className="press focus-ring" onClick={() => openAgency(id)}
+                    style={{
+                      flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '0 13px 0 7px',
+                      borderRadius: 999, border: '1px solid var(--surface-border)', background: 'var(--surface-1)',
+                      cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    <span aria-hidden="true" style={{ width: 30, height: 30, flexShrink: 0, borderRadius: 999, background: hexToRgba(agency?.mark || '#142b44', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon name={agency?.icon || 'building-2'} size={15} color={agency?.mark} />
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg-1)', whiteSpace: 'nowrap' }}>{agency?.shortName}</span>
+                    {isPinned && <Icon name="pin" size={12} color="var(--fg-3)" />}
+                  </button>
+                );
+              })}
+              <button
+                className="press focus-ring" onClick={() => openOverlay('addAgency')}
+                style={{
+                  flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7, minHeight: 44, padding: '0 14px',
+                  borderRadius: 999, border: '1px dashed var(--surface-border)', background: 'var(--surface-2)',
+                  color: 'var(--fg-2)', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                <Icon name="layout-grid" size={14} color="var(--fg-3)" />
+                All agencies ({connected.length})
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Eligible benefits and grants — the approved label (backlog 2.6).
