@@ -8,7 +8,7 @@ import {
 import { Consent, Proof, EidAuth, EidFail, EidCard, LinkConfirm, Mismatch } from './AuthEid';
 import { Otp, Blocked, Pol, FaceCheck } from './AuthOtpFace';
 import { Manual, Review, Limited } from './AuthManual';
-import { Setup, Secure, ObVerified, ObBasic } from './AuthFinish';
+import { Setup } from './AuthFinish';
 import { Recovery, RecoveryFix } from './AuthRecovery';
 import { EidBook } from './AuthEidApply';
 import { isBiometricSupported, hasEnrolledBiometric, authenticateBiometric, enrolBiometric, clearBiometric } from './biometric';
@@ -72,7 +72,12 @@ function makeInitialState(persona) {
 
     setupEmail: '', setupPass: '', setupError: '',
 
-    accountLevel: 'basic', secureDone: false, deviceFaceOn: true,
+    accountLevel: 'basic',
+
+    // Where the "Confirm it's really you" face check continues to once the
+    // capture passes: 'record' (gov-record path → book e-ID / set up account)
+    // or 'link' (e-ID path → confirm the record link).
+    polNext: 'record',
 
     // Real device biometric (WebAuthn) — populated by a probe when the flow opens.
     bioProbed: false, bioSupported: false, bioEnrolled: false, bioBusy: false, bioError: '',
@@ -86,7 +91,7 @@ function makeInitialState(persona) {
 }
 
 export default function AuthFlow({ gate = false }) {
-  const { isOpen, closeOverlay, persona, showToast, signIn, addNotification, addAppointment, addApplication } = useAppState();
+  const { isOpen, closeOverlay, persona, showToast, signIn, addNotification, addAppointment, addApplication, connectAgency } = useAppState();
   const open = gate || isOpen('auth');
   const [st, setSt] = useState(() => makeInitialState(persona));
   const timers = useRef([]);
@@ -140,7 +145,7 @@ export default function AuthFlow({ gate = false }) {
   // so `st` is current here; the sign-in paths are method 'returning'.
   // `citizen` is the resolved government record (govRegistry) when one was
   // matched — passed explicitly where a timeout fires before state settles.
-  const buildUser = (citizen = st.govCitizen) => {
+  const buildUser = (citizen = st.govCitizen, level = st.accountLevel) => {
     const create = st.authIntent === 'create';
     const method = !create ? 'returning'
       : (st.govIdType === 'e-ID' || st.discoverResult === 'eid') ? 'eid'
@@ -160,7 +165,7 @@ export default function AuthFlow({ gate = false }) {
     return {
       name: citizen?.name || enteredName || 'Citizen',
       method,
-      verificationLevel: citizen ? 'verified' : create ? st.accountLevel : 'verified', // 'verified' | 'basic'
+      verificationLevel: citizen ? 'verified' : create ? level : 'verified', // 'verified' | 'basic'
       profileComplete,
       eidStatus, // 'issued' | 'applied' | 'none'
       eidNo: citizen?.eidNo || null,
@@ -170,9 +175,12 @@ export default function AuthFlow({ gate = false }) {
     };
   };
 
-  const finish = (msg, citizen = st.govCitizen) => {
+  const finish = (msg, citizen = st.govCitizen, level) => {
     clearTimers();
-    signIn(buildUser(citizen));
+    signIn(buildUser(citizen, level));
+    // Every agency the government record links this citizen to comes in with
+    // them — pulled from the master list, never a hand-picked few (backlog 1.5).
+    (citizen?.linkedAgencies || []).forEach((id) => connectAgency(id));
     // A citizen who registered without an e-ID has one started for them, with a
     // Service Centre visit booked. Surface it as a real appointment, a tracked
     // application, and a first notification so the whole thing is coherent.
@@ -212,8 +220,12 @@ export default function AuthFlow({ gate = false }) {
     closeOverlay('auth');
   };
 
+  // The account is settled — no onboarding interstitials. Land the citizen
+  // straight on Home with a welcome and their agencies already gathered
+  // (backlog 1.4: "you just boom, take them in, that's it").
   const settle = (level) => {
-    patch({ accountLevel: level, authStep: st.secureDone ? (level === 'verified' ? 'ob-verified' : 'ob-basic') : 'secure' });
+    const first = (st.govCitizen?.firstName || st.manualFields?.first || '').trim();
+    finish(first ? `Welcome, ${first}` : 'Welcome to My Guyana', st.govCitizen, level);
   };
 
   const govStartCheck = () => {
@@ -438,16 +450,15 @@ export default function AuthFlow({ gate = false }) {
       patch({ authStep: 'proof' });
     },
     consentDemoNoRecord: () => patch({ authStep: 'manual', discoverResult: 'unresolved' }),
-    proofFace: () => { patch({ authStep: 'face' }); after(1800, () => setSt((s) => ({ ...s, authStep: 'link-confirm' }))); },
     proofTap: () => patch({ authStep: 'eid-auth' }),
     // Verify by scanning the physical ID card: real on-device OCR reads it, then
-    // the record is presented to connect (same destination as the face check).
+    // the "Confirm it's really you" face check runs before the record link.
     proofScanFile: async (file) => {
       if (!file) return;
       patch({ authStep: 'idscan' });
       try {
         await recognizeImage(file);
-        after(400, () => setSt((s) => ({ ...s, authStep: 'link-confirm' })));
+        after(400, () => setSt((s) => ({ ...s, polNext: 'link', authStep: 'pol' })));
       } catch {
         setSt((s) => ({ ...s, authStep: 'proof' }));
         showToast('We could not read that card. Try another way to verify.');
@@ -459,7 +470,8 @@ export default function AuthFlow({ gate = false }) {
       const recovery = st.consentFrom === 'recovery';
       after(700, () => {
         if (recovery) { finish('Signed in with your e-ID'); return; }
-        setSt((s) => ({ ...s, authStep: 'link-confirm' }));
+        // Card read — now confirm it's really them before linking the record.
+        setSt((s) => ({ ...s, polNext: 'link', authStep: 'pol' }));
       });
     },
     eidReadFailed: () => patch({ authStep: 'eid-fail', eidReadTries: (st.eidReadTries || 0) + 1 }),
@@ -477,7 +489,9 @@ export default function AuthFlow({ gate = false }) {
     linkConfirm: () => settle('verified'),
     linkDecline: () => patch({ authStep: 'mismatch', discoverResult: null, eidCardNo: '', eidDob: '', eidCardError: '' }),
     mismatchAltMethod: () => showToast('An approved alternative is being confirmed with the identity team'),
-    mismatchContinue: () => settle('basic'),
+    // The citizen said the record isn't theirs — continue with a basic account
+    // and nothing from that record (no linked agencies, no verified level).
+    mismatchContinue: () => finish('Welcome to My Guyana', null, 'basic'),
 
     // --- OTP / lockout / proof of life / live face check ---
     updateOtp: (e) => patch({ otpValue: e.target.value.replace(/\D/g, '').slice(0, 6), otpError: '' }),
@@ -498,10 +512,12 @@ export default function AuthFlow({ gate = false }) {
       if (st.otpSource === 'manual') { patch({ otpSource: 'contact', authStep: st.docUploaded ? 'review' : 'limited', limitedReason: 'nodoc' }); return; }
       if (st.otpSource === 'registry') {
         if (st.consentFrom === 'recovery') { finish('Signed in with your e-ID'); return; }
-        patch({ otpSource: 'contact', authStep: 'link-confirm' });
+        // Code verified — the face check comes next, on its own screen,
+        // before the record link is confirmed (backlog 1.2).
+        patch({ otpSource: 'contact', polNext: 'link', authStep: 'pol' });
         return;
       }
-      if (st.otpSource === 'govrecord') { patch({ otpSource: 'contact', authStep: 'pol' }); return; }
+      if (st.otpSource === 'govrecord') { patch({ otpSource: 'contact', polNext: 'record', authStep: 'pol' }); return; }
       if (st.otpSource === 'eidsignin') { finish(`Welcome back, ${st.govCitizen?.firstName || ''}`.trim(), st.govCitizen); return; }
       // 'contact' / 'otherways'
       if (st.authIntent === 'signin' && st.contactValue.trim().toLowerCase() === 'new') { patch({ authStep: 'no-account' }); return; }
@@ -530,9 +546,13 @@ export default function AuthFlow({ gate = false }) {
       patch({ authStep: 'face' });
       after(2200, () => {
         if (recovery) { finish('Signed in with your e-ID'); return; }
-        // Created an account but the government record has no e-ID yet → a
-        // Service Centre visit must be booked before going any further.
-        setSt((s) => ({ ...s, authStep: (s.authIntent === 'create' && !s.govCitizen?.hasEid) ? 'eid-book' : 'setup' }));
+        setSt((s) => {
+          // e-ID path: the face passed — present the record to link.
+          if (s.polNext === 'link') return { ...s, authStep: 'link-confirm' };
+          // Gov-record path: no e-ID on record yet → a Service Centre visit
+          // must be booked before going any further.
+          return { ...s, authStep: (s.authIntent === 'create' && !s.govCitizen?.hasEid) ? 'eid-book' : 'setup' };
+        });
       });
     },
     selectEidOffice: (name) => patch({ eidApptOffice: name }),
@@ -591,36 +611,19 @@ export default function AuthFlow({ gate = false }) {
       startOtpClock();
     },
     reviewContinue: () => finish("We'll tell you when your document has been checked"),
-    reviewDemoPass: () => patch({ discoverResult: 'citizen', accountLevel: 'verified', authStep: st.secureDone ? 'ob-verified' : 'secure' }),
+    reviewDemoPass: () => settle('verified'),
     reviewDemoFail: () => patch({ authStep: 'limited', limitedReason: 'failed' }),
     limitedAddDoc: () => patch({ authStep: 'manual' }),
 
-    // --- finishing: setup / secure / onboarding ---
+    // --- finishing: set up the account, then straight to Home ---
     updateSetupEmail: (e) => patch({ setupEmail: e.target.value, setupError: '' }),
     updateSetupPass: (e) => patch({ setupPass: e.target.value, setupError: '' }),
     setupSubmit: () => {
       if (!(st.setupEmail || '').includes('@')) { patch({ setupError: 'Add an email we can reach you on.' }); return; }
       if ((st.setupPass || '').length < 8) { patch({ setupError: 'Make the password at least 8 characters.' }); return; }
+      // Password created → straight to Home. Face ID for this device can be
+      // turned on any time from the profile (backlog 1.4).
       settle('verified');
-    },
-    toggleDeviceFace: () => patch({ deviceFaceOn: !st.deviceFaceOn }),
-    secureContinue: async () => {
-      const goNext = () => setSt((s) => ({ ...s, secureDone: true, bioBusy: false, authStep: s.accountLevel === 'verified' ? 'ob-verified' : 'ob-basic' }));
-      // If they kept Face ID on and the device can do it, enrol a real passkey now
-      // so a later "Sign in with Face ID" works end to end. A cancelled prompt is
-      // not a blocker — we continue into the app either way.
-      if (st.deviceFaceOn && st.bioSupported && !st.bioEnrolled) {
-        setSt((s) => ({ ...s, bioBusy: true }));
-        const res = await enrolBiometric({ name: persona?.name || 'My Guyana citizen', displayName: persona?.name || 'My Guyana citizen' });
-        setSt((s) => ({ ...s, bioEnrolled: res.ok || s.bioEnrolled }));
-      }
-      goNext();
-    },
-    obFinish: () => finish(null),
-    obVerifyNow: () => {
-      if (st.discoverResult === 'eid' || st.discoverResult === 'citizen') { patch({ authStep: 'proof' }); return; }
-      if (st.discoverResult === 'unresolved') { patch({ authStep: 'manual' }); return; }
-      patch({ authStep: 'consent', consentFrom: 'lookup' });
     },
 
     // --- recovery ---
@@ -681,9 +684,6 @@ export default function AuthFlow({ gate = false }) {
     case 'eid-book': ScreenNode = <EidBook st={st} on={on} />; break;
 
     case 'setup': ScreenNode = <Setup st={st} on={on} persona={st.govCitizen || persona} />; break;
-    case 'secure': ScreenNode = <Secure st={st} on={on} />; break;
-    case 'ob-verified': ScreenNode = <ObVerified st={st} on={on} persona={st.govCitizen || persona} />; break;
-    case 'ob-basic': ScreenNode = <ObBasic on={on} />; break;
 
     case 'recovery': ScreenNode = <Recovery on={on} />; break;
     case 'recovery-fix': ScreenNode = <RecoveryFix st={st} on={on} />; break;

@@ -64,15 +64,6 @@ export const DOC_TYPES = [
   { value: 'nat', label: 'Naturalisation certificate' },
 ];
 
-export const OB_CAPABILITIES = [
-  { id: 'alerts', icon: 'bell', label: 'Alerts and reminders', tag: 'Now', tone: 'success' },
-  { id: 'book', icon: 'calendar-check', label: 'Book appointments', tag: 'Now', tone: 'success' },
-  { id: 'save', icon: 'bookmark', label: 'Save services and offices', tag: 'Now', tone: 'success' },
-  { id: 'records', icon: 'lock', label: 'Your personal government records', tag: 'Verify', tone: 'neutral' },
-  { id: 'pay', icon: 'lock', label: 'Bills and payments', tag: 'Verify', tone: 'neutral' },
-  { id: 'docs', icon: 'lock', label: 'Your documents and certificates', tag: 'Verify', tone: 'neutral' },
-];
-
 export const RECOVERY_REASONS = [
   { id: 'wrong', icon: 'pencil', title: 'I typed the wrong number or email', sub: 'Correct it and we send a new code' },
   { id: 'noarrive', icon: 'inbox', title: "The code hasn't arrived", sub: 'Send it again, or send it somewhere else' },

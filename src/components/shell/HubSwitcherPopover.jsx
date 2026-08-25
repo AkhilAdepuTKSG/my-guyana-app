@@ -1,4 +1,4 @@
-import { useAppState } from '../../state/AppStateContext';
+import { useAppState, SCREENS } from '../../state/AppStateContext';
 import { AGENCIES } from '../../state/mockData';
 import Icon from '../ui/Icon';
 
@@ -8,7 +8,13 @@ export default function HubSwitcherPopover({ open, onClose }) {
   const { persona, navigate, screen } = useAppState();
   if (!open) return null;
 
-  const connected = persona.connectedAgencies.map((id) => AGENCIES[id]).filter(Boolean);
+  // A citizen can be connected to the full master list (~49); only agencies
+  // with their own hub screen can be jumped to from here — the rest are
+  // reached through the services directory below.
+  const connected = persona.connectedAgencies
+    .filter((id) => SCREENS.includes(id))
+    .map((id) => AGENCIES[id])
+    .filter(Boolean);
 
   return (
     <div

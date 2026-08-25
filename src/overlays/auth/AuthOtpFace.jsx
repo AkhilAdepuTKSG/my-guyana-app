@@ -62,12 +62,18 @@ export function Blocked({ on }) {
   );
 }
 
-// STEP 3b · PROOF OF LIFE · a live picture, after the code
+// STEP 3b · CONFIRM IT'S REALLY YOU · the live face check, always its own
+// screen straight after the one-time code — never inline with ID capture, and
+// never a profile photo (backlog 1.2).
 export function Pol({ on }) {
   return (
     <Screen>
-      <IconBadge name="camera" />
-      <Heading title="One quick photo" sub="Take a picture of yourself so government knows a real person is here. It is compared with the photo on your record and never kept by My Guyana." />
+      <IconBadge name="scan-face" />
+      <Heading
+        eyebrow="Security check"
+        title="Confirm it's really you"
+        sub="A quick live check of your face against the photo on your government record, so no one else can register as you. This is not a profile photo — it is compared once and never kept by My Guyana."
+      />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 11, padding: 16, borderRadius: 16, background: 'var(--surface-2)' }}>
         {POL_TIPS.map((t, i) => (
           <span key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, lineHeight: 1.45, color: 'var(--fg-2)' }}>
@@ -75,7 +81,7 @@ export function Pol({ on }) {
           </span>
         ))}
       </div>
-      <PrimaryButton onClick={on.polStart}>Take my picture</PrimaryButton>
+      <PrimaryButton onClick={on.polStart}>Confirm it's me</PrimaryButton>
     </Screen>
   );
 }

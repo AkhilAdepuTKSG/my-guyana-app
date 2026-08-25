@@ -61,19 +61,22 @@ export function Proof({ st, on }) {
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) on.proofScanFile(f); }}
         style={{ display: 'none' }}
       />
+      {/* Card-based verification only — the live face check is not offered
+          inline here. It follows on its own "Confirm it's really you" screen
+          once the card (or the code) has checked out (backlog 1.2). */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-        <Row
-          icon="scan-face" iconBg="var(--brand-600)" iconFg="#fff" border="var(--brand-600)"
-          title="Verify with my face" sub="A live camera check against the photo government already holds — nothing to look up or type"
-          onClick={on.proofFace}
-        />
         {st.discoverResult === 'eid' && (
-          <Row icon="nfc" title="Tap my e-ID card" sub="Hold your card to the phone — the chip proves it is yours" onClick={on.proofTap} />
+          <Row
+            icon="nfc" iconBg="var(--brand-600)" iconFg="#fff" border="var(--brand-600)"
+            title="Tap my e-ID card" sub="Hold your card to the phone — the chip proves it is yours"
+            onClick={on.proofTap}
+          />
         )}
         <Row
           icon="scan-line" title="Scan my ID card"
           sub="Photograph your card — we read it on your device to confirm it's yours"
           onClick={() => scanRef.current?.click()}
+          {...(st.discoverResult !== 'eid' ? { iconBg: 'var(--brand-600)', iconFg: '#fff', border: 'var(--brand-600)' } : {})}
         />
       </div>
       <TextButton onClick={on.proofOtherMethod}>Use another verification method</TextButton>

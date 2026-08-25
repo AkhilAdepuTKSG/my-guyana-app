@@ -12,6 +12,16 @@
 // values (see scripts/gen-sample-docs.mjs), so scanning a sample card resolves
 // to the same record a typed number would.
 
+import { AGENCIES } from './mockData';
+
+// Every live agency in the master list (~49, minus the few not yet on
+// My Guyana). A registered citizen's government record links them to each
+// agency that holds anything in their name — signup pulls the whole set in,
+// never a hand-picked few (backlog 1.5).
+const LINKED_AGENCY_IDS = Object.values(AGENCIES)
+  .filter((a) => !a.comingSoon)
+  .map((a) => a.id);
+
 export const GOV_CITIZENS = [
   {
     id: 'nicole',
@@ -37,6 +47,9 @@ export const GOV_CITIZENS = [
     passport: 'P1234567890',
     driversLicence: 'DL1234567890',
     tin: '1234567890',
+
+    // Agencies holding a record in her name — connected automatically at signup.
+    linkedAgencies: LINKED_AGENCY_IDS,
   },
   {
     id: 'john',
@@ -62,6 +75,9 @@ export const GOV_CITIZENS = [
     passport: 'P0987654321',
     driversLicence: 'DL0987654321',
     tin: '0987654321',
+
+    // Agencies holding a record in his name — connected automatically at signup.
+    linkedAgencies: LINKED_AGENCY_IDS,
   },
 ];
 
