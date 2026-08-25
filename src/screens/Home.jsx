@@ -113,10 +113,9 @@ export default function Home() {
         action: () => openOverlay('gplPay'),
       };
     }
-    return {
-      icon: 'user-lock', eyebrow: 'Ready', title: 'Access your e-ID here',
-      sub: 'Open it in your Wallet', cta: 'View', action: () => navigate('wallet'),
-    };
+    // Nothing urgent left. Accessing the e-ID lives in the Vault/profile, not
+    // on Home (backlog 2.2) — no card renders and the content below reflows.
+    return null;
   }, [persona, billIsNextStep, navigate, openOverlay]);
 
   // ONE source of truth for "needs attention" — feeds both the list below and
@@ -375,11 +374,12 @@ export default function Home() {
 
       <div style={{ paddingTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-        {/* Complete-your-profile prompt — shown to citizens who registered with a
-            document other than an e-ID (session.user.profileComplete === false). */}
+        {/* Complete-your-profile prompt — shown while the profile has missing
+            fields. Opens the same profile the top-nav avatar opens, where the
+            sections with pending fields are badged (backlog 2.3 / 2.4). */}
         {user && user.profileComplete === false && (
           <button
-            className="press focus-ring" onClick={() => openOverlay('completeProfile')}
+            className="press focus-ring" onClick={() => openOverlay('profile')}
             aria-label="Complete your profile"
             style={{
               width: '100%', padding: '15px 16px', borderRadius: 18, background: 'var(--brand-600)',
@@ -400,7 +400,8 @@ export default function Home() {
           </button>
         )}
 
-        {/* Next step nudge */}
+        {/* Next step nudge — only while something is actually pending */}
+        {nextStep && (
         <button
           className="press focus-ring" onClick={nextStep.action}
           style={{
@@ -429,51 +430,92 @@ export default function Home() {
             {nextStep.cta}<Icon name="arrow-right" size={14} color="#fff" />
           </span>
         </button>
+        )}
 
-        {/* Needs your attention */}
-        {attentionItems.length > 0 && (
+        {/* Eligible benefits and grants — the approved label (backlog 2.6).
+            The account alerts and the eligibility suggestions live under this
+            one section; the cards themselves are unchanged. */}
+        {(attentionItems.length > 0 || suggestions.length > 0) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--fg-1)', flex: 1 }}>Needs your attention</h2>
-              <span style={{
-                flexShrink: 0, minWidth: 24, height: 24, padding: '0 8px', borderRadius: 999,
-                background: 'var(--status-error-bg)', color: 'var(--status-error)', fontSize: 12.5, fontWeight: 800,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>{attentionItems.length}</span>
-            </div>
-            <div style={{ border: '1px solid var(--surface-border)', borderRadius: 18, background: 'var(--surface-1)', overflow: 'hidden' }}>
-              {attentionItems.map((at, i) => {
-                const tone = toneColors[at.tone] || toneColors.info;
-                return (
+            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--fg-1)' }}>Eligible benefits and grants</h2>
+            {attentionItems.length > 0 && (
+              <div style={{ border: '1px solid var(--surface-border)', borderRadius: 18, background: 'var(--surface-1)', overflow: 'hidden' }}>
+                {attentionItems.map((at, i) => {
+                  const tone = toneColors[at.tone] || toneColors.info;
+                  return (
+                    <button
+                      key={at.id} className="press focus-ring" onClick={at.open}
+                      style={{
+                        width: '100%', textAlign: 'left', cursor: 'pointer', border: 'none',
+                        borderBottom: i < attentionItems.length - 1 ? '1px solid var(--surface-hairline)' : 'none',
+                        background: 'none', padding: 14, display: 'flex', alignItems: 'center', gap: 12,
+                      }}
+                    >
+                      <span aria-hidden="true" style={{
+                        width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: tone.bg,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Icon name={at.icon} size={17} color={tone.color} />
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: tone.color }}>
+                          {at.agency}
+                        </span>
+                        <span style={{ display: 'block', marginTop: 2, fontSize: 14, fontWeight: 700, color: 'var(--fg-1)', lineHeight: 1.3 }}>{at.title}</span>
+                        <span style={{ display: 'block', marginTop: 1, fontSize: 11.5, color: 'var(--fg-2)' }}>{at.sub}</span>
+                      </span>
+                      <span style={{
+                        flexShrink: 0, minHeight: 34, padding: '0 13px', borderRadius: 999, background: 'var(--surface-4)',
+                        color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 800, display: 'flex', alignItems: 'center',
+                      }}>{at.cta}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {suggestions.map((sg) => (
+              <div key={sg.id} className="surface" style={{ padding: 16, borderRadius: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <span aria-hidden="true" style={{
+                    width: 38, height: 38, flexShrink: 0, borderRadius: 12, background: sg.bg, color: sg.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Icon name={sg.icon} size={18} color={sg.color} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: sg.color }}>
+                      {sg.agencyLabel}
+                    </span>
+                    <span style={{ display: 'block', marginTop: 2, fontSize: 15, fontWeight: 700, color: 'var(--fg-1)', lineHeight: 1.3 }}>{sg.title}</span>
+                    <span style={{ display: 'block', marginTop: 3, fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-2)' }}>{sg.reason}</span>
+                  </span>
                   <button
-                    key={at.id} className="press focus-ring" onClick={at.open}
+                    className="press focus-ring" aria-label="Dismiss suggestion"
+                    onClick={() => setDismissedSuggestions((prev) => [...prev, sg.id])}
                     style={{
-                      width: '100%', textAlign: 'left', cursor: 'pointer', border: 'none',
-                      borderBottom: i < attentionItems.length - 1 ? '1px solid var(--surface-hairline)' : 'none',
-                      background: 'none', padding: 14, display: 'flex', alignItems: 'center', gap: 12,
+                      width: 28, height: 28, flexShrink: 0, borderRadius: 999, border: 'none', background: 'none',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--fg-4)',
                     }}
                   >
-                    <span aria-hidden="true" style={{
-                      width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: tone.bg,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Icon name={at.icon} size={17} color={tone.color} />
-                    </span>
-                    <span style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: tone.color }}>
-                        {at.agency}
-                      </span>
-                      <span style={{ display: 'block', marginTop: 2, fontSize: 14, fontWeight: 700, color: 'var(--fg-1)', lineHeight: 1.3 }}>{at.title}</span>
-                      <span style={{ display: 'block', marginTop: 1, fontSize: 11.5, color: 'var(--fg-2)' }}>{at.sub}</span>
-                    </span>
-                    <span style={{
-                      flexShrink: 0, minHeight: 34, padding: '0 13px', borderRadius: 999, background: 'var(--surface-4)',
-                      color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 800, display: 'flex', alignItems: 'center',
-                    }}>{at.cta}</span>
+                    <Icon name="x" size={15} color="var(--fg-4)" />
                   </button>
-                );
-              })}
-            </div>
+                </div>
+                <button
+                  className="press focus-ring" onClick={() => suggestionAction(sg)}
+                  style={{
+                    display: 'flex', alignItems: 'stretch', width: '100%', height: 44, border: 'none', borderRadius: 12,
+                    background: 'var(--brand-50)', cursor: 'pointer', overflow: 'hidden', padding: 0,
+                  }}
+                >
+                  <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-800)', fontSize: 13.5, fontWeight: 700 }}>
+                    {sg.action}
+                  </span>
+                  <span aria-hidden="true" style={{ width: 44, height: 44, flexShrink: 0, background: sg.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="arrow-right" size={15} color="#fff" />
+                  </span>
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -553,56 +595,6 @@ export default function Home() {
             </button>
           </div>
         ))}
-
-        {/* You may be eligible */}
-        {suggestions.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--fg-1)' }}>You may be eligible</h2>
-            {suggestions.map((sg) => (
-              <div key={sg.id} className="surface" style={{ padding: 16, borderRadius: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  <span aria-hidden="true" style={{
-                    width: 38, height: 38, flexShrink: 0, borderRadius: 12, background: sg.bg, color: sg.color,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Icon name={sg.icon} size={18} color={sg.color} />
-                  </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: sg.color }}>
-                      {sg.agencyLabel}
-                    </span>
-                    <span style={{ display: 'block', marginTop: 2, fontSize: 15, fontWeight: 700, color: 'var(--fg-1)', lineHeight: 1.3 }}>{sg.title}</span>
-                    <span style={{ display: 'block', marginTop: 3, fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-2)' }}>{sg.reason}</span>
-                  </span>
-                  <button
-                    className="press focus-ring" aria-label="Dismiss suggestion"
-                    onClick={() => setDismissedSuggestions((prev) => [...prev, sg.id])}
-                    style={{
-                      width: 28, height: 28, flexShrink: 0, borderRadius: 999, border: 'none', background: 'none',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--fg-4)',
-                    }}
-                  >
-                    <Icon name="x" size={15} color="var(--fg-4)" />
-                  </button>
-                </div>
-                <button
-                  className="press focus-ring" onClick={() => suggestionAction(sg)}
-                  style={{
-                    display: 'flex', alignItems: 'stretch', width: '100%', height: 44, border: 'none', borderRadius: 12,
-                    background: 'var(--brand-50)', cursor: 'pointer', overflow: 'hidden', padding: 0,
-                  }}
-                >
-                  <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-800)', fontSize: 13.5, fontWeight: 700 }}>
-                    {sg.action}
-                  </span>
-                  <span aria-hidden="true" style={{ width: 44, height: 44, flexShrink: 0, background: sg.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name="arrow-right" size={15} color="#fff" />
-                  </span>
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
 
       </div>
     </>

@@ -167,6 +167,10 @@ export default function AuthFlow({ gate = false }) {
       method,
       verificationLevel: citizen ? 'verified' : create ? level : 'verified', // 'verified' | 'basic'
       profileComplete,
+      // Whether a sign-in password exists on the account. The e-ID path never
+      // asks for one, so the profile's Sign-in & Security section surfaces it
+      // as a pending field until the citizen sets one.
+      passwordSet: !create || !!(st.setupPass || m.password),
       eidStatus, // 'issued' | 'applied' | 'none'
       eidNo: citizen?.eidNo || null,
       eidApplied: !!st.eidApplied,
