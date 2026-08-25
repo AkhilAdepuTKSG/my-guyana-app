@@ -251,7 +251,9 @@ export const NIS_BENEFITS = [
 ];
 
 export const SERVICE_DIRECTORY = [
-  { id: 'cat-id', name: 'Identity & Records', icon: 'id-card', agency: 'mops', services: ['National e-ID Card', 'Birth certificate copy', 'Change of name'] },
+  // The e-ID is deliberately absent from Identity & Records — it is not a
+  // service (backlog 3.7): applied for from Home, accessed from the Vault.
+  { id: 'cat-id', name: 'Identity & Records', icon: 'id-card', agency: 'mops', services: ['Birth certificate copy', 'Change of name'] },
   { id: 'cat-social', name: 'Social Security', icon: 'shield-check', agency: 'nis', services: ['NIS registration', 'Sickness Benefit', 'Maternity Benefit', 'Funeral Grant', 'Pension estimate'] },
   { id: 'cat-utilities', name: 'Utilities', icon: 'zap', agency: 'gpl', services: ['Pay electricity bill', 'Report an outage', 'New connection application'] },
   { id: 'cat-immigration', name: 'Immigration & Passport', icon: 'plane', agency: 'immigration', services: ['Guyana Passport'] },

@@ -7,18 +7,45 @@ const TABS = [
   { id: 'calendar', label: 'Appointments', icon: 'calendar' },
   { id: 'wallet', label: 'Wallet', icon: 'wallet' },
 ];
-
-// Screens not directly on the tab bar (nis/mops/gpl/vault) still highlight
-// the closest primary tab so the bar never looks "orphaned".
-function activeTabFor(screen) {
-  if (['nis', 'mops', 'gpl'].includes(screen)) return 'home';
-  if (screen === 'vault') return 'wallet';
-  return screen;
-}
+const PRIMARY_IDS = TABS.map((t) => t.id);
 
 export default function TabBar() {
-  const { screen, navigate, openOverlay } = useAppState();
-  const active = activeTabFor(screen);
+  const { screen, navigate, openOverlay, closeOverlay, isOpen } = useAppState();
+
+  // "Inside a flow" (backlog 3.5): the services category drill-down is open, or
+  // the current screen is one reached from within a tab (agency hubs, Vault)
+  // rather than a primary tab itself. In that state the Home slot becomes a
+  // contextual Back; at the top level it is Home again.
+  const drilledIn = isOpen('category');
+  const inFlow = drilledIn || !PRIMARY_IDS.includes(screen);
+
+  const goBack = () => {
+    if (drilledIn) { closeOverlay('category'); return; } // back to the Services top level
+    navigate('home'); // hub/Vault screens sit one level below Home
+  };
+
+  // The other tabs keep working everywhere — leaving via a tab first closes the
+  // drill-down so navigation never happens underneath it.
+  const goTab = (id) => {
+    if (drilledIn) closeOverlay('category');
+    navigate(id);
+  };
+
+  // While inside a flow the contextual Back is the highlighted, primary action;
+  // on a primary tab the active highlight follows the screen as before.
+  const renderTab = (tab) => {
+    if (tab.id === 'home' && inFlow) {
+      return (
+        <TabButton
+          key="back"
+          tab={{ id: 'back', label: 'Back', icon: 'arrow-left' }}
+          active
+          onClick={goBack}
+        />
+      );
+    }
+    return <TabButton key={tab.id} tab={tab} active={!inFlow && screen === tab.id} onClick={() => goTab(tab.id)} />;
+  };
 
   return (
     <div style={{
@@ -27,9 +54,7 @@ export default function TabBar() {
       background: 'var(--surface-1)', borderTop: '1px solid var(--surface-hairline)',
       padding: '10px 8px calc(10px + env(safe-area-inset-bottom, 0px))',
     }}>
-      {TABS.slice(0, 2).map((tab) => (
-        <TabButton key={tab.id} tab={tab} active={active === tab.id} onClick={() => navigate(tab.id)} />
-      ))}
+      {TABS.slice(0, 2).map(renderTab)}
 
       <div style={{ width: 64, display: 'flex', justifyContent: 'center' }}>
         <button
@@ -48,9 +73,7 @@ export default function TabBar() {
         </button>
       </div>
 
-      {TABS.slice(2).map((tab) => (
-        <TabButton key={tab.id} tab={tab} active={active === tab.id} onClick={() => navigate(tab.id)} />
-      ))}
+      {TABS.slice(2).map(renderTab)}
     </div>
   );
 }

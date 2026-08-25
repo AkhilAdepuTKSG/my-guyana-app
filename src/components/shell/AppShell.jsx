@@ -41,6 +41,7 @@ import ProfileSheet from '../../overlays/profile/ProfileSheet';
 import CompleteProfileFlow from '../../overlays/profile/CompleteProfileFlow';
 import NotificationsSheet from '../../overlays/profile/NotificationsSheet';
 import RegionSheet from '../../overlays/profile/RegionSheet';
+import CategoryDrillDown from '../../overlays/services/CategoryDrillDown';
 import WelcomeCarousel from '../../overlays/welcome/WelcomeCarousel';
 import TourSheet from '../../overlays/welcome/TourSheet';
 import AddAgencyDiscoverySheet from '../../overlays/welcome/AddAgencyDiscoverySheet';
@@ -68,6 +69,11 @@ export default function AppShell() {
 
       <TabBar />
       <Toast />
+
+      {/* Services category drill-down — takes over the screen but sits BELOW
+          the tab bar (zIndex 40 vs 50) so the contextual Back stays visible
+          (backlog 3.3–3.5). */}
+      <CategoryDrillDown />
 
       {/* Full-screen flows and sheets — layered above the primary screens.
           The auth flow itself lives at the app root as the pre-shell gate. */}
