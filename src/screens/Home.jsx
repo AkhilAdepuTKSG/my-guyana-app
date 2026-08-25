@@ -432,56 +432,6 @@ export default function Home() {
         </button>
         )}
 
-        {/* Your agencies — the reclaimed space (2.2) extends the agency list
-            (backlog 2.1): pinned first, then most-used, and a door to all of
-            them so every connected agency stays reachable. */}
-        {connected.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--fg-1)', flex: 1 }}>Your agencies</h2>
-              <button
-                className="press focus-ring" onClick={() => openOverlay('addAgency')}
-                style={{ flexShrink: 0, minHeight: 32, padding: '0 12px', border: 'none', borderRadius: 999, background: 'var(--surface-4)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                Manage
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
-              {agencyChips.map((id) => {
-                const agency = AGENCIES[id];
-                const isPinned = pinned.includes(id);
-                return (
-                  <button
-                    key={id} className="press focus-ring" onClick={() => openAgency(id)}
-                    style={{
-                      flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '0 13px 0 7px',
-                      borderRadius: 999, border: '1px solid var(--surface-border)', background: 'var(--surface-1)',
-                      cursor: 'pointer', fontFamily: 'inherit',
-                    }}
-                  >
-                    <span aria-hidden="true" style={{ width: 30, height: 30, flexShrink: 0, borderRadius: 999, background: hexToRgba(agency?.mark || '#142b44', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon name={agency?.icon || 'building-2'} size={15} color={agency?.mark} />
-                    </span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg-1)', whiteSpace: 'nowrap' }}>{agency?.shortName}</span>
-                    {isPinned && <Icon name="pin" size={12} color="var(--fg-3)" />}
-                  </button>
-                );
-              })}
-              <button
-                className="press focus-ring" onClick={() => openOverlay('addAgency')}
-                style={{
-                  flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7, minHeight: 44, padding: '0 14px',
-                  borderRadius: 999, border: '1px dashed var(--surface-border)', background: 'var(--surface-2)',
-                  color: 'var(--fg-2)', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                <Icon name="layout-grid" size={14} color="var(--fg-3)" />
-                All agencies ({connected.length})
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Eligible benefits and grants — the approved label (backlog 2.6).
             The account alerts and the eligibility suggestions live under this
             one section; the cards themselves are unchanged. */}
