@@ -86,7 +86,9 @@ export default function ApplyFlow() {
     if (open) {
       revokeDocUrls();
       setStep(1);
-      setFields(prefillFromGov(def, user?.gov, user?.name)); // start from what government already has
+      // Start from what government already has, then any preset the caller
+      // passed (e.g. Ask Gov's "Renew your passport" → applicationType: 'renewal').
+      setFields({ ...prefillFromGov(def, user?.gov, user?.name), ...((payload && payload.preset) || {}) });
       setDocStatus({}); setDocFiles({}); setAppt({ office: '', date: '', time: '' });
       setSubmitting(false); setDone(false); setEligPassed(false); setScan({ status: 'idle', pct: 0, text: '', error: '' });
     }
@@ -376,7 +378,7 @@ export default function ApplyFlow() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <h3 style={{ margin: 0, fontSize: 15.5, fontWeight: 800, color: 'var(--fg-1)' }}>Required documents</h3>
-                <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-3)' }}>Attach a photo, scan or PDF of each. Bring the originals if an appointment is booked.</p>
+                <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-3)' }}>IDs and certificates connect straight from your Vault. Anything only you hold — a photo or proof of address — is attached as a photo, scan or PDF. Bring the originals if an appointment is booked.</p>
               </div>
               <input ref={docInputRef} type="file" accept="image/*,application/pdf" onChange={onDocFile} style={{ display: 'none' }} />
               {def.documents.map((d) => {
@@ -410,10 +412,12 @@ export default function ApplyFlow() {
                               <Icon name="eye" size={13} />View
                             </a>
                           )}
-                          <button className="press focus-ring" onClick={() => pickDoc(d.id)}
-                            style={{ flex: 1, minHeight: 38, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                            <Icon name="refresh-cw" size={13} />Replace
-                          </button>
+                          {d.source !== 'vault' && (
+                            <button className="press focus-ring" onClick={() => pickDoc(d.id)}
+                              style={{ flex: 1, minHeight: 38, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              <Icon name="refresh-cw" size={13} />Replace
+                            </button>
+                          )}
                           <button className="press focus-ring" onClick={() => removeDoc(d.id)} aria-label={`Remove ${d.label}`}
                             style={{ width: 40, minHeight: 38, flexShrink: 0, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--status-error)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Icon name="trash-2" size={14} />
@@ -421,16 +425,20 @@ export default function ApplyFlow() {
                         </div>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      /* IDs and certificates government already holds are connected
+                         from the Vault — never uploaded. Everything else (a photo,
+                         proof of address, a pay slip) is uploaded. */
+                      d.source === 'vault' ? (
+                        <button className="press focus-ring" onClick={() => attachFromVault(d.id, d.label)}
+                          style={{ width: '100%', minHeight: 40, borderRadius: 10, border: `1px solid color-mix(in oklch, ${mark} 35%, var(--surface-border))`, background: `color-mix(in oklch, ${mark} 8%, transparent)`, color: mark, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <Icon name="folder-lock" size={13} />Connect with Vault
+                        </button>
+                      ) : (
                         <button className="press focus-ring" onClick={() => pickDoc(d.id)}
-                          style={{ flex: 1, minHeight: 40, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          style={{ width: '100%', minHeight: 40, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                           <Icon name="upload" size={13} />{d.required ? 'Upload file' : 'Add file'}
                         </button>
-                        <button className="press focus-ring" onClick={() => attachFromVault(d.id, d.label)}
-                          style={{ flex: 1, minHeight: 40, borderRadius: 10, border: `1px solid color-mix(in oklch, ${mark} 35%, var(--surface-border))`, background: `color-mix(in oklch, ${mark} 8%, transparent)`, color: mark, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <Icon name="folder-lock" size={13} />From Vault
-                        </button>
-                      </div>
+                      )
                     )}
                   </div>
                 );

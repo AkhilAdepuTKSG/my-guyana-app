@@ -5,7 +5,11 @@
 // #6 Cash Grant) is a data change, not a new bespoke screen.
 //
 // Field: { key, label, type: 'text'|'tel'|'email'|'date'|'select', options?, required, hint? }
-// Document: { id, label, issuer, required, hint? }
+// Document: { id, label, issuer, required, hint?, source? }
+//   source 'vault'  — an ID or certificate government already holds: the citizen
+//                     connects it from their Vault, never uploads it.
+//   source omitted  — something only the citizen has (a photo, a pay slip, proof
+//                     of address): uploaded.
 
 export const APPLICATION_DEFS = {
   passport: {
@@ -35,8 +39,8 @@ export const APPLICATION_DEFS = {
       },
     ],
     documents: [
-      { id: 'birthCert', label: 'Birth certificate', issuer: 'General Register Office', required: true, hint: 'Original Guyana birth certificate — the primary proof of citizenship' },
-      { id: 'nationalId', label: 'National ID or current passport', issuer: 'GECOM / Immigration', required: true, hint: 'Valid photo ID in your current name' },
+      { id: 'birthCert', label: 'Birth certificate', issuer: 'General Register Office', required: true, source: 'vault', hint: 'Original Guyana birth certificate — the primary proof of citizenship' },
+      { id: 'nationalId', label: 'National ID or current passport', issuer: 'GECOM / Immigration', required: true, source: 'vault', hint: 'Valid photo ID in your current name' },
       { id: 'passportPhoto', label: 'Passport photograph', issuer: 'Recent, colour', required: true, hint: 'Plain background, taken within the last 6 months' },
       { id: 'proofAddress', label: 'Proof of address', issuer: 'Dated within 3 months', required: false, hint: 'Utility bill or bank statement' },
     ],
@@ -109,7 +113,7 @@ export const APPLICATION_DEFS = {
       { key: 'reason', label: 'Anything we should know?', type: 'text', required: false },
     ],
     documents: [
-      { id: 'nationalId', label: 'National ID', issuer: 'GECOM', required: true, hint: 'Confirms who you are' },
+      { id: 'nationalId', label: 'National ID', issuer: 'GECOM', required: true, source: 'vault', hint: 'Confirms who you are' },
       { id: 'proofIncome', label: 'Proof of income', issuer: 'Pay slip / letter', required: true, hint: 'Most recent pay slip, or a letter if self-employed' },
       { id: 'proofAddress', label: 'Proof of address', issuer: 'Dated within 3 months', required: true, hint: 'Utility bill or bank statement' },
     ],

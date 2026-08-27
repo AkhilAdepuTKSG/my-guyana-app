@@ -4,36 +4,37 @@ import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
 import { SERVICE_CENTRES } from '../../state/mockData';
 
-// Ask Gov, scoped down per review (backlog 4.1): information lookup, pointing
-// the citizen to the right service, eligibility checks and application status.
-// No agentic transactions — anything that needs doing is a deep-link into the
-// real service flow (4.3), never done inside the chat. When opened from inside
-// a service, the quick actions are scoped to that service (4.2). Closing the
-// chat always lands back on the originating screen — it is an overlay above it.
+// Ask Gov, scoped per review (backlog 4.1): information, pointing the citizen
+// to the right service, eligibility, and application status. Every answer that
+// names a service or an application carries deep-link buttons that land ON the
+// page in question (4.3) — "Apply now" opens the passport flow, "Renew your
+// passport" opens it pre-set to renewal, a status answer opens that very
+// application's tracking page over My applications. No transaction ever
+// happens inside the chat. Opened from inside a service, the quick actions
+// are scoped to that service (4.2).
 
 // -- canned copy --------------------------------------------------------
 
-const GREETING = "Hi, I'm Ask Gov. I can look up information, point you to the right service, check what you may be eligible for, and tell you where your applications stand. What do you need?";
+const GREETING = "Hi, I'm Ask Gov. Ask me about any service — I'll explain it and take you straight there — or ask where an application stands.";
 
 const CHIPS = [
   { id: 'status', label: "Where's my application?", prompt: "What's the status of my applications?" },
+  { id: 'passport', label: 'Passport', prompt: 'Tell me about the passport service' },
   { id: 'nis', label: 'Apply for an NIS benefit', prompt: 'How do I apply for an NIS benefit?' },
-  { id: 'pension', label: 'Pension eligibility', prompt: 'Am I eligible for a pension?' },
   { id: 'bill', label: 'Pay my electricity bill', prompt: 'How do I pay my electricity bill?' },
-  { id: 'eid', label: 'Can I vote with my e-ID?', prompt: 'Can I vote with my e-ID?' },
+  { id: 'pension', label: 'Pension eligibility', prompt: 'Am I eligible for a pension?' },
   { id: 'appt', label: 'Book an appointment near me', prompt: 'Book an appointment at the nearest MoPS office' },
 ];
 
 // Per-service context (4.2): opened from inside a service, the quick actions
-// are that service's questions, not the generic set. All copy is invented
-// placeholder data, like the rest of the prototype.
+// are that service's questions, not the generic set.
 const CONTEXTS = {
   passport: {
     title: 'Guyana Passport',
     chips: [
-      { id: 'p-renew', label: 'Documents required for renewal', prompt: 'What documents do I need to renew my passport?' },
-      { id: 'p-first', label: 'First-time application', prompt: 'What do I need for a first-time passport?' },
-      { id: 'p-fees', label: 'Fees and processing time', prompt: 'What are the passport fees and how long does it take?' },
+      { id: 'p-apply', label: 'Apply for a passport', prompt: 'How do I apply for a passport?' },
+      { id: 'p-renew', label: 'Renew my passport', prompt: 'How do I renew my passport?' },
+      { id: 'p-docs', label: 'Documents required', prompt: 'What documents do I need for my passport?' },
       { id: 'p-status', label: 'Track my passport application', prompt: "What's the status of my passport application?" },
     ],
   },
@@ -47,91 +48,234 @@ const CONTEXTS = {
   },
 };
 
-const REPLIES = {
-  default: 'I can look things up, point you to the right service, check eligibility or track your applications — try asking about a benefit, your e-ID, a bill or an application.',
-  nis: 'For NIS you can apply for Sickness Benefit, Maternity, Funeral Grant, Pension and more. Each one is a short application from the NIS page.',
-  eid: "Your e-ID lets you apply for services faster, but it doesn't replace your National ID for voting. If your National ID is close to expiring, I'd renew that too.",
-  pension: "To qualify for the NIS pension you need to be 60 or older with at least 150 paid and 750 total contributions. Your pension progress is on the NIS page.",
-  bill: 'Your GPL bill can be paid right here in My Guyana — I can take you straight to the payment.',
-  passportRenew: 'To renew a Guyana passport you need: your current (or expired) passport, your National ID or birth certificate, two recent passport photos, and the completed application form. Bring the originals — copies are made at the counter.',
-  passportFirst: "For a first-time passport you need your birth certificate, your National ID, two passport photos and the completed Form A — plus a parent or guardian present if you're under 16.",
-  passportFees: 'A standard renewal is G$6,000 and takes about 10 working days from your appointment. Express processing is available at the Georgetown office.',
-  cashGrantElig: 'The cash grant is for every Guyanese citizen resident in Guyana — one grant per person. With your identity verified in My Guyana, you can apply straight away.',
-  cashGrantDocs: "You need your National ID or e-ID, and the bank account the payout should reach. That's it — your verified profile covers the rest.",
+// -- deep-link targets ----------------------------------------------------
+// go: { screen? , overlay?, payload? } — a screen change, an overlay, or both
+// (screen first, overlay on top of it).
+const GO = {
+  passportApply: { overlay: 'apply', payload: { serviceId: 'passport' } },
+  passportRenew: { overlay: 'apply', payload: { serviceId: 'passport', preset: { applicationType: 'renewal' } } },
+  passportReplace: { overlay: 'apply', payload: { serviceId: 'passport', preset: { applicationType: 'replacement' } } },
+  immigrationServices: { overlay: 'category', payload: { id: 'cat-immigration' } },
+  cashGrant: { overlay: 'apply', payload: { serviceId: 'cashGrant' } },
+  financeServices: { overlay: 'category', payload: { id: 'cat-finance' } },
+  nisHub: { screen: 'nis' },
+  nisRegister: { overlay: 'nisReg' },
+  socialServices: { overlay: 'category', payload: { id: 'cat-social' } },
+  benefit: (type) => ({ overlay: 'benefit', payload: { type } }),
+  gplHub: { screen: 'gpl' },
+  gplPay: { overlay: 'gplPay' },
+  gplOutage: { overlay: 'gplOutage' },
+  gplNew: { overlay: 'onboard', payload: { agency: 'gpl', intent: 'new' } },
+  utilityServices: { overlay: 'category', payload: { id: 'cat-utilities' } },
+  mopsHub: { screen: 'mops' },
+  vault: { screen: 'vault' },
+  eidApply: { overlay: 'eid' },
+  identityServices: { overlay: 'category', payload: { id: 'cat-id' } },
+  applications: { screen: 'applications' },
+  calendar: { screen: 'calendar' },
+  wallet: { screen: 'wallet' },
+  services: { screen: 'services' },
 };
 
-function nisNumberReply(persona) {
-  if (persona?.nisNumber) {
+const act = (label, icon, go) => ({ label, icon, go });
+
+// -- application status (4.1) --------------------------------------------
+
+// Which application a question is about, by the words the citizen uses.
+const APP_MATCHERS = [
+  { keys: ['passport'], ids: ['passport'], label: 'passport', apply: act('Apply for a passport', 'plane', GO.passportApply) },
+  { keys: ['cash grant', 'grant'], ids: ['cashGrant'], label: 'cash grant', apply: act('Check eligibility and apply', 'banknote', GO.cashGrant) },
+  { keys: ['e-id', 'eid', 'digital id', 'id card'], ids: ['eid'], label: 'e-ID', apply: act('Apply for an e-ID', 'fingerprint', GO.eidApply) },
+  { keys: ['nis registration', 'registration', 'register'], ids: ['nisReg'], label: 'NIS registration', apply: act('Register with NIS', 'badge-check', GO.nisRegister) },
+  { keys: ['sickness'], ids: ['sickness'], label: 'sickness benefit', apply: act('Apply for Sickness Benefit', 'thermometer', GO.benefit('sickness')) },
+  { keys: ['maternity'], ids: ['maternity'], label: 'maternity benefit', apply: act('Apply for Maternity Benefit', 'baby', GO.benefit('maternity')) },
+  { keys: ['funeral'], ids: ['funeral'], label: 'funeral grant', apply: act('Apply for the Funeral Grant', 'flower-2', GO.benefit('funeral')) },
+  { keys: ['connection', 'new electricity'], ids: ['gpl-new'], label: 'new electricity connection', apply: act('Apply for a new connection', 'plug', GO.gplNew) },
+];
+
+function appMatches(a, m) {
+  const keys = [a.serviceId, a.type, a.id].filter(Boolean).map((k) => String(k).toLowerCase());
+  return m.ids.some((id) => keys.some((k) => k.includes(id.toLowerCase())));
+}
+
+// Plain words for where an application stands.
+function statusPhrase(status = '') {
+  const s = status.toLowerCase();
+  if (s.includes('approv') || s.includes('issued') || s.includes('ready') || s.includes('complete')) return 'approved';
+  if (s.includes('reject') || s.includes('denied') || s.includes('disallow')) return 'not approved';
+  if (s.includes('appointment') || s.includes('booked')) return 'waiting for your Service Centre visit';
+  if (s.includes('action') || s.includes('missing') || s.includes('waiting on')) return 'waiting on something from you';
+  return 'under review';
+}
+
+// Land on My applications with this application's tracking page on top —
+// closing the details leaves the citizen on My applications.
+const trackAction = (a) => act(`${a.title} — details`, 'route', { screen: 'applications', overlay: 'track', payload: a });
+
+function statusReply(text, applications) {
+  const t = text.toLowerCase();
+  const asked = APP_MATCHERS.find((m) => m.keys.some((k) => t.includes(k)));
+  const apps = applications || [];
+
+  if (asked) {
+    const mine = apps.filter((a) => appMatches(a, asked));
+    if (mine.length === 0) {
+      return {
+        text: `You haven't applied for a ${asked.label} yet${asked.apply ? ' — you can start right here.' : '.'}`,
+        actions: [asked.apply, act('My applications', 'route', GO.applications)].filter(Boolean),
+      };
+    }
+    const a = mine[0];
+    const step = a.step && a.totalSteps ? ` (step ${a.step} of ${a.totalSteps})` : '';
     return {
-      text: `Your NIS Number is ${persona.nisNumber}. It's on your NIS card in Wallet — open Wallet to see or copy it.`,
-      actions: [{ label: 'Open Wallet', icon: 'wallet', go: { screen: 'wallet' } }],
+      text: `Your ${a.title} application is currently ${statusPhrase(a.status)}${step}. Tap below for the details.`,
+      actions: mine.map(trackAction),
     };
   }
+
+  if (apps.length === 0) {
+    return {
+      text: "You haven't submitted any applications yet. When you do, I can tell you exactly where each one stands.",
+      actions: [act('Browse services', 'layout-grid', GO.services)],
+    };
+  }
+  const lines = apps.slice(0, 3).map((a) => `• ${a.title} — ${statusPhrase(a.status)}${a.step && a.totalSteps ? ` (step ${a.step} of ${a.totalSteps})` : ''}`);
+  const more = apps.length > 3 ? `\nAnd ${apps.length - 3} more.` : '';
   return {
-    text: "You don't have an NIS Number in My Guyana yet. Add National Insurance Scheme from your home dial: if you already have a number you can link it, and if you don't, NIS issues one when you register — we'll email the number and a first-time PIN.",
-    actions: [{ label: 'Go to Home', icon: 'house', go: { screen: 'home' } }],
+    text: `Here's where ${apps.length === 1 ? 'your application stands' : 'your applications stand'}:\n${lines.join('\n')}${more}`,
+    actions: apps.slice(0, 3).map(trackAction),
   };
 }
 
-// Application status (4.1) — read from the citizen's real submitted
-// applications, never invented.
-function statusReply(applications) {
-  if (!applications || applications.length === 0) {
+// -- services & agencies: what they are, and the links into them (4.3) ------
+
+function passportReply(t, applications) {
+  const renew = act('Renew your passport', 'refresh-cw', GO.passportRenew);
+  const applyNow = act('Apply now', 'plane', GO.passportApply);
+  const all = act('All Immigration & Passport services', 'layout-grid', GO.immigrationServices);
+  const hasApp = (applications || []).some((a) => appMatches(a, APP_MATCHERS[0]));
+  const track = hasApp ? act('Track my passport application', 'route', GO.applications) : null;
+  if (t.includes('renew')) {
     return {
-      text: "You haven't submitted any applications yet. When you do, I can tell you exactly where each one stands.",
-      actions: [{ label: 'Browse services', icon: 'layout-grid', go: { screen: 'services' } }],
+      text: 'To renew a Guyana passport you need your current (or expired) passport, your birth certificate and National ID from your Vault, and a recent passport photo. You book a Passport Office visit as part of the application — about 10 working days from that visit.',
+      actions: [renew, all],
     };
   }
-  const lines = applications.slice(0, 3).map((a) => `• ${a.title} — ${a.status}${a.step && a.totalSteps ? ` (step ${a.step} of ${a.totalSteps})` : ''}`);
-  const more = applications.length > 3 ? `\nAnd ${applications.length - 3} more.` : '';
+  if (t.includes('replace') || t.includes('lost') || t.includes('damag')) {
+    return {
+      text: 'Lost or damaged passport? Apply for a replacement — the same documents as a renewal, plus a short note on what happened to the old one.',
+      actions: [act('Replace my passport', 'plane', GO.passportReplace), all],
+    };
+  }
+  if (t.includes('document') || t.includes('need')) {
+    return {
+      text: 'For a Guyana passport you need your birth certificate and National ID (both connect from your Vault — nothing to upload), a recent colour passport photo, and optionally a proof of address. Bring the originals to your Passport Office visit.',
+      actions: [applyNow, renew, all],
+    };
+  }
+  if (t.includes('fee') || t.includes('cost') || t.includes('how long') || t.includes('time')) {
+    return {
+      text: 'A standard passport is G$6,000 and takes about 10 working days from your Passport Office visit. Express processing is available at the Georgetown office.',
+      actions: [applyNow, renew, all],
+    };
+  }
   return {
-    text: `Here's where ${applications.length === 1 ? 'your application stands' : 'your applications stand'}:\n${lines.join('\n')}${more}`,
-    actions: [{ label: 'View my applications', icon: 'route', go: { screen: 'applications' } }],
+    text: 'Guyana Passport — apply for your first passport, renew one, or replace a lost or damaged one. Your birth certificate and National ID connect from your Vault; you add a photo and book a Passport Office visit inside the application.',
+    actions: [applyNow, renew, track, all].filter(Boolean),
   };
+}
+
+function cashGrantReply(t) {
+  const open = act('Check eligibility and apply', 'banknote', GO.cashGrant);
+  if (t.includes('document')) {
+    return { text: "You need your National ID (it connects from your Vault) and the bank account the grant should reach — that's it. Your verified profile covers the rest.", actions: [open] };
+  }
+  return {
+    text: 'The Cash Grant is a one-off payment for every Guyanese citizen resident in Guyana — one grant per person. Your eligibility is checked against your record the moment you open it.',
+    actions: [open, act('All Finance & Grants services', 'layout-grid', GO.financeServices)],
+  };
+}
+
+function nisReply(t, persona) {
+  const hub = act('Open NIS', 'shield-check', GO.nisHub);
+  const all = act('All Social Security services', 'layout-grid', GO.socialServices);
+  if (t.includes('pension')) {
+    return {
+      text: 'To qualify for the NIS pension you need to be 60 or older with at least 150 paid and 750 total contributions. Your pension progress is on the NIS page.',
+      actions: [act('See my pension progress', 'landmark', GO.nisHub), all],
+    };
+  }
+  if (t.includes('sick')) return { text: 'Sickness Benefit pays while a doctor certifies you unfit for work — apply with your medical certificate and your last working day.', actions: [act('Apply for Sickness Benefit', 'thermometer', GO.benefit('sickness')), hub] };
+  if (t.includes('matern')) return { text: 'Maternity Benefit pays for up to 13 weeks around the birth — apply with your expected date and your contribution record does the rest.', actions: [act('Apply for Maternity Benefit', 'baby', GO.benefit('maternity')), hub] };
+  if (t.includes('funeral')) return { text: 'The Funeral Grant helps with the cost of a funeral for an insured person or their dependant — apply with the death certificate.', actions: [act('Apply for the Funeral Grant', 'flower-2', GO.benefit('funeral')), hub] };
+  if (t.includes('regist')) {
+    return {
+      text: persona?.nisAccountState === 'active'
+        ? `You're already registered with NIS${persona.nisNumber ? ` — your number is ${persona.nisNumber}` : ''}.`
+        : 'Registering with NIS gives you a number your contributions are recorded against — it takes about five minutes.',
+      actions: persona?.nisAccountState === 'active' ? [hub] : [act('Register with NIS', 'badge-check', GO.nisRegister), hub],
+    };
+  }
+  if (t.includes('number') || t.includes('no.')) {
+    return persona?.nisNumber
+      ? { text: `Your NIS Number is ${persona.nisNumber}. It's on your NIS card in the Vault.`, actions: [act('Open my Vault', 'user-lock', GO.vault)] }
+      : { text: "You don't have an NIS Number in My Guyana yet — register and NIS issues one.", actions: [act('Register with NIS', 'badge-check', GO.nisRegister)] };
+  }
+  return {
+    text: 'Social Security (NIS) — register, apply for Sickness, Maternity or Funeral benefits, check your contributions and follow your pension progress.',
+    actions: [hub, act('Apply for a benefit', 'file-plus-2', GO.nisHub), all],
+  };
+}
+
+function gplReply(t) {
+  const hub = act('Open Electricity', 'zap', GO.gplHub);
+  const all = act('All Utilities services', 'layout-grid', GO.utilityServices);
+  if (t.includes('outage') || t.includes('power cut') || t.includes('no power')) return { text: 'Report an outage and GPL dispatches a crew — you can follow it under claims and reports.', actions: [act('Report an outage', 'zap-off', GO.gplOutage), hub] };
+  if (t.includes('new connection') || t.includes('connection')) return { text: 'A new electricity connection needs a certificate of inspection and proof you own or rent the property — GPL reviews it and schedules a site visit.', actions: [act('Apply for a new connection', 'plug', GO.gplNew), hub] };
+  if (t.includes('bill') || t.includes('pay')) return { text: 'Your GPL bill can be paid right here in My Guyana — card or mobile money, with the receipt kept in your payments history.', actions: [act('Pay my bill', 'receipt', GO.gplPay), hub] };
+  return { text: 'Electricity (GPL) — pay your bill, see your usage, report an outage, or apply for a new connection.', actions: [act('Pay my bill', 'receipt', GO.gplPay), act('Report an outage', 'zap-off', GO.gplOutage), hub, all] };
+}
+
+function eidReply(t, persona) {
+  const vault = act('Open my Vault', 'user-lock', GO.vault);
+  const all = act('All Identity & Records services', 'layout-grid', GO.identityServices);
+  if (t.includes('vote')) return { text: "Your e-ID lets you apply for services faster, but it doesn't replace your National ID for voting. If your National ID is close to expiring, renew that too.", actions: [vault] };
+  if (persona?.eidStatus === 'issued') return { text: 'Your e-ID is active. It lives in your Vault — open it there to view or present it.', actions: [vault, all] };
+  if (persona?.eidStatus === 'applied') return { text: 'Your e-ID application is in progress — attend your Service Centre visit and MoPS issues the card.', actions: [act('Track my e-ID application', 'route', GO.applications), act('My appointments', 'calendar', GO.calendar)] };
+  return { text: 'The e-ID is your digital identity card from MoPS — apply in about five minutes and book a Service Centre visit to enrol.', actions: [act('Apply for an e-ID', 'fingerprint', GO.eidApply), all] };
 }
 
 function pickReply(text, { persona, applications, ctxId }) {
   const t = text.toLowerCase();
-  const asksNumber = t.includes('number') || t.includes('no.');
 
-  // Application status first — "status", "track", "where's my application".
-  if (t.includes('status') || t.includes('track') || (t.includes('where') && t.includes('application'))) {
-    return statusReply(applications);
+  // Application status — "status", "track", "where's my …", "progress".
+  if (t.includes('status') || t.includes('track') || t.includes('progress') || (t.includes('where') && t.includes('application'))) {
+    return statusReply(text, applications);
   }
-  // Appointments are booked in the Appointments tab, not inside the chat (4.1).
+  // Appointments are booked in the Appointments tab, never inside the chat (4.1).
   if (t.includes('appointment') || t.includes('nearest') || (t.includes('mops') && t.includes('office'))) {
     return {
-      text: `The nearest MoPS office is ${SERVICE_CENTRES[0].name}. Appointments are booked from the Appointments tab — I'll take you there and you can pick a date and time.`,
-      actions: [{ label: 'Open Appointments', icon: 'calendar', go: { screen: 'calendar' } }],
+      text: `The nearest MoPS office is ${SERVICE_CENTRES[0].name}. Appointments are booked from the Appointments tab — I'll take you there.`,
+      actions: [act('Open Appointments', 'calendar', GO.calendar)],
     };
   }
-  // Passport — the service context sharpens the match, but the keywords work anywhere.
-  if (ctxId === 'passport' || t.includes('passport')) {
-    const openPassport = { label: 'Open the passport service', icon: 'plane', go: { overlay: 'apply', payload: { serviceId: 'passport' } } };
-    if (t.includes('first')) return { text: REPLIES.passportFirst, actions: [openPassport] };
-    if (t.includes('fee') || t.includes('cost') || t.includes('how long') || t.includes('time')) return { text: REPLIES.passportFees, actions: [openPassport] };
-    if (t.includes('renew') || t.includes('document')) return { text: REPLIES.passportRenew, actions: [openPassport] };
-    if (ctxId === 'passport') return { text: REPLIES.passportRenew, actions: [openPassport] };
+  // Services and agencies — the context sharpens the match, keywords work anywhere.
+  if (ctxId === 'passport' || t.includes('passport') || t.includes('travel')) return passportReply(t, applications);
+  if (ctxId === 'cashGrant' || (t.includes('cash') && t.includes('grant')) || t.includes('grant')) return cashGrantReply(t);
+  if (t.includes('e-id') || t.includes('eid') || t.includes('digital id') || t.includes('vote')) return eidReply(t, persona);
+  if (t.includes('nis') || t.includes('pension') || t.includes('benefit') || t.includes('sick') || t.includes('matern') || t.includes('funeral') || t.includes('social security') || t.includes('contribution')) return nisReply(t, persona);
+  if (t.includes('gpl') || t.includes('electric') || t.includes('bill') || t.includes('outage') || t.includes('power')) return gplReply(t);
+  if (t.includes('birth certificate') || t.includes('change of name') || t.includes('record')) {
+    return { text: 'Birth certificate copies and changes of name are handled under Identity & Records.', actions: [act('Open Identity & Records', 'file-text', GO.identityServices)] };
   }
-  if (ctxId === 'cashGrant' || (t.includes('cash') && t.includes('grant'))) {
-    const openGrant = { label: 'Open the cash grant service', icon: 'banknote', go: { overlay: 'apply', payload: { serviceId: 'cashGrant' } } };
-    if (t.includes('document')) return { text: REPLIES.cashGrantDocs, actions: [openGrant] };
-    return { text: REPLIES.cashGrantElig, actions: [openGrant] };
-  }
-  if (asksNumber && t.includes('nis')) return nisNumberReply(persona);
-  if (t.includes('pension')) {
-    return { text: REPLIES.pension, actions: [{ label: 'Open NIS', icon: 'shield-check', go: { screen: 'nis' } }] };
-  }
-  if (t.includes('e-id') || t.includes('eid') || t.includes('vote')) {
-    return { text: REPLIES.eid, actions: [{ label: 'Open my Vault', icon: 'user-lock', go: { screen: 'vault' } }] };
-  }
-  if (t.includes('nis') || t.includes('benefit') || t.includes('sick')) {
-    return { text: REPLIES.nis, actions: [{ label: 'Open NIS', icon: 'shield-check', go: { screen: 'nis' } }] };
-  }
-  if (t.includes('bill') || t.includes('electric') || t.includes('gpl')) {
-    return { text: REPLIES.bill, actions: [{ label: 'Pay my bill', icon: 'receipt', go: { overlay: 'gplPay' } }] };
-  }
-  return { text: REPLIES.default };
+  if (t.includes('mops') || t.includes('public service')) return { text: 'MoPS (Ministry of Public Service) issues your e-ID and runs the Service Centres.', actions: [act('Open MoPS', 'landmark', GO.mopsHub), act('Open my Vault', 'user-lock', GO.vault)] };
+  if (t.includes('vault') || t.includes('document')) return { text: 'Your Vault holds your e-ID, IDs, certificates and records — and connects them into any application so you never re-upload them.', actions: [act('Open my Vault', 'user-lock', GO.vault)] };
+  if (t.includes('service')) return { text: 'Every service is under Services, grouped by category with the owning agency labelled.', actions: [act('Browse services', 'layout-grid', GO.services)] };
+
+  return {
+    text: "I can explain any service and take you straight to it, check eligibility, or tell you where an application stands — try 'passport', 'pay my bill', 'NIS benefit' or 'status of my application'.",
+    actions: [act('Browse services', 'layout-grid', GO.services), act('My applications', 'route', GO.applications)],
+  };
 }
 
 let msgSeq = 2;
@@ -186,16 +330,15 @@ export default function AskGov() {
     }, 500);
   }
 
-  // Deep-link out of the chat (4.3): close Ask Gov first so the citizen lands
-  // where the button says — a screen (also closing any service flow beneath)
-  // or a real service overlay.
+  // Deep-link out of the chat (4.3): close Ask Gov, then land exactly where the
+  // button says — a screen, an overlay, or a screen with an overlay on top of it
+  // (status → My applications with that application's details open).
   function runAction(action) {
     const go = action.go || {};
     closeOverlay('askGov');
     if (go.screen) {
-      closeOverlay('apply'); // a screen target must not stay hidden under a flow
+      closeOverlay('apply'); // a screen target must not stay hidden under a service flow
       navigate(go.screen);
-      return;
     }
     if (go.overlay) openOverlay(go.overlay, go.payload ?? true);
   }
@@ -279,7 +422,7 @@ function MessageRow({ m, speakingId, onSpeak, onAction }) {
   const isSpeaking = speakingId === m.id;
   return (
     <div style={{ display: 'flex', justifyContent: isBot ? 'flex-start' : 'flex-end' }}>
-      <div style={{ maxWidth: '82%', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ maxWidth: '86%', display: 'flex', flexDirection: 'column', gap: 4 }}>
         <div style={{
           padding: '11px 14px', borderRadius: 16, fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-line',
           background: isBot ? 'var(--surface-1)' : 'var(--brand-600)',

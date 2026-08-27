@@ -1,70 +1,55 @@
 import { useRef } from 'react';
 import Icon from '../../components/ui/Icon';
 import {
-  Screen, Heading, PrimaryButton, SecondaryButton, TextButton, Row, ListCard,
+  Screen, Heading, PrimaryButton, SecondaryButton, TextButton, Row,
   Field, textInputStyle, ErrorBox, Spacer, DemoHint,
 } from './ui';
 
-// SIGN IN · pick how to prove it's you. e-ID is the primary path; a device
-// passkey (Face ID) is offered when this phone has one enrolled.
+// SIGN IN · "Welcome back" for a citizen this phone knows (Final design):
+// name, avatar with the Face ID mark, masked number — then Face ID as the one
+// primary action, other ways, or a different account. The Face ID button is
+// wired to the real device passkey: it unlocks when one is enrolled, enrols one
+// when the device can, and otherwise hands over to the other ways to sign in.
 export function SignInDevice({ st, on, persona }) {
   const hasName = !!(persona?.name || '').trim();
-  const first = hasName ? persona.name.split(' ')[0] : '';
-  const initial = (persona?.initials || first.charAt(0) || 'G').charAt(0);
-  // Drive the biometric action off the real probe: unlock if a passkey is
-  // enrolled here, set one up if the device supports it, otherwise hide it.
+  const initial = (persona?.initials || (persona?.name || 'G').charAt(0)).charAt(0);
+  const phoneMasked = persona?.phoneMasked || '••• ••• 4820';
   const canBio = st?.bioSupported;
   const enrolled = st?.bioEnrolled;
   const busy = !!st?.bioBusy;
+  const faceId = () => {
+    if (!st?.bioProbed) return;
+    if (canBio && enrolled) return on.startFaceSignIn();
+    if (canBio) return on.enrolBiometricNow();
+    return on.otherWays(); // no platform biometric here — a code or password instead
+  };
   return (
-    <Screen onBack={on.backToSplash}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <h1 style={{ margin: 0, fontSize: 27, fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.15, color: 'var(--fg-1)' }}>
-          {hasName ? <>Welcome back<br />{first}</> : 'Sign in'}
-        </h1>
-        {!hasName && (
-          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: 'var(--fg-3)' }}>
-            Sign in with your e-ID, or another way you set up before.
-          </p>
-        )}
-      </div>
-      {hasName && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, padding: '24px 0 6px' }}>
-          <span aria-hidden="true" style={{ position: 'relative', width: 92, height: 92, borderRadius: 999, background: 'var(--brand-100)', color: 'var(--brand-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800 }}>
-            {initial}
-            <span aria-hidden="true" style={{ position: 'absolute', right: -2, bottom: -2, width: 30, height: 30, borderRadius: 999, background: 'var(--brand-600)', border: '3px solid var(--surface-1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="scan-face" size={15} color="#fff" />
-            </span>
+    <Screen onBack={on.backToSplash} padTop={34} gap={0}>
+      <h1 style={{ margin: '28px 0 0', fontSize: 27, fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.2, color: 'var(--fg-1)' }}>
+        {hasName ? <>Welcome back<br />{persona.name}</> : 'Sign in'}
+      </h1>
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '44px 0 6px' }}>
+        <span aria-hidden="true" style={{ position: 'relative', width: 104, height: 104, borderRadius: 999, background: 'var(--brand-100)', color: 'var(--fg-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, fontWeight: 800 }}>
+          {initial}
+          <span aria-hidden="true" style={{ position: 'absolute', right: -4, bottom: -2, width: 34, height: 34, borderRadius: 999, background: 'var(--brand-800)', border: '3px solid var(--surface-1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="scan-face" size={16} color="#fff" />
           </span>
-          <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--fg-1)' }}>{persona.name}</span>
+        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--fg-1)' }}>{hasName ? persona.name : 'This device'}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--fg-3)' }}>{phoneMasked}</span>
         </div>
-      )}
-      {st?.bioError && <ErrorBox>{st.bioError}</ErrorBox>}
+      </div>
+
+      {st?.bioError && <div style={{ marginTop: 16 }}><ErrorBox>{st.bioError}</ErrorBox></div>}
       <Spacer />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <PrimaryButton onClick={on.signInWithEid}>
-          <Icon name="fingerprint" size={20} color="#fff" /> Sign in with my e-ID
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 16 }}>
+        <PrimaryButton busy={busy || !st?.bioProbed} onClick={faceId}>
+          <Icon name="scan-face" size={20} color="#fff" /> {busy ? 'Waiting for Face ID…' : 'Sign in with Face ID'}
         </PrimaryButton>
-        {!st?.bioProbed && (
-          <SecondaryButton busy>Checking this device…</SecondaryButton>
-        )}
-        {st?.bioProbed && canBio && enrolled && (
-          <SecondaryButton busy={busy} onClick={on.startFaceSignIn}>
-            <Icon name="scan-face" size={18} /> {busy ? 'Waiting for Face ID…' : 'Sign in with Face ID'}
-          </SecondaryButton>
-        )}
-        {st?.bioProbed && canBio && enrolled && !busy && (
-          <TextButton onClick={on.bioResetEnrol} style={{ minHeight: 38 }}>
-            Face ID not working? Set it up again
-          </TextButton>
-        )}
-        {st?.bioProbed && canBio && !enrolled && (
-          <SecondaryButton busy={busy} onClick={on.enrolBiometricNow}>
-            <Icon name="scan-face" size={18} /> {busy ? 'Setting up…' : 'Set up Face ID on this device'}
-          </SecondaryButton>
-        )}
         <SecondaryButton onClick={on.otherWays}>Other ways to sign in</SecondaryButton>
-        <TextButton onClick={on.useOtherAccount}>Use a different account</TextButton>
+        <TextButton tone="var(--brand-700)" onClick={on.useOtherAccount}>Use a different account</TextButton>
       </div>
     </Screen>
   );
@@ -116,22 +101,24 @@ function IconBadgeEid() {
 }
 
 // SIGN IN · the other credentials this account already has
+// SIGN IN · other ways (Final design): a flat list — a code by text or email,
+// then password or account recovery — with round icon wells and hairlines.
 export function OtherWays({ on }) {
+  const eyebrow = { fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--fg-3)' };
+  const list = { display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--surface-hairline)' };
   return (
-    <Screen onBack={on.otherWaysBack} gap={20}>
-      <Heading title="Other ways to sign in" />
-      <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--fg-3)' }}>
-        Send me a verification code
-      </span>
-      <ListCard>
-        <Row icon="message-square" title="Text me" sub="••• ••• 4820" onClick={() => on.signInSendCode('phone')} />
-        <Row icon="mail" title="Send email" sub="n••••••@example.gy" onClick={() => on.signInSendCode('email')} />
-      </ListCard>
-      <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--fg-3)' }}>Or</span>
-      <ListCard>
-        <Row icon="key-round" title="Use my password" onClick={on.usePassword} />
-        <Row icon="life-buoy" title="Recover my account" sub="If you no longer have that phone or email" onClick={on.recoverFromOtherWays} />
-      </ListCard>
+    <Screen onBack={on.otherWaysBack} gap={16}>
+      <h1 style={{ margin: '10px 0 0', fontSize: 26, fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.15, color: 'var(--fg-1)' }}>Other ways to sign in</h1>
+      <span style={eyebrow}>Send me a verification code</span>
+      <div style={list}>
+        <Row icon="message-square" iconRound iconFg="var(--fg-1)" title="Text me" sub="••• ••• 4820" onClick={() => on.signInSendCode('phone')} />
+        <Row icon="mail" iconRound iconFg="var(--fg-1)" title="Send email" sub="n••••••@example.gy" onClick={() => on.signInSendCode('email')} />
+      </div>
+      <span style={eyebrow}>Or</span>
+      <div style={list}>
+        <Row icon="key-round" iconRound iconFg="var(--fg-1)" title="Use my password" onClick={on.usePassword} />
+        <Row icon="life-buoy" iconRound iconFg="var(--fg-1)" title="Recover my account" sub="If you no longer have that phone or email" onClick={on.recoverFromOtherWays} />
+      </div>
     </Screen>
   );
 }

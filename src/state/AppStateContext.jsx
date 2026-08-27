@@ -113,6 +113,15 @@ export function AppStateProvider({ children }) {
 
   const navigate = useCallback((next) => {
     setScreenState(next);
+    // Going to a screen always leaves the services category drill-down behind:
+    // it covers the whole frame, so "See my applications" from a service
+    // launched inside it must not land underneath the category page.
+    setOverlays((prev) => {
+      if (!prev.has('category')) return prev;
+      const n = new Map(prev);
+      n.delete('category');
+      return n;
+    });
     window.scrollTo?.(0, 0);
   }, []);
 
@@ -211,10 +220,17 @@ export function AppStateProvider({ children }) {
   const disconnectAgency = useCallback((id) => {
     setConnectedAgencies((list) => list.filter((a) => a !== id));
   }, []);
-  // Pin/unpin an agency so it leads the Home tiles (backlog 2.1).
+  // Pin/unpin an agency so it leads the Home tiles (backlog 2.1). The Home
+  // hero has six sockets, so pinning is capped at six — the design's rule.
+  const MAX_PINNED = 6;
   const togglePinAgency = useCallback((id) => {
-    setPinnedAgencies((list) => (list.includes(id) ? list.filter((a) => a !== id) : [...list, id]));
-  }, []);
+    if (pinnedAgencies.includes(id)) { setPinnedAgencies(pinnedAgencies.filter((a) => a !== id)); return; }
+    if (pinnedAgencies.length >= MAX_PINNED) {
+      showToast(`You can pin up to ${MAX_PINNED} agencies to Home. Unpin one to add another.`);
+      return;
+    }
+    setPinnedAgencies([...pinnedAgencies, id]);
+  }, [pinnedAgencies, showToast]);
   // Count every real use of an agency (opening its hub or one of its services) —
   // the most-frequently-used ordering falls out of this when nothing is pinned.
   const recordAgencyUse = useCallback((id) => {
@@ -240,6 +256,12 @@ export function AppStateProvider({ children }) {
     const id = n.id || `n-${Date.now()}`;
     setNotifications((list) => [{ id, read: false, time: 'Just now', ...n }, ...list]);
     return id;
+  }, []);
+  // A notification flagged `push` is shown once as a card at the top of the
+  // screen (see shell/PushBanner); tapping it, or the timer, clears the flag —
+  // the notification itself stays in the bell.
+  const markPushSeen = useCallback((id) => {
+    setNotifications((list) => list.map((n) => (n.id === id ? { ...n, push: false } : n)));
   }, []);
   const dismissNotification = useCallback((id) => {
     setNotifications((list) => list.filter((n) => n.id !== id));
@@ -275,12 +297,12 @@ export function AppStateProvider({ children }) {
     toast, showToast,
     session, user, isAuthenticated, signIn, signOut, updateUser,
     applications, addApplication, updateApplication,
-    notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount,
+    notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, markPushSeen,
     appointments, addAppointment, updateAppointment, removeAppointment,
     vaultDocs, addVaultDoc, removeVaultDoc,
     connectedAgencies, connectAgency, disconnectAgency,
     pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse,
-  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, requireOtp, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, appointments, addAppointment, updateAppointment, removeAppointment, vaultDocs, addVaultDoc, removeVaultDoc, connectedAgencies, connectAgency, disconnectAgency, pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse]);
+  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, requireOtp, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, markPushSeen, appointments, addAppointment, updateAppointment, removeAppointment, vaultDocs, addVaultDoc, removeVaultDoc, connectedAgencies, connectAgency, disconnectAgency, pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse]);
 
   return (
     <AppStateContext.Provider value={value}>

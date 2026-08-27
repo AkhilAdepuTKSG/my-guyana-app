@@ -248,3 +248,11 @@ button { font-family: inherit; }
    so it never scrolls. Keep children at their natural size; a flex:1 spacer
    still grows on short screens because its inline flex-shrink wins. */
 .auth-screen > * { flex-shrink: 0; }
+
+/* Accessibility settings (profile > Accessibility) — applied as data attributes on <html>. */
+html[data-text-size="large"] { zoom: 1.1; }
+html[data-text-size="largest"] { zoom: 1.2; }
+html[data-contrast="high"] { filter: contrast(1.15); }
+html[data-reduce-motion="on"] *, html[data-reduce-motion="on"] *::before, html[data-reduce-motion="on"] *::after {
+  animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important;
+}

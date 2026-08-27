@@ -5,7 +5,7 @@
 //
 // Two demo citizens, each with fully self-consistent details (no value is
 // shared or mismatched across a person's documents):
-//   • Nicole Persaud — already has an e-ID (GUY-04471-0928)
+//   • Nicole Persaud — already has an e-ID (123-4567-8901)
 //   • John Doe       — no e-ID yet, but is on record with other documents
 //
 // The sample documents in public/sample-docs/ are generated from these exact
@@ -41,8 +41,8 @@ export const GOV_CITIZENS = [
 
     // Identity documents on record
     hasEid: true,
-    // 3-5-4 format supplied by MoPS — the confirmed standard (backlog 1.1).
-    eidNo: 'GUY-04471-0928',
+    // e-ID number as printed on the card (format as issued by MoPS; backlog 1.1).
+    eidNo: '123-4567-8901',
     eidCardNo: '0000 1234 5678', // number printed on the physical smart card
     nationalId: 'N1234567890',
     passport: 'P1234567890',
@@ -51,6 +51,16 @@ export const GOV_CITIZENS = [
 
     // Agencies holding a record in her name — connected automatically at signup.
     linkedAgencies: LINKED_AGENCY_IDS,
+
+    // Her employer already registered her with NIS before she signed up, so the
+    // NIS record arrives connected and active. First sign-up tells her so with a
+    // push card on Home and asks her to confirm the employer's details.
+    nisRegistration: {
+      employer: 'Devcon Construction Ltd.',
+      registeredOn: '2026-07-30',
+      nisNumber: 'NIS-2201-84732',
+      contributions: { paid: 500, required: 750, weeks: 500, requiredWeeks: 750 },
+    },
   },
   {
     id: 'john',
@@ -62,7 +72,10 @@ export const GOV_CITIZENS = [
     gender: 'm',
     region: 'r4', // Region 4 — Demerara-Mahaica
     placeOfBirth: 'New Amsterdam, Guyana',
-    address: 'Lot 8 Sheriff Street, Georgetown',
+    // No verified current address on record — the one detail his profile asks
+    // him to complete after sign-up (backlog 2.3–2.5). His older documents still
+    // print his last known address.
+    address: null,
     phone: '+592 645 7391',
     phoneMasked: '••• ••• 7391',
     email: 'john.doe@example.gy',
@@ -91,7 +104,7 @@ const DOC_FIELD = {
   "Driver's licence": 'driversLicence',
 };
 
-// Loose normaliser so "GUY-04471-0928", "guy 04471 0928" and "GUY044710928"
+// Loose normaliser so "123-4567-8901", "123 4567 8901" and "12345678901"
 // all compare equal — real cards are read/typed with inconsistent spacing.
 function norm(value) {
   return String(value ?? '').replace(/[\s-]/g, '').toUpperCase();
@@ -115,7 +128,7 @@ export function findByDocument(type, number) {
 }
 
 // Look a citizen up by their e-ID — accepts either the printed e-ID number
-// (GUY-04471-0928, the MoPS 3-5-4 format) or the long card number (0000 1234 5678).
+// (123-4567-8901) or the long card number (0000 1234 5678).
 export function findByEid(value) {
   if (!value) return null;
   const n = norm(value);

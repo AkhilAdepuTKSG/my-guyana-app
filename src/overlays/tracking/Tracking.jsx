@@ -96,9 +96,9 @@ function resolveApp(payload) {
   return ONGOING_APPLICATIONS[0] || null;
 }
 
-// The e-ID number the simulated back office issues on approval — MoPS 3-5-4
-// format (backlog 1.1). Only citizens without an e-ID ever reach this state.
-const DEMO_ISSUED_EID_NO = 'GUY-09876-5432';
+// The e-ID number the simulated back office issues on approval — in the
+// format MoPS issues (backlog 1.1). Only citizens without an e-ID reach this state.
+const DEMO_ISSUED_EID_NO = '0987654-3210';
 
 export default function Tracking() {
   const { isOpen, closeOverlay, openOverlay, navigate, showToast, getPayload, appointments, requireOtp, user, updateUser, updateApplication, addNotification } = useAppState();
@@ -192,7 +192,7 @@ export default function Tracking() {
 
   // "Approve e-ID" — the walkthrough step the design drives from its presenter
   // controls: the MoPS back office approves the pending application, the e-ID
-  // is issued (3-5-4 number), and every surface downstream flips — the Vault
+  // is issued (e-ID number), and every surface downstream flips — the Vault
   // card goes Active, Home's status chip reads "e-ID active", and the pending
   // action clears. Only offered while this citizen's e-ID is still pending.
   const canDemoApprove = isMopsEid && !approved && user?.eidStatus === 'applied';

@@ -6,8 +6,8 @@ import { REGIONS } from '../../state/mockData';
 
 // Invented locally — mockData.js has no eID number field. Kept in sync with
 // the literal used on the Vault wallet card.
-// MoPS 3-5-4 e-ID format — the confirmed standard (backlog 1.1).
-const EID_NUMBER = 'GUY-04471-0928';
+// e-ID number format as issued by MoPS (backlog 1.1).
+const EID_NUMBER = '123-4567-8901';
 
 // Deterministic QR-look grid: three finder squares (corners) + pseudo-random
 // fill elsewhere, ported from the prototype's own generator. Not a real,

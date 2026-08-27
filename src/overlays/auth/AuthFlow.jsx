@@ -31,6 +31,26 @@ function contactChannels(citizen) {
   };
 }
 
+// The "Confirm it's really you" face check (backlog 1.2) is kept in code but
+// switched off on request: a code or card that checks out continues straight
+// to the next step. Flip to true to put the face screen back between them.
+// (Face ID sign-in and the recovery "verify with my face" route are separate
+// and unaffected.)
+const FACE_CHECK_ENABLED = false;
+
+// Where account creation continues once the credential has checked out — the
+// e-ID path presents the record to link; the gov-record path books the
+// enrolment visit (no e-ID yet) or sets up the account.
+function stepAfterCredential(s, next) {
+  if (next === 'link') return 'link-confirm';
+  return (s.authIntent === 'create' && !s.govCitizen?.hasEid) ? 'eid-book' : 'setup';
+}
+function toFaceCheckOr(s, next) {
+  return FACE_CHECK_ENABLED
+    ? { ...s, polNext: next, authStep: 'pol' }
+    : { ...s, polNext: next, authStep: stepAfterCredential(s, next) };
+}
+
 function makeInitialState(persona) {
   const [first = '', ...rest] = (persona?.name || '').split(' ');
   return {
@@ -91,7 +111,7 @@ function makeInitialState(persona) {
 }
 
 export default function AuthFlow({ gate = false }) {
-  const { isOpen, closeOverlay, persona, showToast, signIn, addNotification, addAppointment, addApplication, connectAgency } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, persona, showToast, signIn, addNotification, addAppointment, addApplication, connectAgency } = useAppState();
   const open = gate || isOpen('auth');
   const [st, setSt] = useState(() => makeInitialState(persona));
   const timers = useRef([]);
@@ -185,6 +205,33 @@ export default function AuthFlow({ gate = false }) {
     // Every agency the government record links this citizen to comes in with
     // them — pulled from the master list, never a hand-picked few (backlog 1.5).
     (citizen?.linkedAgencies || []).forEach((id) => connectAgency(id));
+    // An employer may already have registered the citizen with NIS (Nicole):
+    // the NIS record arrives connected and active. On first sign-up she is told
+    // so with a push card on Home and asked to confirm the employer's details;
+    // a returning sign-in treats it as already confirmed.
+    if (citizen?.nisRegistration) {
+      const reg = citizen.nisRegistration;
+      const firstSignUp = st.authIntent === 'create';
+      connectAgency('nis', {
+        nisAccountState: 'active', nisNumber: reg.nisNumber, contributions: reg.contributions,
+        nisEmployer: { name: reg.employer, registeredOn: reg.registeredOn },
+        nisEmployerPending: firstSignUp,
+      });
+      if (firstSignUp) {
+        addNotification({
+          agency: 'nis', icon: 'building-2', push: true,
+          title: `${reg.employer} registered you with NIS`,
+          body: `Your NIS record is connected — ${reg.contributions.weeks} contributions on file. Confirm your employer's details.`,
+        });
+      }
+    }
+    // No e-ID (John): after the enrolment visit is booked he lands on Home. The
+    // "open the agencies sheet on landing" behaviour is kept but switched off on
+    // request — the sheet opens from Home's "See all" instead.
+    const OPEN_AGENCIES_AFTER_SIGNUP = false;
+    if (OPEN_AGENCIES_AFTER_SIGNUP && st.authIntent === 'create' && st.eidApplied && (citizen?.linkedAgencies || []).length) {
+      openOverlay('addAgency');
+    }
     // A citizen who registered without an e-ID has one started for them, with a
     // Service Centre visit booked. Surface it as a real appointment, a tracked
     // application, and a first notification so the whole thing is coherent.
@@ -335,8 +382,8 @@ export default function AuthFlow({ gate = false }) {
       try {
         const text = await recognizeImage(file);
         const parsed = parseFields(text);
-        // e-ID numbers follow the MoPS 3-5-4 format, e.g. GUY-04471-0928 (backlog 1.1).
-        const num = parsed.documentNumber || (text.match(/\b[A-Z]{2,3}-?\d{5}-?\d{4}\b/i)?.[0]) || '';
+        // e-ID numbers as printed on the card, e.g. 123-4567-8901 (backlog 1.1).
+        const num = parsed.documentNumber || (text.match(/\b\d{3}-?\d{4}-?\d{4}\b/)?.[0]) || '';
         const citizen = findByEid(num);
         if (!citizen) {
           setSt((s) => ({ ...s, authStep: 'eid-signin', eidSignInError: "We couldn't read a known e-ID from that image. Try tapping the card, or create an account." }));
@@ -463,7 +510,7 @@ export default function AuthFlow({ gate = false }) {
       patch({ authStep: 'idscan' });
       try {
         await recognizeImage(file);
-        after(400, () => setSt((s) => ({ ...s, polNext: 'link', authStep: 'pol' })));
+        after(400, () => setSt((s) => toFaceCheckOr(s, 'link')));
       } catch {
         setSt((s) => ({ ...s, authStep: 'proof' }));
         showToast('We could not read that card. Try another way to verify.');
@@ -475,8 +522,8 @@ export default function AuthFlow({ gate = false }) {
       const recovery = st.consentFrom === 'recovery';
       after(700, () => {
         if (recovery) { finish('Signed in with your e-ID'); return; }
-        // Card read — now confirm it's really them before linking the record.
-        setSt((s) => ({ ...s, polNext: 'link', authStep: 'pol' }));
+        // Card read — on to the record link (via the face check when enabled).
+        setSt((s) => toFaceCheckOr(s, 'link'));
       });
     },
     eidReadFailed: () => patch({ authStep: 'eid-fail', eidReadTries: (st.eidReadTries || 0) + 1 }),
@@ -517,12 +564,11 @@ export default function AuthFlow({ gate = false }) {
       if (st.otpSource === 'manual') { patch({ otpSource: 'contact', authStep: st.docUploaded ? 'review' : 'limited', limitedReason: 'nodoc' }); return; }
       if (st.otpSource === 'registry') {
         if (st.consentFrom === 'recovery') { finish('Signed in with your e-ID'); return; }
-        // Code verified — the face check comes next, on its own screen,
-        // before the record link is confirmed (backlog 1.2).
-        patch({ otpSource: 'contact', polNext: 'link', authStep: 'pol' });
+        // Code verified — on to the record link (via the face check when enabled).
+        setSt((s) => toFaceCheckOr({ ...s, otpSource: 'contact' }, 'link'));
         return;
       }
-      if (st.otpSource === 'govrecord') { patch({ otpSource: 'contact', polNext: 'record', authStep: 'pol' }); return; }
+      if (st.otpSource === 'govrecord') { setSt((s) => toFaceCheckOr({ ...s, otpSource: 'contact' }, 'record')); return; }
       if (st.otpSource === 'eidsignin') { finish(`Welcome back, ${st.govCitizen?.firstName || ''}`.trim(), st.govCitizen); return; }
       // 'contact' / 'otherways'
       if (st.authIntent === 'signin' && st.contactValue.trim().toLowerCase() === 'new') { patch({ authStep: 'no-account' }); return; }
@@ -551,13 +597,8 @@ export default function AuthFlow({ gate = false }) {
       patch({ authStep: 'face' });
       after(2200, () => {
         if (recovery) { finish('Signed in with your e-ID'); return; }
-        setSt((s) => {
-          // e-ID path: the face passed — present the record to link.
-          if (s.polNext === 'link') return { ...s, authStep: 'link-confirm' };
-          // Gov-record path: no e-ID on record yet → a Service Centre visit
-          // must be booked before going any further.
-          return { ...s, authStep: (s.authIntent === 'create' && !s.govCitizen?.hasEid) ? 'eid-book' : 'setup' };
-        });
+        // The face passed — continue exactly where the credential would have.
+        setSt((s) => ({ ...s, authStep: stepAfterCredential(s, s.polNext) }));
       });
     },
     selectEidOffice: (name) => patch({ eidApptOffice: name }),
