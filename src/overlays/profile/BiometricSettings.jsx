@@ -10,7 +10,7 @@ import { isBiometricSupported, hasEnrolledBiometric, enrolBiometric, clearBiomet
 // (backlog 2.4). Face ID management is the fix for a passkey that was removed
 // from the browser/OS — the app can't detect that on its own, so it offers an
 // explicit "set up again".
-export default function BiometricSettings() {
+export default function BiometricSettings({ showHeading = true }) {
   const { persona, user, updateUser, requireOtp, showToast } = useAppState();
   const [supported, setSupported] = useState(null); // null = probing
   const [enrolled, setEnrolled] = useState(false);
@@ -77,10 +77,12 @@ export default function BiometricSettings() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <h2 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>Sign-in & Security</h2>
-        <MissingBadge count={missingSecurity} />
-      </div>
+      {showHeading && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h2 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>Sign-in & Security</h2>
+          <MissingBadge count={missingSecurity} />
+        </div>
+      )}
 
       {/* Password — pending until one exists on the account */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '14px', border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)' }}>

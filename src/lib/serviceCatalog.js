@@ -56,6 +56,21 @@ export function resolveServiceAction(name, { openOverlay, showToast }) {
 // its services category. Shared by the Home tiles and the agencies sheet.
 export const AGENCY_HUBS = ['nis', 'gpl', 'mops'];
 
+// The citizen-facing "services" the Final design pins to Home — the name and
+// colour a citizen sees for an agency relationship (Digital ID, not MoPS).
+// Order is the design's grid order.
+export const SERVICE_ACCESS = {
+  mops: { id: 'mops', name: 'Digital ID', icon: 'id-card', color: '#8b2346' },
+  nis: { id: 'nis', name: 'Social Security', icon: 'shield-check', color: '#00674c' },
+  gpl: { id: 'gpl', name: 'Electricity', icon: 'zap', color: '#b45309' },
+  gwi: { id: 'gwi', name: 'Water', icon: 'droplets', color: '#0e7490' },
+  gra: { id: 'gra', name: 'Tax & Revenue', icon: 'receipt-text', color: '#2563c9' },
+  housing: { id: 'housing', name: 'Housing', icon: 'home', color: '#b5651d' },
+  gro: { id: 'gro', name: 'Birth & Records', icon: 'file-text', color: '#7a4fbf' },
+  humanServices: { id: 'humanServices', name: 'Public Assistance', icon: 'hand-heart', color: '#c2255c' },
+};
+export const SERVICE_ACCESS_ORDER = Object.keys(SERVICE_ACCESS);
+
 export function agencyCategoryId(agencyId) {
   return SERVICE_DIRECTORY.find((c) => c.agency === agencyId)?.id || null;
 }

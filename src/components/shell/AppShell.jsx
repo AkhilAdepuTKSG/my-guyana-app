@@ -39,6 +39,8 @@ import NisCard from '../../overlays/cards/NisCard';
 import EidCard from '../../overlays/cards/EidCard';
 import ProfileSheet from '../../overlays/profile/ProfileSheet';
 import PersonalInfoPage from '../../overlays/profile/PersonalInfoPage';
+import SecuritySheet from '../../overlays/profile/SecuritySheet';
+import AccessibilitySheet from '../../overlays/profile/AccessibilitySheet';
 import CompleteProfileFlow from '../../overlays/profile/CompleteProfileFlow';
 import NotificationsSheet from '../../overlays/profile/NotificationsSheet';
 import RegionSheet from '../../overlays/profile/RegionSheet';
@@ -110,6 +112,8 @@ export default function AppShell() {
       <AddAgencyDiscoverySheet />
       <PersonalInfoPage />
       <ProfileSheet />
+      <SecuritySheet />
+      <AccessibilitySheet />
       <CompleteProfileFlow />
       <NotificationsSheet />
       <RegionSheet />

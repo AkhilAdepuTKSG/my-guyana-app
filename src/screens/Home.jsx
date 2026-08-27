@@ -3,7 +3,7 @@ import { useAppState } from '../state/AppStateContext';
 import Icon from '../components/ui/Icon';
 import NotificationBell from '../components/ui/NotificationBell';
 import { AGENCIES, NOTIFICATIONS, ONGOING_APPLICATIONS, REGIONS } from '../state/mockData';
-import { AGENCY_HUBS, agencyCategoryId } from '../lib/serviceCatalog';
+import { AGENCY_HUBS, agencyCategoryId, SERVICE_ACCESS } from '../lib/serviceCatalog';
 import { missingPersonalFields } from '../lib/profileFields';
 
 // ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ export default function Home() {
   // Required personal details the government record could not supply — drives
   // the avatar dot and the banner; tapping either goes straight to the
   // Personal Information page (backlog 2.3–2.5).
-  const missingPersonal = missingPersonalFields(user);
+  const missingPersonal = missingPersonalFields(user, persona);
   const openProfileOrCompletion = () => openOverlay(missingPersonal.length > 0 ? 'personalInfo' : 'profile');
 
   // --- Which agencies lead the Home (backlog 2.1) ---
@@ -302,7 +302,7 @@ export default function Home() {
             {featured.map((id) => {
               const agency = AGENCIES[id];
               const def = SOCKET_DEFS[id] || {
-                label: agency?.shortName, icon: agency?.icon || 'building-2',
+                label: SERVICE_ACCESS[id]?.name || agency?.shortName, icon: SERVICE_ACCESS[id]?.icon || agency?.icon || 'building-2',
                 color: '#fff',
                 bg: hexToRgba(agency?.mark || '#4577d0', 0.3),
                 ring: hexToRgba(agency?.mark || '#4577d0', 0.55),
@@ -346,10 +346,10 @@ export default function Home() {
           </div>
         )}
 
-        {/* See all — the one door to everything else (Final design). */}
+        {/* See all — opens "Your services": every service, pin up to six (Final design). */}
         <button
-          className="press focus-ring" onClick={() => navigate('services')}
-          aria-label="See all services"
+          className="press focus-ring" onClick={() => openOverlay('addAgency')}
+          aria-label="See all your services"
           style={{
             minHeight: 40, padding: '0 15px', borderRadius: 18, background: 'rgba(255,255,255,0.1)',
             border: '1px solid rgba(255,255,255,0.18)', cursor: 'pointer', fontFamily: 'inherit',

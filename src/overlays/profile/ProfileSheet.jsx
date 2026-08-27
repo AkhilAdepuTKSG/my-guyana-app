@@ -2,44 +2,50 @@ import Sheet from '../../components/ui/Sheet';
 import Icon from '../../components/ui/Icon';
 import MissingBadge from '../../components/ui/MissingBadge';
 import { useAppState } from '../../state/AppStateContext';
-import { personalRows } from '../../lib/profileFields';
+import { missingPersonalFields } from '../../lib/profileFields';
 import { useRegionName } from './regionStore';
-import BiometricSettings from './BiometricSettings';
+
+// The profile bottom sheet, laid out as the Final design: identity header with
+// the e-ID number pill (the "access my e-ID" entry, backlog 2.2) · Region ·
+// Quick access (Vault · My applications · Personal information · Sign-in &
+// security · Accessibility) · Sign out. Rows with pending fields carry the
+// missing-fields badge (backlog 2.4). "Who you are acting for" (family
+// accounts) is the next piece of work and is not here yet.
+function QuickRow({ icon, title, sub, badge = 0, onClick }) {
+  return (
+    <button
+      className="press focus-ring"
+      onClick={onClick}
+      style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 62, padding: '12px 14px', border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+    >
+      <span style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: 'var(--surface-2)', color: 'var(--fg-1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={18} />
+      </span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>{title}</span>
+          <MissingBadge count={badge} />
+        </span>
+        <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, color: 'var(--fg-2)' }}>{sub}</span>
+      </span>
+      <Icon name="chevron-right" size={17} color="var(--fg-3)" />
+    </button>
+  );
+}
 
 export default function ProfileSheet() {
   const { isOpen, closeOverlay, openOverlay, navigate, persona, user, showToast, signOut: endSession } = useAppState();
   const open = isOpen('profile');
   const region = useRegionName();
 
-  // --- Personal Information (backlog 2.3–2.5) ---
-  // One shared definition of the fields (lib/profileFields): values come from the
-  // government record or what the citizen filled in; required fields with no
-  // value anywhere badge the section and open the Personal Information page.
-  const rows = personalRows(user);
-  const missingPersonal = rows.filter((r) => r.missing).length;
-  const visibleRows = rows.filter((r) => r.value || r.missing);
+  const missingPersonal = missingPersonalFields(user, persona).length;
+  const missingSecurity = user?.passwordSet ? 0 : 1;
 
-  const openPersonalInfo = () => {
-    closeOverlay('profile'); // the page is a full-screen overlay below the sheet
-    openOverlay('personalInfo');
-  };
-
-  // Access my e-ID — the e-ID's home is the Vault/profile, not Home (backlog 2.2).
-  const openEid = () => {
-    closeOverlay('profile');
+  const go = (fn) => () => { closeOverlay('profile'); fn(); };
+  const openEid = go(() => {
     if (persona.eidStatus === 'issued') openOverlay('eidCard');
     else navigate('vault'); // application in progress — the card lives in the Vault
-  };
-
-  const goVault = () => {
-    closeOverlay('profile');
-    navigate('vault');
-  };
-
-  const startVerify = () => {
-    closeOverlay('profile');
-    openOverlay('idv', { purpose: 'sensitive' });
-  };
+  });
 
   const signOut = () => {
     closeOverlay('profile');
@@ -48,109 +54,31 @@ export default function ProfileSheet() {
 
   return (
     <Sheet open={open} onClose={() => closeOverlay('profile')}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-        {/* Identity summary */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* Identity header — name + e-ID pill + close */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--agency-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 19, flexShrink: 0 }}>
+          <span style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--agency-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 20, flexShrink: 0 }}>
             {persona.initials}
           </span>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 19, fontWeight: 800, color: 'var(--fg-1)', lineHeight: 1.2 }}>{persona.name}</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, background: 'var(--surface-4)', fontSize: 12, fontWeight: 700, color: 'var(--fg-2)' }}>
+            <span style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--fg-1)', lineHeight: 1.15 }}>{persona.name}</span>
+            {persona.eidStatus !== 'none' && (
+              <button
+                className="press focus-ring" onClick={openEid}
+                aria-label={persona.eidStatus === 'issued' ? 'Access my e-ID' : 'e-ID application in progress — see it in your Vault'}
+                style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 28, padding: '0 11px', borderRadius: 999, border: 'none', background: 'var(--surface-4)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
                 <Icon name="badge-check" size={13} color="var(--fg-3)" />
-                {persona.verified ? 'Identity verified' : 'Not yet verified'}
-              </span>
-              {persona.nisNumber && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, background: 'var(--surface-4)', fontSize: 12, fontWeight: 700, color: 'var(--fg-2)' }}>
-                  <Icon name="shield-check" size={13} color="var(--fg-3)" />
-                  NIS {persona.nisNumber}
-                </span>
-              )}
-            </div>
+                {persona.eidStatus === 'issued' ? `ID ${persona.eidNo || ''}`.trim() : 'e-ID pending'}
+              </button>
+            )}
           </div>
-        </div>
-
-        {/* Access my e-ID — the first item in the profile (backlog 2.2). */}
-        {persona.eidStatus !== 'none' && (
           <button
-            className="press focus-ring"
-            onClick={openEid}
-            style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 64, padding: '12px 14px', border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+            className="press focus-ring" onClick={() => closeOverlay('profile')} aria-label="Close"
+            style={{ width: 36, height: 36, flexShrink: 0, borderRadius: '50%', border: 'none', background: 'var(--surface-4)', color: 'var(--fg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           >
-            <span style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: 'var(--brand-100)', color: 'var(--brand-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="fingerprint" size={18} />
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>Access my e-ID</span>
-              <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, color: 'var(--fg-2)' }}>
-                {persona.eidStatus === 'issued' ? 'View and present your digital ID' : 'Application in progress — see it in your Vault'}
-              </span>
-            </span>
-            <Icon name="chevron-right" size={17} color="var(--fg-3)" />
+            <Icon name="x" size={16} />
           </button>
-        )}
-
-        {/* Your agencies — pin/manage sheet; pinned agencies lead the Home tiles. */}
-        <button
-          className="press focus-ring"
-          onClick={() => { closeOverlay('profile'); openOverlay('addAgency'); }}
-          style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: '12px 14px', border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
-        >
-          <span style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: 'var(--surface-2)', color: 'var(--fg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="layout-grid" size={18} />
-          </span>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>Your agencies</span>
-            <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, color: 'var(--fg-2)' }}>Pin up to 6 to lead your Home</span>
-          </span>
-          <Icon name="chevron-right" size={17} color="var(--fg-3)" />
-        </button>
-
-        {/* Personal Information — badged while required fields are missing (2.4);
-            the section opens the full Personal Information page (2.3 / 2.5). */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button
-            className="press focus-ring"
-            onClick={openPersonalInfo}
-            aria-label={missingPersonal > 0 ? `Personal Information — ${missingPersonal} required missing, open to complete` : 'Personal Information — open'}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
-          >
-            <h2 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>Personal Information</h2>
-            <MissingBadge count={missingPersonal} />
-            <Icon name="chevron-right" size={13} color="var(--fg-4)" />
-          </button>
-          {visibleRows.length > 0 && (
-            <div style={{ border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', overflow: 'hidden' }}>
-              {visibleRows.map((r, i) => (
-                <div
-                  key={r.id}
-                  style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 14px', borderBottom: i < visibleRows.length - 1 ? '1px solid var(--surface-hairline)' : 'none' }}
-                >
-                  <Icon name={r.icon} size={16} color="var(--fg-3)" style={{ flexShrink: 0 }} />
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--fg-3)' }}>{r.label}</span>
-                  {r.value ? (
-                    <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg-1)', textAlign: 'right', wordBreak: 'break-word' }}>{r.value}</span>
-                  ) : (
-                    <span style={{ minHeight: 18, padding: '0 7px', borderRadius: 999, background: 'var(--status-error)', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center' }}>Required</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          {missingPersonal > 0 && (
-            <button
-              className="press focus-ring"
-              onClick={openPersonalInfo}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 46, padding: '12px 14px', border: 'none', borderRadius: 14, background: 'var(--brand-600)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              <Icon name="user-round-pen" size={17} />
-              <span style={{ flex: 1, textAlign: 'left' }}>
-                Complete your details — {missingPersonal} required {missingPersonal === 1 ? 'field' : 'fields'} missing
-              </span>
-              <Icon name="chevron-right" size={16} />
-            </button>
-          )}
         </div>
 
         {/* Region */}
@@ -161,71 +89,46 @@ export default function ProfileSheet() {
             onClick={() => openOverlay('region')}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
           >
-            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-1)' }}>{region}</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 13.5, fontWeight: 700, color: 'var(--agency-accent)' }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--fg-1)' }}>{region}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 14, fontWeight: 700, color: 'var(--fg-1)' }}>
               Change<Icon name="chevron-right" size={15} />
             </span>
           </button>
           <button
             className="press focus-ring"
             onClick={() => showToast('Location access is simulated in this preview')}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 46, padding: '12px 14px', border: 'none', borderRadius: 14, background: 'var(--agency-accent-soft)', color: 'var(--agency-accent-strong)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 48, padding: '12px 14px', border: 'none', borderRadius: 14, background: 'var(--surface-4)', color: 'var(--fg-1)', fontSize: 14.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
           >
             <Icon name="locate-fixed" size={17} />
             Use my current location
           </button>
         </div>
 
-        {/* Vault shortcut */}
+        {/* Quick access */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <h2 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>Your documents</h2>
-          <button
-            className="press focus-ring"
-            onClick={goVault}
-            style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 60, padding: '12px 14px', border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
-          >
-            <span style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: 'var(--surface-2)', color: 'var(--fg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="user-lock" size={18} />
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>Vault</span>
-              <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, color: 'var(--fg-2)' }}>Your IDs, cards and certificates</span>
-            </span>
-            <Icon name="chevron-right" size={17} color="var(--fg-3)" />
-          </button>
+          <h2 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>Quick access</h2>
+          <QuickRow icon="user-lock" title="Vault" sub="Your IDs, cards and certificates" onClick={go(() => navigate('vault'))} />
+          <QuickRow icon="file-text" title="My applications" sub="Track everything you've applied for" onClick={go(() => navigate('applications'))} />
+          <QuickRow icon="id-card" title="Personal information" sub="Identity, contact, family and employment" badge={missingPersonal} onClick={go(() => openOverlay('personalInfo'))} />
+          <QuickRow icon="shield-check" title="Sign-in & security" sub="Easy sign-in and your account details" badge={missingSecurity} onClick={() => openOverlay('security')} />
+          <QuickRow icon="accessibility" title="Accessibility" sub="Text size, contrast and motion" onClick={() => openOverlay('accessibility')} />
         </div>
 
-        {/* Sign-in & Security — password + Face ID for this device (badged) */}
-        <BiometricSettings />
-
         {!persona.verified && (
-          <button
-            className="press focus-ring"
-            onClick={startVerify}
-            style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 64, padding: '12px 14px', border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
-          >
-            <span style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: 'var(--status-warning-bg)', color: 'var(--status-warning)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="shield-alert" size={18} />
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>Confirm my identity</span>
-              <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-2)' }}>Takes about two minutes and opens your own records</span>
-            </span>
-            <Icon name="chevron-right" size={17} color="var(--fg-3)" />
-          </button>
+          <QuickRow icon="shield-alert" title="Confirm my identity" sub="Takes about two minutes and opens your own records" onClick={go(() => openOverlay('idv', { purpose: 'sensitive' }))} />
         )}
 
         <button
           className="press focus-ring"
           onClick={signOut}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, width: '100%', minHeight: 48, border: '1px solid var(--surface-border)', borderRadius: 14, background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 14.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, width: '100%', minHeight: 50, border: '1px solid var(--status-error)', borderRadius: 14, background: 'var(--surface-1)', color: 'var(--status-error)', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}
         >
-          <Icon name="log-out" size={17} color="var(--fg-3)" />
+          <Icon name="log-out" size={17} color="var(--status-error)" />
           Sign out
         </button>
 
-        <div style={{ paddingTop: 4, borderTop: '1px solid var(--surface-hairline)', textAlign: 'center' }}>
-          <span style={{ fontSize: 11.5, color: 'var(--fg-4)' }}>My Guyana — Version 1.0.0</span>
+        <div style={{ paddingTop: 4, textAlign: 'center' }}>
+          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>My Guyana — Version 1.0.0</span>
         </div>
       </div>
     </Sheet>

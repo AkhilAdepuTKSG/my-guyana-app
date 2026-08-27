@@ -1,53 +1,63 @@
 import { useEffect, useState } from 'react';
-import PageOverlay from '../../components/ui/PageOverlay';
 import Icon from '../../components/ui/Icon';
-import Button from '../../components/ui/Button';
 import { useAppState } from '../../state/AppStateContext';
-import { personalRows } from '../../lib/profileFields';
+import { profileSections } from '../../lib/profileFields';
 
-// Personal Information — the full page (backlog 2.3–2.5). Everything the
-// government record supplied is shown filled and locked; whatever it could not
-// supply is an editable field carrying a "Required" badge until it is filled.
-// Saving is OTP-gated like every change in the app; once every required field
-// has a value the profile is complete and the avatar dot, banner and section
-// badge all clear (they read the same data).
+// Personal information — the full page, laid out as the Final design: a
+// "‹ Home" back chip, then four cards (Identity & contact · Demographics ·
+// Family · Employment), each with an Edit link that turns its editable rows
+// into inputs. Values the government record supplied are locked; empty values
+// show "--" — except a field that blocks profile completion, which shows the
+// red Required pill (backlog 2.3–2.5). Saving is OTP-gated like every change.
 const inputStyle = {
-  width: '100%', boxSizing: 'border-box', minHeight: 48, padding: '12px 14px',
-  border: '1px solid var(--surface-border)', borderRadius: 12, background: 'var(--surface-2)',
-  fontFamily: 'inherit', fontSize: 15, color: 'var(--fg-1)', outline: 'none',
+  width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px',
+  border: '1px solid var(--surface-border)', borderRadius: 10, background: 'var(--surface-2)',
+  fontFamily: 'inherit', fontSize: 14.5, color: 'var(--fg-1)', outline: 'none',
 };
 
 export default function PersonalInfoPage() {
-  const { isOpen, closeOverlay, user, updateUser, requireOtp, addNotification, showToast } = useAppState();
+  const { isOpen, closeOverlay, user, persona, screen, updateUser, requireOtp, addNotification, showToast } = useAppState();
   const open = isOpen('personalInfo');
 
+  const [editing, setEditing] = useState(null); // section id being edited
   const [vals, setVals] = useState({});
   useEffect(() => {
-    if (open) setVals({ ...(user?.profile || {}) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (open) { setEditing(null); setVals({}); }
   }, [open]);
 
   if (!open) return null;
 
-  const rows = personalRows(user);
-  const missingStored = rows.filter((r) => r.missing).length;
-  const locked = rows.filter((r) => r.fromGov || r.readOnly);
-  const editable = rows.filter((r) => !r.fromGov && !r.readOnly);
-  const stillMissing = editable.filter((r) => r.required && !(vals[r.id] || '').trim());
-  const canSave = stillMissing.length === 0;
+  const sections = profileSections(user, persona);
+  const missingBefore = sections.flatMap((s) => s.fields).filter((f) => f.missing).length;
+  const backLabel = screen === 'home' ? 'Home' : 'Back';
 
+  const startEdit = (sec) => {
+    const v = {};
+    sec.fields.forEach((f) => {
+      if (f.locked) return;
+      v[f.id] = user?.profile?.[f.id] || (f.source === 'default' ? f.value : '');
+    });
+    setVals(v);
+    setEditing(sec.id);
+  };
+  const cancelEdit = () => { setEditing(null); setVals({}); };
   const setVal = (id) => (e) => setVals((v) => ({ ...v, [id]: e.target.value }));
 
-  const save = () => {
-    if (!canSave) { showToast(`Fill in ${stillMissing.map((r) => r.label.toLowerCase()).join(', ')}`); return; }
+  const saveEdit = (sec) => {
+    const editable = sec.fields.filter((f) => !f.locked);
+    const stillMissing = editable.filter((f) => f.required && !(vals[f.id] || '').trim());
+    if (stillMissing.length) { showToast(`Fill in ${stillMissing.map((f) => f.label.toLowerCase()).join(', ')}`); return; }
     requireOtp({
       title: 'Confirm your details',
       confirmLabel: 'Save',
       onConfirm: () => {
         const patch = {};
-        editable.forEach((r) => { const v = (vals[r.id] || '').trim(); if (v) patch[r.id] = v; });
-        updateUser({ profile: { ...(user?.profile || {}), ...patch }, profileComplete: true });
-        if (missingStored > 0) {
+        editable.forEach((f) => { const v = (vals[f.id] || '').trim(); if (v) patch[f.id] = v; });
+        const nextProfile = { ...(user?.profile || {}), ...patch };
+        const missingAfter = profileSections({ ...user, profile: nextProfile }, persona)
+          .flatMap((s) => s.fields).filter((f) => f.missing).length;
+        updateUser({ profile: nextProfile, profileComplete: missingAfter === 0 });
+        if (missingBefore > 0 && missingAfter === 0) {
           addNotification({
             agency: 'mops', icon: 'user-round-check', title: 'Profile completed',
             body: 'Thanks — your personal records and services are unlocking across My Guyana.',
@@ -56,85 +66,99 @@ export default function PersonalInfoPage() {
         } else {
           showToast('Details saved');
         }
-        closeOverlay('personalInfo');
+        setEditing(null); setVals({});
       },
     });
   };
 
   return (
-    <PageOverlay
-      open={open}
-      onClose={() => closeOverlay('personalInfo')}
-      title="Personal Information"
-      subtitle={missingStored > 0 ? `${missingStored} required ${missingStored === 1 ? 'detail' : 'details'} missing` : 'Your details'}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: 'var(--fg-2)' }}>
-          {missingStored > 0
-            ? 'Everything government already holds about you is filled in and locked. Only the details marked Required are still needed.'
-            : 'Everything here came from your government record. Update the details you provided yourself any time.'}
-        </p>
-
-        {/* From the record — filled and locked */}
-        {locked.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <h3 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>From your government record</h3>
-            <div style={{ border: '1px solid var(--surface-border)', borderRadius: 16, background: 'var(--surface-1)', overflow: 'hidden' }}>
-              {locked.map((r, i) => (
-                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 14px', borderBottom: i < locked.length - 1 ? '1px solid var(--surface-hairline)' : 'none' }}>
-                  <Icon name={r.icon} size={16} color="var(--fg-3)" style={{ flexShrink: 0 }} />
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--fg-3)' }}>{r.label}</span>
-                  <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--fg-1)', textAlign: 'right', wordBreak: 'break-word' }}>{r.value || '—'}</span>
-                  <Icon name="lock" size={13} color="var(--fg-4)" style={{ flexShrink: 0 }} />
-                </div>
-              ))}
-            </div>
-            <span style={{ fontSize: 11.5, lineHeight: 1.5, color: 'var(--fg-4)' }}>
-              To change a detail held by government, visit the agency that issued your document — it cannot be changed here.
-            </span>
-          </div>
-        )}
-
-        {/* What the record could not supply — editable, Required where it matters */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <h3 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>Your details</h3>
-          {editable.map((r) => {
-            const empty = !(vals[r.id] || '').trim();
-            const flag = r.required && empty;
-            return (
-              <div key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--fg-3)' }}>{r.label}</label>
-                  {flag ? (
-                    <span style={{ minHeight: 18, padding: '0 7px', borderRadius: 999, background: 'var(--status-error)', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center' }}>Required</span>
-                  ) : !r.required ? (
-                    <span style={{ fontSize: 11, color: 'var(--fg-4)', fontWeight: 600 }}>Optional</span>
-                  ) : null}
-                </div>
-                <input
-                  type={r.type || 'text'}
-                  value={vals[r.id] || ''}
-                  onChange={setVal(r.id)}
-                  placeholder={r.placeholder}
-                  aria-label={r.label}
-                  style={{ ...inputStyle, borderColor: flag ? 'var(--status-error)' : 'var(--surface-border)' }}
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        <div style={{ marginTop: 'auto', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 9 }}>
-          <Button fullWidth onClick={save} style={{ opacity: canSave ? 1 : 0.55 }}>
-            {missingStored > 0 ? 'Save and complete my profile' : 'Save'}
-          </Button>
-          {!canSave && (
-            <span style={{ textAlign: 'center', fontSize: 12, color: 'var(--fg-3)' }}>
-              {stillMissing.length} required {stillMissing.length === 1 ? 'detail' : 'details'} still to fill in
-            </span>
-          )}
-        </div>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 100, background: 'var(--bg-page)', display: 'flex', flexDirection: 'column', animation: 'pageSlideIn var(--dur-slow) var(--ease-emphasis)' }}>
+      {/* Header — just the way back, as in the design */}
+      <div style={{ flexShrink: 0, padding: '14px 16px 10px', background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-hairline)' }}>
+        <button
+          className="press focus-ring" onClick={() => closeOverlay('personalInfo')} aria-label={`Back to ${backLabel}`}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: 36, padding: '0 14px 0 10px', borderRadius: 999, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+        >
+          <Icon name="chevron-left" size={16} />{backLabel}
+        </button>
       </div>
-    </PageOverlay>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px 40px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'var(--fg-1)' }}>Personal information</h1>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: 'var(--fg-2)' }}>
+            {persona.verified ? 'Identity verified. ' : ''}Update any of these and save when you are done.
+            {missingBefore > 0 ? ` ${missingBefore} required ${missingBefore === 1 ? 'detail is' : 'details are'} still needed.` : ''}
+          </p>
+        </div>
+
+        {sections.map((sec) => {
+          const isEditing = editing === sec.id;
+          return (
+            <div key={sec.id} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="surface" style={{ padding: '16px 16px 4px', borderRadius: 18, display: 'flex', flexDirection: 'column' }}>
+                {/* Card header: title + Edit (or Cancel / Save while editing) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12, borderBottom: '1px solid var(--surface-hairline)' }}>
+                  <h2 style={{ flex: 1, minWidth: 0, margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--fg-1)' }}>{sec.title}</h2>
+                  {isEditing ? (
+                    <>
+                      <button className="press focus-ring" onClick={cancelEdit} style={{ minHeight: 32, padding: '0 12px', borderRadius: 999, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                      <button className="press focus-ring" onClick={() => saveEdit(sec)} style={{ minHeight: 32, padding: '0 14px', borderRadius: 999, border: 'none', background: 'var(--brand-600)', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
+                    </>
+                  ) : (
+                    <button className="press focus-ring" onClick={() => startEdit(sec)} aria-label={`Edit ${sec.title}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: '4px 2px', color: 'var(--fg-1)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      <Icon name="pencil" size={14} />Edit
+                    </button>
+                  )}
+                </div>
+
+                {sec.fields.map((f, i) => {
+                  const last = i === sec.fields.length - 1;
+                  const border = last ? 'none' : '1px solid var(--surface-hairline)';
+                  if (isEditing && !f.locked) {
+                    const empty = !(vals[f.id] || '').trim();
+                    const flag = f.required && empty;
+                    return (
+                      <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 0', borderBottom: border }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg-2)' }}>{f.label}</label>
+                          {flag && <span style={{ minHeight: 18, padding: '0 7px', borderRadius: 999, background: 'var(--status-error)', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center' }}>Required</span>}
+                        </div>
+                        <input
+                          type={f.type || 'text'} value={vals[f.id] || ''} onChange={setVal(f.id)} placeholder={f.placeholder || ''} aria-label={f.label}
+                          style={{ ...inputStyle, borderColor: flag ? 'var(--status-error)' : 'var(--surface-border)' }}
+                        />
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={f.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, minHeight: 46, padding: '12px 0', borderBottom: border }}>
+                      <span style={{ flexShrink: 0, fontSize: 14.5, fontWeight: 600, color: 'var(--fg-2)' }}>{f.label}</span>
+                      {f.display ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, textAlign: 'right', fontSize: 14.5, fontWeight: 700, color: 'var(--fg-1)', wordBreak: 'break-word' }}>
+                          {f.display}
+                          {isEditing && f.locked && <Icon name="lock" size={12} color="var(--fg-4)" />}
+                        </span>
+                      ) : f.missing ? (
+                        <span style={{ minHeight: 18, padding: '0 7px', borderRadius: 999, background: 'var(--status-error)', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center' }}>Required</span>
+                      ) : (
+                        <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--fg-3)' }}>--</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {sec.note && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 16px', borderRadius: 16, background: 'var(--status-warning-bg)' }}>
+                  <Icon name="clock" size={17} color="var(--status-warning)" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ flex: 1, fontSize: 13.5, lineHeight: 1.5, color: 'var(--fg-1)' }}>{sec.note}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
