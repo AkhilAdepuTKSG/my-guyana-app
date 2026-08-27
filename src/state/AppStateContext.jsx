@@ -241,6 +241,12 @@ export function AppStateProvider({ children }) {
     setNotifications((list) => [{ id, read: false, time: 'Just now', ...n }, ...list]);
     return id;
   }, []);
+  // A notification flagged `push` is shown once as a card at the top of the
+  // screen (see shell/PushBanner); tapping it, or the timer, clears the flag —
+  // the notification itself stays in the bell.
+  const markPushSeen = useCallback((id) => {
+    setNotifications((list) => list.map((n) => (n.id === id ? { ...n, push: false } : n)));
+  }, []);
   const dismissNotification = useCallback((id) => {
     setNotifications((list) => list.filter((n) => n.id !== id));
   }, []);
@@ -275,12 +281,12 @@ export function AppStateProvider({ children }) {
     toast, showToast,
     session, user, isAuthenticated, signIn, signOut, updateUser,
     applications, addApplication, updateApplication,
-    notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount,
+    notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, markPushSeen,
     appointments, addAppointment, updateAppointment, removeAppointment,
     vaultDocs, addVaultDoc, removeVaultDoc,
     connectedAgencies, connectAgency, disconnectAgency,
     pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse,
-  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, requireOtp, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, appointments, addAppointment, updateAppointment, removeAppointment, vaultDocs, addVaultDoc, removeVaultDoc, connectedAgencies, connectAgency, disconnectAgency, pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse]);
+  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, requireOtp, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, markPushSeen, appointments, addAppointment, updateAppointment, removeAppointment, vaultDocs, addVaultDoc, removeVaultDoc, connectedAgencies, connectAgency, disconnectAgency, pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse]);
 
   return (
     <AppStateContext.Provider value={value}>

@@ -51,6 +51,16 @@ export const GOV_CITIZENS = [
 
     // Agencies holding a record in her name — connected automatically at signup.
     linkedAgencies: LINKED_AGENCY_IDS,
+
+    // Her employer already registered her with NIS before she signed up, so the
+    // NIS record arrives connected and active. First sign-up tells her so with a
+    // push card on Home and asks her to confirm the employer's details.
+    nisRegistration: {
+      employer: 'Devcon Construction Ltd.',
+      registeredOn: '2026-07-30',
+      nisNumber: 'NIS-2201-84732',
+      contributions: { paid: 500, required: 750, weeks: 500, requiredWeeks: 750 },
+    },
   },
   {
     id: 'john',

@@ -33,7 +33,7 @@ function InfoRow({ label, value, mono, masked, onRevealTap }) {
 }
 
 export default function EmployerRegistrationFlow() {
-  const { isOpen, closeOverlay, persona, showToast, navigate } = useAppState();
+  const { isOpen, closeOverlay, persona, showToast, navigate, connectAgency } = useAppState();
   const open = isOpen('empReg');
 
   // eslint-disable-next-line no-unused-vars -- setter used below; the value is not read
@@ -59,6 +59,8 @@ export default function EmployerRegistrationFlow() {
     setTimeout(() => {
       setPhase('success');
       setResolved('confirmed');
+      // Employer details confirmed — the pending notice on the NIS hub clears.
+      connectAgency('nis', { nisEmployerPending: false, nisEmployerConfirmed: true });
     }, 1500);
   };
 
@@ -66,6 +68,8 @@ export default function EmployerRegistrationFlow() {
   const cancelDispute = () => setPhase('review');
   const submitDispute = () => {
     setResolved('disputed');
+    // Disputed — NIS follows up; nothing more is asked of the citizen in-app.
+    connectAgency('nis', { nisEmployerPending: false, nisEmployerDisputed: true });
     closeOverlay('empReg');
     setPhase('review');
     showToast('Reported — NIS will contact you within 5 working days');

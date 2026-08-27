@@ -38,7 +38,8 @@ export default function Nis() {
   const [alertDismissed, setAlertDismissed] = useState(false);
 
   const status = persona.nisAccountState; // none | pending | active
-  const isEmployerNotice = status === 'none' && persona.id === 'aaliyah';
+  // An employer-filed registration is waiting for the citizen's confirmation.
+  const isEmployerNotice = !!persona.nisEmployerPending;
   const weeks = persona.contributions?.weeks ?? 0;
   const weeksTarget = persona.contributions?.requiredWeeks ?? 750;
   const weeksPct = Math.max(0, Math.min(100, Math.round((weeks / weeksTarget) * 100)));

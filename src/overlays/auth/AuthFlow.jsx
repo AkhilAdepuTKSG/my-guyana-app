@@ -185,6 +185,26 @@ export default function AuthFlow({ gate = false }) {
     // Every agency the government record links this citizen to comes in with
     // them — pulled from the master list, never a hand-picked few (backlog 1.5).
     (citizen?.linkedAgencies || []).forEach((id) => connectAgency(id));
+    // An employer may already have registered the citizen with NIS (Nicole):
+    // the NIS record arrives connected and active. On first sign-up she is told
+    // so with a push card on Home and asked to confirm the employer's details;
+    // a returning sign-in treats it as already confirmed.
+    if (citizen?.nisRegistration) {
+      const reg = citizen.nisRegistration;
+      const firstSignUp = st.authIntent === 'create';
+      connectAgency('nis', {
+        nisAccountState: 'active', nisNumber: reg.nisNumber, contributions: reg.contributions,
+        nisEmployer: { name: reg.employer, registeredOn: reg.registeredOn },
+        nisEmployerPending: firstSignUp,
+      });
+      if (firstSignUp) {
+        addNotification({
+          agency: 'nis', icon: 'building-2', push: true,
+          title: `${reg.employer} registered you with NIS`,
+          body: `Your NIS record is connected — ${reg.contributions.weeks} contributions on file. Confirm your employer's details.`,
+        });
+      }
+    }
     // A citizen who registered without an e-ID has one started for them, with a
     // Service Centre visit booked. Surface it as a real appointment, a tracked
     // application, and a first notification so the whole thing is coherent.

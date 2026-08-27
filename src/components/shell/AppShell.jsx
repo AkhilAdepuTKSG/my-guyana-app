@@ -42,6 +42,7 @@ import CompleteProfileFlow from '../../overlays/profile/CompleteProfileFlow';
 import NotificationsSheet from '../../overlays/profile/NotificationsSheet';
 import RegionSheet from '../../overlays/profile/RegionSheet';
 import CategoryDrillDown from '../../overlays/services/CategoryDrillDown';
+import PushBanner from './PushBanner';
 import WelcomeCarousel from '../../overlays/welcome/WelcomeCarousel';
 import TourSheet from '../../overlays/welcome/TourSheet';
 import AddAgencyDiscoverySheet from '../../overlays/welcome/AddAgencyDiscoverySheet';
@@ -69,6 +70,9 @@ export default function AppShell() {
 
       <TabBar />
       <Toast />
+      {/* Push-style notification card at the top (e.g. "your employer registered
+          you with NIS" right after sign-up) — tap to dismiss; stays in the bell. */}
+      <PushBanner />
 
       {/* Services category drill-down — covers the entire screen, bottom nav
           included; its own back arrow is the way out (backlog 3.3/3.4). */}
