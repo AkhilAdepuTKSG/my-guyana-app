@@ -29,7 +29,8 @@ export function useVault() {
   // Documents a service filed against this account. Everything else is derived
   // from the government record, so it needs no fetch.
   const stored = useApi(() => listDocuments(userId), [userId], { enabled: !!userId, initial: [] });
-  const storedDocs = stored.data || [];
+  // Stable identity while the data hasn't changed, so the memos below hold.
+  const storedDocs = useMemo(() => stored.data || [], [stored.data]);
 
   const inventory = useMemo(
     () => buildVaultInventory({

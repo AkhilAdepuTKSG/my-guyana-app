@@ -39,6 +39,8 @@ function getDayGreeting() {
 // for a first-time citizen. Colors are the design's socket treatment (bright
 // on the dark hero); agencies outside the trio derive from their agency mark.
 const RECOMMENDED_AGENCIES = ['mops', 'nis', 'gpl'];
+// One stable empty list, so memos keyed on `connected` don't re-run every render.
+const NO_AGENCIES = [];
 
 // The design's "Complete your profile" banner and next-step card are kept in
 // code but switched off on request: profile completion is carried by the red
@@ -78,7 +80,7 @@ export default function Home() {
   // the Applications tab and Ask Gov read too (hooks/useMyApplications).
   const { applications: liveApplications } = useMyApplications();
 
-  const connected = persona.connectedAgencies || [];
+  const connected = persona.connectedAgencies || NO_AGENCIES;
 
   // Required personal details the government record could not supply — drives
   // the red dot on the avatar and the banner. Both open the profile sheet, whose

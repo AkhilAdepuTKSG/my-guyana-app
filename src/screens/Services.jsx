@@ -23,6 +23,7 @@ export default function Services() {
   const [search, setSearch] = useState('');
 
   const seeded = useApi(() => flattenSeededServices(), [], { initial: [] });
+  // eslint-disable-next-line no-unused-vars -- feeds the switched-off Single Window block below
   const singleWindow = useApi(() => getSingleWindowOverview(), []);
 
   const legacy = useMemo(() => flattenServices(), []);
@@ -48,8 +49,9 @@ export default function Services() {
     resolveServiceAction(svc.name, { openOverlay, showToast })();
   };
 
-  const swAgencies = singleWindow.data?.agencies || [];
-  const swCount = singleWindow.data?.services?.length || 0;
+  // Feed the switched-off Single Window block below; re-enable together with it.
+  // const swAgencies = singleWindow.data?.agencies || [];
+  // const swCount = singleWindow.data?.services?.length || 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
