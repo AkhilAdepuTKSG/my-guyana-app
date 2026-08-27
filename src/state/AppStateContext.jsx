@@ -41,6 +41,7 @@ const AGENCY_PROFILE_KEY = 'myguyana.agencyProfile.v1';
 // (backlog 2.1). Both are per-citizen, so they reset on sign-out.
 const PINNED_AGENCIES_KEY = 'myguyana.pinnedAgencies.v1';
 const AGENCY_USAGE_KEY = 'myguyana.agencyUsage.v1';
+const DEFAULT_PINNED_AGENCIES = ['mops', 'nis', 'gpl'];
 
 function loadArray(key) {
   try {
@@ -84,7 +85,12 @@ export function AppStateProvider({ children }) {
   const [vaultDocs, setVaultDocs] = useState(() => loadArray(VAULT_DOCS_KEY));
   const [connectedAgencies, setConnectedAgencies] = useState(() => loadArray(CONNECTED_AGENCIES_KEY));
   const [agencyProfile, setAgencyProfile] = useState(() => loadObject(AGENCY_PROFILE_KEY));
-  const [pinnedAgencies, setPinnedAgencies] = useState(() => loadArray(PINNED_AGENCIES_KEY));
+  // The recommended trio starts pinned (the design's initial state), so the
+  // Home sockets and the "Your services" sheet always agree.
+  const [pinnedAgencies, setPinnedAgencies] = useState(() => {
+    const stored = loadArray(PINNED_AGENCIES_KEY);
+    return stored.length ? stored : DEFAULT_PINNED_AGENCIES;
+  });
   const [agencyUsage, setAgencyUsage] = useState(() => loadObject(AGENCY_USAGE_KEY));
   useEffect(() => {
     try { localStorage.setItem(APPLICATIONS_KEY, JSON.stringify(applications)); } catch { /* ignore */ }
@@ -208,7 +214,7 @@ export function AppStateProvider({ children }) {
     setNotifications([]);
     setAppointments([]);
     setVaultDocs([]);
-    setPinnedAgencies([]);
+    setPinnedAgencies(DEFAULT_PINNED_AGENCIES);
     setAgencyUsage({});
   }, []);
   // Connect an agency to the citizen's account (persisted). `patch` carries the

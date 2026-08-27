@@ -27,6 +27,19 @@ const DOC_TYPES = [
 // Display fallback only — e-ID number format as issued by MoPS (backlog 1.1).
 const EID_NUMBER = '123-4567-8901';
 
+// Documents are REQUESTED from the issuing agency, never uploaded by the
+// citizen: if the record exists in their name, the agency issues a digital
+// copy into the Vault. The upload path is kept in code behind this flag.
+const ALLOW_UPLOADS = false;
+const DOC_ISSUERS = {
+  'national-id': 'GECOM',
+  passport: 'the Immigration Department',
+  licence: 'the Guyana Police Force',
+  'birth-cert': 'the General Register Office',
+  certificate: 'the issuing agency',
+  other: 'the issuing agency',
+};
+
 function formatLong(iso) {
   if (!iso) return '';
   return new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -113,7 +126,7 @@ function formatAdded(iso) {
 }
 
 export default function Vault() {
-  const { navigate, openOverlay, persona, showToast, user, vaultDocs, addVaultDoc, removeVaultDoc } = useAppState();
+  const { navigate, openOverlay, persona, showToast, user, vaultDocs, addVaultDoc, removeVaultDoc, requireOtp, addNotification } = useAppState();
   const cards = buildCards(persona, user);
   const records = buildRecords(persona, user);
   const fileRef = useRef(null);
@@ -149,6 +162,36 @@ export default function Vault() {
     setAdding(false);
     resetForm();
     showToast(`${label} added to your Vault`);
+  };
+
+  // Request the document from its issuing agency: confirmed with a one-time
+  // code, then — when the record exists in the citizen's name — a digital copy
+  // is issued straight into the Vault.
+  const requestDoc = () => {
+    const typeDef = DOC_TYPES.find((t) => t.id === docType) || DOC_TYPES[DOC_TYPES.length - 1];
+    const label = docLabel.trim() || typeDef.label;
+    const issuer = DOC_ISSUERS[typeDef.id] || 'the issuing agency';
+    requireOtp({
+      title: 'Confirm your request',
+      confirmLabel: 'Request document',
+      onConfirm: () => {
+        setAdding(false);
+        resetForm();
+        if (!user?.gov) {
+          showToast('No record was found in your name — confirm your identity first');
+          return;
+        }
+        showToast(`Requested — ${issuer} is checking your record`);
+        setTimeout(() => {
+          addVaultDoc({ label, typeId: typeDef.id, typeLabel: typeDef.label, icon: typeDef.icon, fileName: 'Issued digital copy' });
+          addNotification({
+            agency: 'mops', icon: 'file-check-2',
+            title: `${label} is in your Vault`,
+            body: `${issuer.charAt(0).toUpperCase() + issuer.slice(1)} confirmed your record and issued a digital copy.`,
+          });
+        }, 1600);
+      },
+    });
   };
 
   const unlockVault = () => {
@@ -246,6 +289,7 @@ export default function Vault() {
 
   const listCard = { border: '1px solid var(--surface-border)', borderRadius: 18, background: 'var(--surface-1)', overflow: 'hidden' };
   const rowStyle = (last) => ({ borderBottom: last ? 'none' : '1px solid var(--surface-hairline)', padding: '14px 14px' });
+  const selIssuer = DOC_ISSUERS[docType] || 'the issuing agency';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -282,10 +326,10 @@ export default function Vault() {
           <button
             className="press focus-ring"
             onClick={() => { resetForm(); setAdding(true); }}
-            aria-label="Add a document"
+            aria-label={ALLOW_UPLOADS ? 'Add a document' : 'Request a document'}
             style={{ display: 'flex', alignItems: 'center', gap: 5, minHeight: 32, padding: '0 12px', border: '1px solid var(--surface-border)', borderRadius: 999, background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}
           >
-            <Icon name="plus" size={14} />Add
+            <Icon name="plus" size={14} />{ALLOW_UPLOADS ? 'Add' : 'Request'}
           </button>
         </div>
 
@@ -299,7 +343,7 @@ export default function Vault() {
             </span>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--fg-1)' }}>No documents yet</p>
             <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-2)', maxWidth: 250 }}>
-              Store your IDs and certificates here. Tap <b>Add</b> to save one, or they arrive as you use government services.
+              Your IDs and certificates gather here. Tap <b>{ALLOW_UPLOADS ? 'Add' : 'Request'}</b> to ask the issuing agency for one, or they arrive as you use government services.
             </p>
           </div>
         ) : (
@@ -343,9 +387,14 @@ export default function Vault() {
         )}
       </div>
 
-      <Sheet open={adding} onClose={() => setAdding(false)} title="Add a document">
+      <Sheet open={adding} onClose={() => setAdding(false)} title={ALLOW_UPLOADS ? 'Add a document' : 'Request a document'}>
         <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={onFilePicked} style={{ display: 'none' }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {!ALLOW_UPLOADS && (
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--fg-2)' }}>
+              Nothing is uploaded — we ask the issuing agency for it. If the document exists in your name, a digital copy lands in your Vault.
+            </p>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <label style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--fg-1)' }}>Document type</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -376,18 +425,29 @@ export default function Vault() {
             />
           </div>
 
-          <button
-            className="press focus-ring" onClick={() => fileRef.current?.click()}
-            style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 64, padding: '12px 14px', borderRadius: 14, border: `1.5px dashed ${fileName ? 'var(--status-success)' : 'var(--surface-border)'}`, background: fileName ? 'var(--status-success-bg)' : 'var(--surface-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
-          >
-            <Icon name={fileName ? 'check-circle-2' : 'upload'} size={18} color={fileName ? 'var(--status-success)' : 'var(--fg-3)'} />
-            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--fg-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileName || 'Upload a file or photo'}</span>
-              <span style={{ fontSize: 11.5, color: 'var(--fg-3)' }}>{fileName ? 'Tap to choose a different file' : 'JPG, PNG or PDF'}</span>
-            </span>
-          </button>
+          {ALLOW_UPLOADS ? (
+            <button
+              className="press focus-ring" onClick={() => fileRef.current?.click()}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 64, padding: '12px 14px', borderRadius: 14, border: `1.5px dashed ${fileName ? 'var(--status-success)' : 'var(--surface-border)'}`, background: fileName ? 'var(--status-success-bg)' : 'var(--surface-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+            >
+              <Icon name={fileName ? 'check-circle-2' : 'upload'} size={18} color={fileName ? 'var(--status-success)' : 'var(--fg-3)'} />
+              <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--fg-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileName || 'Upload a file or photo'}</span>
+                <span style={{ fontSize: 11.5, color: 'var(--fg-3)' }}>{fileName ? 'Tap to choose a different file' : 'JPG, PNG or PDF'}</span>
+              </span>
+            </button>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '13px 14px', borderRadius: 14, background: 'var(--surface-2)' }}>
+              <Icon name="building-2" size={16} color="var(--fg-3)" style={{ flexShrink: 0, marginTop: 1 }} />
+              <span style={{ flex: 1, fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-2)' }}>
+                This request goes to <b>{selIssuer}</b>. We confirm it&apos;s you with a one-time code first.
+              </span>
+            </div>
+          )}
 
-          <Button fullWidth onClick={saveDoc}>Save to Vault</Button>
+          {ALLOW_UPLOADS
+            ? <Button fullWidth onClick={saveDoc}>Save to Vault</Button>
+            : <Button fullWidth onClick={requestDoc}>Request document</Button>}
         </div>
       </Sheet>
     </div>
