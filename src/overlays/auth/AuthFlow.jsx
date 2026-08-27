@@ -31,6 +31,26 @@ function contactChannels(citizen) {
   };
 }
 
+// The "Confirm it's really you" face check (backlog 1.2) is kept in code but
+// switched off on request: a code or card that checks out continues straight
+// to the next step. Flip to true to put the face screen back between them.
+// (Face ID sign-in and the recovery "verify with my face" route are separate
+// and unaffected.)
+const FACE_CHECK_ENABLED = false;
+
+// Where account creation continues once the credential has checked out — the
+// e-ID path presents the record to link; the gov-record path books the
+// enrolment visit (no e-ID yet) or sets up the account.
+function stepAfterCredential(s, next) {
+  if (next === 'link') return 'link-confirm';
+  return (s.authIntent === 'create' && !s.govCitizen?.hasEid) ? 'eid-book' : 'setup';
+}
+function toFaceCheckOr(s, next) {
+  return FACE_CHECK_ENABLED
+    ? { ...s, polNext: next, authStep: 'pol' }
+    : { ...s, polNext: next, authStep: stepAfterCredential(s, next) };
+}
+
 function makeInitialState(persona) {
   const [first = '', ...rest] = (persona?.name || '').split(' ');
   return {
@@ -490,7 +510,7 @@ export default function AuthFlow({ gate = false }) {
       patch({ authStep: 'idscan' });
       try {
         await recognizeImage(file);
-        after(400, () => setSt((s) => ({ ...s, polNext: 'link', authStep: 'pol' })));
+        after(400, () => setSt((s) => toFaceCheckOr(s, 'link')));
       } catch {
         setSt((s) => ({ ...s, authStep: 'proof' }));
         showToast('We could not read that card. Try another way to verify.');
@@ -502,8 +522,8 @@ export default function AuthFlow({ gate = false }) {
       const recovery = st.consentFrom === 'recovery';
       after(700, () => {
         if (recovery) { finish('Signed in with your e-ID'); return; }
-        // Card read — now confirm it's really them before linking the record.
-        setSt((s) => ({ ...s, polNext: 'link', authStep: 'pol' }));
+        // Card read — on to the record link (via the face check when enabled).
+        setSt((s) => toFaceCheckOr(s, 'link'));
       });
     },
     eidReadFailed: () => patch({ authStep: 'eid-fail', eidReadTries: (st.eidReadTries || 0) + 1 }),
@@ -544,12 +564,11 @@ export default function AuthFlow({ gate = false }) {
       if (st.otpSource === 'manual') { patch({ otpSource: 'contact', authStep: st.docUploaded ? 'review' : 'limited', limitedReason: 'nodoc' }); return; }
       if (st.otpSource === 'registry') {
         if (st.consentFrom === 'recovery') { finish('Signed in with your e-ID'); return; }
-        // Code verified — the face check comes next, on its own screen,
-        // before the record link is confirmed (backlog 1.2).
-        patch({ otpSource: 'contact', polNext: 'link', authStep: 'pol' });
+        // Code verified — on to the record link (via the face check when enabled).
+        setSt((s) => toFaceCheckOr({ ...s, otpSource: 'contact' }, 'link'));
         return;
       }
-      if (st.otpSource === 'govrecord') { patch({ otpSource: 'contact', polNext: 'record', authStep: 'pol' }); return; }
+      if (st.otpSource === 'govrecord') { setSt((s) => toFaceCheckOr({ ...s, otpSource: 'contact' }, 'record')); return; }
       if (st.otpSource === 'eidsignin') { finish(`Welcome back, ${st.govCitizen?.firstName || ''}`.trim(), st.govCitizen); return; }
       // 'contact' / 'otherways'
       if (st.authIntent === 'signin' && st.contactValue.trim().toLowerCase() === 'new') { patch({ authStep: 'no-account' }); return; }
@@ -578,13 +597,8 @@ export default function AuthFlow({ gate = false }) {
       patch({ authStep: 'face' });
       after(2200, () => {
         if (recovery) { finish('Signed in with your e-ID'); return; }
-        setSt((s) => {
-          // e-ID path: the face passed — present the record to link.
-          if (s.polNext === 'link') return { ...s, authStep: 'link-confirm' };
-          // Gov-record path: no e-ID on record yet → a Service Centre visit
-          // must be booked before going any further.
-          return { ...s, authStep: (s.authIntent === 'create' && !s.govCitizen?.hasEid) ? 'eid-book' : 'setup' };
-        });
+        // The face passed — continue exactly where the credential would have.
+        setSt((s) => ({ ...s, authStep: stepAfterCredential(s, s.polNext) }));
       });
     },
     selectEidOffice: (name) => patch({ eidApptOffice: name }),
