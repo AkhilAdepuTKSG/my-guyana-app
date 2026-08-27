@@ -86,7 +86,9 @@ export default function ApplyFlow() {
     if (open) {
       revokeDocUrls();
       setStep(1);
-      setFields(prefillFromGov(def, user?.gov, user?.name)); // start from what government already has
+      // Start from what government already has, then any preset the caller
+      // passed (e.g. Ask Gov's "Renew your passport" → applicationType: 'renewal').
+      setFields({ ...prefillFromGov(def, user?.gov, user?.name), ...((payload && payload.preset) || {}) });
       setDocStatus({}); setDocFiles({}); setAppt({ office: '', date: '', time: '' });
       setSubmitting(false); setDone(false); setEligPassed(false); setScan({ status: 'idle', pct: 0, text: '', error: '' });
     }
