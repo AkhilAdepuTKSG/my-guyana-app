@@ -9,6 +9,7 @@ import { getApplicationDef } from '../../state/requirements';
 import { buildEidDateOptions, EID_TIME_OPTIONS, formatEidDate } from '../eid/eidData';
 import { recognizeImage, parseFields } from '../../lib/ocr';
 import { findSlotClash, appointmentPurpose, dateClashSummary } from '../../lib/appointments';
+import { useVault } from '../../hooks/useVault';
 
 const fieldStyle = {
   width: '100%', boxSizing: 'border-box', minHeight: 48, padding: '12px 14px',
@@ -63,6 +64,8 @@ export default function ApplyFlow() {
   const open = isOpen('apply');
   const payload = getPayload('apply');
   const def = getApplicationDef(payload?.serviceId);
+
+  const vault = useVault();
 
   const totalSteps = 3; // details → documents (+ appointment if any) → review
   const [step, setStep] = useState(1);
@@ -160,13 +163,11 @@ export default function ApplyFlow() {
   // "Add from Vault" — a static placeholder that pretends to pull a document the
   // citizen already stored in their Vault, so they don't re-upload what
   // government holds. No backend, so we attach a stand-in record.
-  // Whether the citizen's Vault actually holds a vault-sourced document. The
-  // police clearance is the one that usually doesn't exist yet — it is applied
-  // for together with this application instead of being connected.
-  const vaultHolds = (d) => {
-    if (d.id === 'clearance') return false;
-    return !!user?.gov;
-  };
+  // Whether the citizen's Vault actually holds a document that answers this
+  // requirement — asked of the same inventory every other service uses, so a
+  // National ID sitting in Cards & IDs, a certificate collected from the GRO
+  // and a document uploaded in another application all count equally.
+  const vaultHolds = (d) => vault.holds(d);
   // The document doesn't exist yet: attach a "we apply for it alongside this
   // application" placeholder — the issuing agency processes both together.
   const attachRequested = (id, label) => {
@@ -178,12 +179,23 @@ export default function ApplyFlow() {
     showToast(`Added — the ${label.toLowerCase()} is applied for together with this application`);
   };
   const attachFromVault = (id, label) => {
+    const docDef = (def?.documents || []).find((d) => d.id === id);
+    const match = docDef ? vault.find(docDef) : null;
     setDocFiles((prev) => {
       if (prev[id]?.url) URL.revokeObjectURL(prev[id].url);
-      return { ...prev, [id]: { name: `${label} (from Vault)`, url: null, size: null, source: 'vault' } };
+      return {
+        ...prev,
+        [id]: {
+          name: match ? `${match.title} (from Vault)` : `${label} (from Vault)`,
+          url: null,
+          size: match?.sizeBytes ?? null,
+          source: 'vault',
+          vaultDocId: match?.vaultDocId ?? null,
+        },
+      };
     });
     setDocStatus((s) => ({ ...s, [id]: 'uploaded' }));
-    showToast('Added from your Vault');
+    showToast(match ? `${match.title} added from your Vault` : 'Added from your Vault');
   };
   const fmtSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 

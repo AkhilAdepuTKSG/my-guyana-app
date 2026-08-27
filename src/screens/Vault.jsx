@@ -5,6 +5,7 @@ import { listDocuments, vaultDateLabel } from '../api/vault';
 import { loadCertificateForVault } from '../api/gro';
 import { renderCertificatePdf, certificateFileName } from '../lib/certificates';
 import { downloadBlob } from '../lib/format';
+import { buildCards, buildRecords } from '../lib/vaultRecords';
 import Icon from '../components/ui/Icon';
 import ListRow from '../components/ui/ListRow';
 import Sheet from '../components/ui/Sheet';
@@ -44,11 +45,6 @@ const DOC_ISSUERS = {
   certificate: 'the issuing agency',
   other: 'the issuing agency',
 };
-
-function formatLong(iso) {
-  if (!iso) return '';
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
 
 // The e-ID card — the one big card at the top of the Vault.
 function EidWalletCard({ persona, onOpen }) {
@@ -91,38 +87,6 @@ function EidWalletCard({ persona, onOpen }) {
       </span>
     </button>
   );
-}
-
-// CARDS & IDS — the identity cards government holds for this citizen.
-function buildCards(persona, user) {
-  const gov = user?.gov || {};
-  const cards = [];
-  if (gov.driversLicence) {
-    cards.push({ id: 'licence', icon: 'car', bg: '#b91c1c', title: "Driver's licence", sub: 'Guyana Police Force · expires 2029' });
-  }
-  if (gov.nationalId || persona.nationalId) {
-    cards.push({ id: 'national-id', icon: 'id-card', bg: '#8b2346', title: 'National ID', sub: `${gov.nationalId || persona.nationalId} · expires 2027` });
-  }
-  if (persona.connectedAgencies.includes('nis') && persona.nisAccountState === 'active') {
-    cards.push({ id: 'nis-card', icon: 'shield-check', bg: '#00674c', title: 'NIS card', sub: 'National Insurance Scheme · Active', overlay: 'nisCard' });
-  }
-  return cards;
-}
-
-// DOCUMENTS & RECORDS — certificates and letters issued by agencies.
-// (No contribution statement here — that lives in the NIS hub.)
-function buildRecords(persona, user) {
-  const docs = [];
-  if (user?.gov) {
-    docs.push({ id: 'birth', icon: 'file-text', title: 'Birth certificate', sub: 'General Register Office · certified copy' });
-  }
-  if (persona.eidStatus === 'issued') {
-    docs.push({ id: 'eid-letter', icon: 'badge-check', title: 'e-ID issuance letter', sub: 'Digital Identity Card Registry · 6 Aug 2026' });
-  }
-  if (persona.nisEmployer?.registeredOn) {
-    docs.push({ id: 'nis-reg', icon: 'shield-check', title: 'NIS registration certificate', sub: `National Insurance Scheme · ${formatLong(persona.nisEmployer.registeredOn)}` });
-  }
-  return docs;
 }
 
 function formatAdded(iso) {

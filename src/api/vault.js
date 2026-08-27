@@ -129,42 +129,6 @@ export async function fileUploadedDocument({ userId, file, doc, serviceName }) {
 }
 
 /**
- * The one Vault document that satisfies a given requirement, or null.
- *
- * "From Vault" attaches straight away rather than opening a chooser, so this
- * has to decide on the citizen's behalf. It matches the way the requirement is
- * named — the document's own title against the requirement's label — and falls
- * back to the kind the requirement is filed under. Newest wins a tie, because a
- * re-uploaded document is the one they meant.
- *
- * Returns null when nothing matches, which is the signal to ask for an upload
- * instead of silently attaching the wrong paper.
- *
- * @param {import('../data/types').VaultDocument[]} documents
- * @param {import('../data/types').DocumentDef} doc
- * @returns {import('../data/types').VaultDocument|null}
- */
-export function findForRequirement(documents, doc) {
-  if (!doc) return null;
-  const rows = [...(documents || [])].sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''));
-  const wanted = normaliseName(doc.label);
-
-  const byName = rows.find((d) => normaliseName(d.title) === wanted);
-  if (byName) return byName;
-
-  if (doc.vaultKind) {
-    const byKind = rows.find((d) => d.kind === doc.vaultKind);
-    if (byKind) return byKind;
-  }
-  return null;
-}
-
-/** Loose name comparison, so "National ID" and "national id" are the same thing. */
-function normaliseName(value) {
-  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-/**
  * File a government-issued document, but only once per reference number. Used
  * when an approved certificate or permit is filed automatically — reopening the
  * same certificate must not stack up duplicates.

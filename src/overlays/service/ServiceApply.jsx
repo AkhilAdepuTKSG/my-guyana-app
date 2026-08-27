@@ -6,7 +6,8 @@ import StepProgress from '../../components/ui/StepProgress';
 import { useAppState } from '../../state/AppStateContext';
 import { useApi, useAction, useUserId } from '../../hooks/useApi';
 import { getServiceDetail } from '../../api/catalog';
-import { listDocuments, fileUploadedDocument, findForRequirement } from '../../api/vault';
+import { fileUploadedDocument } from '../../api/vault';
+import { useVault } from '../../hooks/useVault';
 import { listAll } from '../../api/applications';
 import * as cashGrants from '../../api/cashGrants';
 import * as singleWindow from '../../api/singleWindow';
@@ -45,7 +46,7 @@ export default function ServiceApply() {
   const userId = useUserId();
 
   const detail = useApi(() => getServiceDetail(serviceId), [serviceId], { enabled: open && !!serviceId });
-  const vault = useApi(() => listDocuments(userId), [userId], { enabled: open && !!userId, initial: [] });
+  const vault = useVault();
   const mine = useApi(() => listAll(userId), [userId, serviceId], { enabled: open && !!userId, initial: [] });
 
   const service = detail.data?.service;
@@ -239,7 +240,7 @@ export default function ServiceApply() {
   // answers this requirement, say so and point at the upload instead of
   // attaching something that is not what was asked for.
   const attachFromVault = (doc) => {
-    const match = findForRequirement(vault.data || [], doc);
+    const match = vault.find(doc);
     if (!match) {
       showToast(`No ${doc.label.toLowerCase()} in your Vault yet — upload it and we will keep it there`);
       return;
@@ -250,14 +251,16 @@ export default function ServiceApply() {
         status: 'fromVault',
         fileName: match.fileName || match.title,
         size: match.sizeBytes ?? null,
-        vaultDocId: match.id,
+        // Only a filed document has a row of its own; a card or a derived
+        // record is connected by reference, with nothing to re-upload.
+        vaultDocId: match.vaultDocId,
       },
     }));
     showToast(`${match.title} added from your Vault`);
   };
   const viewDoc = async (docId) => {
     const vaultDocId = docs[docId]?.vaultDocId;
-    const row = (vault.data || []).find((v) => v.id === vaultDocId);
+    const row = vault.storedDocs.find((v) => v.id === vaultDocId);
     if (!row?.blob) { showToast('This document has no preview'); return; }
     const url = URL.createObjectURL(row.blob);
     window.open(url, '_blank', 'noopener');

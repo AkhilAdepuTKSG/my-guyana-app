@@ -6,7 +6,8 @@ import StatusPill from '../../components/ui/StatusPill';
 import { useAppState } from '../../state/AppStateContext';
 import { useApi, useAction, useUserId } from '../../hooks/useApi';
 import { getDetail, statusLabel, statusTone } from '../../api/applications';
-import { listDocuments, fileUploadedDocument, findForRequirement } from '../../api/vault';
+import { fileUploadedDocument } from '../../api/vault';
+import { useVault } from '../../hooks/useVault';
 import * as cashGrants from '../../api/cashGrants';
 import * as singleWindow from '../../api/singleWindow';
 import AgencyRoute, { routeSummary } from '../../components/service/AgencyRoute';
@@ -37,7 +38,7 @@ export default function ServiceTrack() {
     { enabled: open && !!userId && !!group && !!id }
   );
 
-  const vault = useApi(() => listDocuments(userId), [userId], { enabled: open && !!userId, initial: [] });
+  const vault = useVault();
 
   const fileInput = useRef(null);
   const pendingDoc = useRef(null);
@@ -56,14 +57,18 @@ export default function ServiceTrack() {
   // citizen's Vault first, then attached to the application from there.
   const attach = useAction(async ({ doc, file, vaultDoc }) => {
     const api = group === 'cashGrants' ? cashGrants : singleWindow;
-    const filed = vaultDoc || await fileUploadedDocument({ userId, file, doc, serviceName: service?.name });
+    // Connecting from the Vault points at whatever is already there;
+    // uploading files the document first and points at that.
+    const filedId = vaultDoc
+      ? vaultDoc.vaultDocId
+      : (await fileUploadedDocument({ userId, file, doc, serviceName: service?.name })).id;
     return api.attachDocument({
       userId,
       applicationId: id,
       docId: doc.id,
       fileName: vaultDoc ? (vaultDoc.fileName || vaultDoc.title) : file.name,
       size: vaultDoc ? (vaultDoc.sizeBytes ?? null) : file.size,
-      vaultDocId: filed?.id ?? null,
+      vaultDocId: filedId ?? null,
       fromVault: !!vaultDoc,
     });
   });
@@ -87,7 +92,7 @@ export default function ServiceTrack() {
   // Same direct behaviour as the apply flow: attach the matching Vault
   // document, or ask for an upload when there is nothing to attach.
   const attachFromVault = async (doc) => {
-    const match = findForRequirement(vault.data || [], doc);
+    const match = vault.find(doc);
     if (!match) {
       showToast(`No ${doc.label.toLowerCase()} in your Vault yet — upload it and we will keep it there`);
       return;
@@ -97,7 +102,7 @@ export default function ServiceTrack() {
   };
 
   const viewAttached = (doc) => {
-    const row = (vault.data || []).find((v) => v.id === doc.vaultDocId);
+    const row = vault.storedDocs.find((v) => v.id === doc.vaultDocId);
     if (!row?.blob) { showToast('This document has no preview'); return; }
     const url = URL.createObjectURL(row.blob);
     window.open(url, '_blank', 'noopener');
