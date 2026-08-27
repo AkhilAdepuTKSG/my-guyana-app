@@ -9,6 +9,12 @@ import { profileSections } from '../../lib/profileFields';
 // into inputs. Values the government record supplied are locked; empty values
 // show "--" — except a field that blocks profile completion, which shows the
 // red Required pill (backlog 2.3–2.5). Saving is OTP-gated like every change.
+// Editing is hidden on request (code and functionality kept): the Edit links
+// only appear on a card that still has a missing REQUIRED field, so profile
+// completion (e.g. John's address) keeps working. Flip to true to show Edit
+// on every card again.
+const ALLOW_EDITS = false;
+
 const inputStyle = {
   width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px',
   border: '1px solid var(--surface-border)', borderRadius: 10, background: 'var(--surface-2)',
@@ -87,7 +93,10 @@ export default function PersonalInfoPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'var(--fg-1)' }}>Personal information</h1>
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: 'var(--fg-2)' }}>
-            {persona.verified ? 'Identity verified. ' : ''}Update any of these and save when you are done.
+            {persona.verified ? 'Identity verified. ' : ''}
+            {ALLOW_EDITS || missingBefore > 0
+              ? 'Update any of these and save when you are done.'
+              : 'These details come from your government record and your profile.'}
             {missingBefore > 0 ? ` ${missingBefore} required ${missingBefore === 1 ? 'detail is' : 'details are'} still needed.` : ''}
           </p>
         </div>
@@ -105,11 +114,11 @@ export default function PersonalInfoPage() {
                       <button className="press focus-ring" onClick={cancelEdit} style={{ minHeight: 32, padding: '0 12px', borderRadius: 999, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
                       <button className="press focus-ring" onClick={() => saveEdit(sec)} style={{ minHeight: 32, padding: '0 14px', borderRadius: 999, border: 'none', background: 'var(--brand-600)', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
                     </>
-                  ) : (
+                  ) : (ALLOW_EDITS || sec.fields.some((f) => f.missing)) ? (
                     <button className="press focus-ring" onClick={() => startEdit(sec)} aria-label={`Edit ${sec.title}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: '4px 2px', color: 'var(--fg-1)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <Icon name="pencil" size={14} />Edit
                     </button>
-                  )}
+                  ) : null}
                 </div>
 
                 {sec.fields.map((f, i) => {
