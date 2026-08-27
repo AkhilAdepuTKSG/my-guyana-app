@@ -113,6 +113,15 @@ export function AppStateProvider({ children }) {
 
   const navigate = useCallback((next) => {
     setScreenState(next);
+    // Going to a screen always leaves the services category drill-down behind:
+    // it covers the whole frame, so "See my applications" from a service
+    // launched inside it must not land underneath the category page.
+    setOverlays((prev) => {
+      if (!prev.has('category')) return prev;
+      const n = new Map(prev);
+      n.delete('category');
+      return n;
+    });
     window.scrollTo?.(0, 0);
   }, []);
 
