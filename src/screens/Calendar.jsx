@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useAppState } from '../state/AppStateContext';
-import { AGENCIES, SERVICE_CENTRES } from '../state/mockData';
+import { AGENCIES, centresFor } from '../state/mockData';
 import { buildEidDateOptions, EID_TIME_OPTIONS, formatEidDate } from '../overlays/eid/eidData';
 import { findSlotClash, appointmentPurpose, dateClashSummary } from '../lib/appointments';
 import Icon from '../components/ui/Icon';
@@ -18,10 +18,10 @@ function dateNum(dateStr) {
 // What a booked visit can be for. Each maps to the agency that runs it, so the
 // new appointment is tagged and coloured like the rest of the app.
 const PURPOSES = [
-  { id: 'eid', label: 'e-ID enrolment', agency: 'mops', title: 'e-ID enrolment appointment' },
-  { id: 'passport', label: 'Passport', agency: 'immigration', title: 'Passport Office visit' },
-  { id: 'nis', label: 'NIS enquiry', agency: 'nis', title: 'NIS enquiry appointment' },
-  { id: 'general', label: 'General enquiry', agency: 'mops', title: 'Service Centre appointment' },
+  { id: 'eid', label: 'e-ID enrolment', agency: 'mops', title: 'e-ID enrolment appointment', officeLabel: 'Service Centre' },
+  { id: 'passport', label: 'Passport', agency: 'immigration', title: 'Passport Office visit', officeLabel: 'Passport Office' },
+  { id: 'nis', label: 'NIS enquiry', agency: 'nis', title: 'NIS enquiry appointment', officeLabel: 'NIS office' },
+  { id: 'general', label: 'General enquiry', agency: 'mops', title: 'Service Centre appointment', officeLabel: 'Service Centre' },
 ];
 
 export default function Calendar() {
@@ -35,6 +35,16 @@ export default function Calendar() {
 
   const ready = office && date && time;
   const resetBooking = () => { setPurpose('general'); setOffice(''); setDate(''); setTime(''); };
+
+  // The chosen purpose decides which offices are on offer — a passport visit
+  // books at a Passport Office, an NIS enquiry at an NIS office, and so on.
+  const activePurpose = PURPOSES.find((x) => x.id === purpose) || PURPOSES[3];
+  const centres = centresFor(activePurpose.agency);
+  const pickPurpose = (id) => {
+    if (id === purpose) return;
+    setPurpose(id);
+    setOffice(''); // the previous office may not exist for this purpose
+  };
 
   const confirmBooking = () => {
     if (!ready) return;
@@ -125,7 +135,7 @@ export default function Calendar() {
                 const active = purpose === p.id;
                 return (
                   <button
-                    key={p.id} className="press focus-ring" onClick={() => setPurpose(p.id)}
+                    key={p.id} className="press focus-ring" onClick={() => pickPurpose(p.id)}
                     style={{
                       minHeight: 38, padding: '0 13px', borderRadius: 999,
                       border: `1px solid ${active ? 'var(--brand-600)' : 'var(--surface-border)'}`,
@@ -141,8 +151,8 @@ export default function Calendar() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--fg-1)' }}>Service Centre</label>
-            {SERVICE_CENTRES.map((c) => {
+            <label style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--fg-1)' }}>{activePurpose.officeLabel}</label>
+            {centres.map((c) => {
               const active = office === c.name;
               return (
                 <button

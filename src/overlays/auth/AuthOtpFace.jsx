@@ -6,6 +6,7 @@ import { POL_TIPS } from './authData';
 
 function otpSentToLabel(st) {
   if (st.otpSource === 'registry') return 'the number on your e-ID record · +592 ••• 4820';
+  if (st.otpSource === 'linkconfirm') return `the number on your government record · ${st.contactValue || '••• ••• 4820'}`;
   if (st.otpSource === 'govrecord') {
     return st.contactMode === 'phone'
       ? 'the number on your government record · ••• ••• 4820'
@@ -52,7 +53,7 @@ export function Otp({ st, on }) {
         <TextButton tone={canResend ? 'var(--brand-700)' : 'var(--fg-3)'} onClick={on.otpResend} style={{ fontWeight: 700 }}>
           {resendLabel}
         </TextButton>
-        {st.otpSource !== 'registry' && (
+        {st.otpSource !== 'registry' && st.otpSource !== 'linkconfirm' && (
           <TextButton tone="var(--fg-1)" onClick={on.otpSwitchChannel} style={{ minHeight: 42, fontWeight: 700 }}>
             {st.contactMode === 'phone' ? 'Send it to my email instead' : 'Send it to my number instead'}
           </TextButton>

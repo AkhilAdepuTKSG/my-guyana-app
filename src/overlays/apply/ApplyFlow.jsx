@@ -4,7 +4,7 @@ import Button from '../../components/ui/Button';
 import Icon from '../../components/ui/Icon';
 import StepProgress from '../../components/ui/StepProgress';
 import { useAppState } from '../../state/AppStateContext';
-import { AGENCIES, SERVICE_CENTRES } from '../../state/mockData';
+import { AGENCIES, centresFor } from '../../state/mockData';
 import { getApplicationDef } from '../../state/requirements';
 import { buildEidDateOptions, EID_TIME_OPTIONS, formatEidDate } from '../eid/eidData';
 import { recognizeImage, parseFields } from '../../lib/ocr';
@@ -160,6 +160,23 @@ export default function ApplyFlow() {
   // "Add from Vault" — a static placeholder that pretends to pull a document the
   // citizen already stored in their Vault, so they don't re-upload what
   // government holds. No backend, so we attach a stand-in record.
+  // Whether the citizen's Vault actually holds a vault-sourced document. The
+  // police clearance is the one that usually doesn't exist yet — it is applied
+  // for together with this application instead of being connected.
+  const vaultHolds = (d) => {
+    if (d.id === 'clearance') return false;
+    return !!user?.gov;
+  };
+  // The document doesn't exist yet: attach a "we apply for it alongside this
+  // application" placeholder — the issuing agency processes both together.
+  const attachRequested = (id, label) => {
+    setDocFiles((prev) => {
+      if (prev[id]?.url) URL.revokeObjectURL(prev[id]?.url);
+      return { ...prev, [id]: { name: `${label} — applied for with this application`, url: null, size: null, source: 'request' } };
+    });
+    setDocStatus((s) => ({ ...s, [id]: 'uploaded' }));
+    showToast(`Added — the ${label.toLowerCase()} is applied for together with this application`);
+  };
   const attachFromVault = (id, label) => {
     setDocFiles((prev) => {
       if (prev[id]?.url) URL.revokeObjectURL(prev[id].url);
@@ -186,7 +203,9 @@ export default function ApplyFlow() {
         documents: def.documents.map((d) => ({
           name: d.label,
           file: docFiles[d.id]?.name || null,
-          status: docStatus[d.id] === 'uploaded' ? 'Uploaded' : (d.required ? 'Missing' : 'Optional'),
+          status: docStatus[d.id] === 'uploaded'
+            ? (docFiles[d.id]?.source === 'request' ? 'Applied for' : 'Uploaded')
+            : (d.required ? 'Missing' : 'Optional'),
         })),
         appointment: def.appointment ? { ...appt } : null,
         pendingActions: [],
@@ -399,11 +418,13 @@ export default function ApplyFlow() {
                     {uploaded ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 10, background: 'var(--status-success-bg)', border: '1px solid color-mix(in oklch, var(--status-success) 30%, transparent)' }}>
-                          <Icon name={docFiles[d.id]?.source === 'vault' ? 'folder-lock' : 'paperclip'} size={14} color="var(--status-success)" style={{ flexShrink: 0 }} />
+                          <Icon name={docFiles[d.id]?.source === 'vault' ? 'folder-lock' : docFiles[d.id]?.source === 'request' ? 'file-plus-2' : 'paperclip'} size={14} color="var(--status-success)" style={{ flexShrink: 0 }} />
                           <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, color: 'var(--fg-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{docFiles[d.id]?.name || 'Attached'}</span>
                           {docFiles[d.id]?.source === 'vault'
                             ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', flexShrink: 0 }}>From Vault</span>
-                            : docFiles[d.id]?.size != null && <span style={{ fontSize: 11, color: 'var(--fg-3)', flexShrink: 0 }}>{fmtSize(docFiles[d.id].size)}</span>}
+                            : docFiles[d.id]?.source === 'request'
+                              ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-3)', flexShrink: 0 }}>Applied together</span>
+                              : docFiles[d.id]?.size != null && <span style={{ fontSize: 11, color: 'var(--fg-3)', flexShrink: 0 }}>{fmtSize(docFiles[d.id].size)}</span>}
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           {docFiles[d.id]?.url && (
@@ -429,10 +450,17 @@ export default function ApplyFlow() {
                          from the Vault — never uploaded. Everything else (a photo,
                          proof of address, a pay slip) is uploaded. */
                       d.source === 'vault' ? (
-                        <button className="press focus-ring" onClick={() => attachFromVault(d.id, d.label)}
-                          style={{ width: '100%', minHeight: 40, borderRadius: 10, border: `1px solid color-mix(in oklch, ${mark} 35%, var(--surface-border))`, background: `color-mix(in oklch, ${mark} 8%, transparent)`, color: mark, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <Icon name="folder-lock" size={13} />Connect with Vault
-                        </button>
+                        vaultHolds(d) ? (
+                          <button className="press focus-ring" onClick={() => attachFromVault(d.id, d.label)}
+                            style={{ width: '100%', minHeight: 40, borderRadius: 10, border: `1px solid color-mix(in oklch, ${mark} 35%, var(--surface-border))`, background: `color-mix(in oklch, ${mark} 8%, transparent)`, color: mark, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                            <Icon name="folder-lock" size={13} />Connect with Vault
+                          </button>
+                        ) : (
+                          <button className="press focus-ring" onClick={() => attachRequested(d.id, d.label)}
+                            style={{ width: '100%', minHeight: 40, borderRadius: 10, border: `1px solid color-mix(in oklch, ${mark} 35%, var(--surface-border))`, background: `color-mix(in oklch, ${mark} 8%, transparent)`, color: mark, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                            <Icon name="file-plus-2" size={13} />Not in your Vault — apply with this application
+                          </button>
+                        )
                       ) : (
                         <button className="press focus-ring" onClick={() => pickDoc(d.id)}
                           style={{ width: '100%', minHeight: 40, borderRadius: 10, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -451,7 +479,8 @@ export default function ApplyFlow() {
                     <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-3)' }}>{def.appointment.note}</p>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {SERVICE_CENTRES.map((c) => {
+                    {/* The owning agency's own offices (a passport books at a Passport Office). */}
+                    {centresFor(def.agency).map((c) => {
                       const active = appt.office === c.name;
                       return (
                         <button key={c.id} className="press focus-ring" onClick={() => setAppt((a) => ({ ...a, office: c.name }))}
