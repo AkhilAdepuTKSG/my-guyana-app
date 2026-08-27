@@ -99,6 +99,11 @@ function makeInitialState(persona) {
     // or 'link' (e-ID path → confirm the record link).
     polNext: 'record',
 
+    // Whether a one-time code has already been verified in THIS journey — the
+    // e-ID card-number path proves the code before the record link, the
+    // tap/scan paths after it; nobody is asked twice.
+    otpVerified: false,
+
     // Real device biometric (WebAuthn) — populated by a probe when the flow opens.
     bioProbed: false, bioSupported: false, bioEnrolled: false, bioBusy: false, bioError: '',
 
@@ -538,7 +543,21 @@ export default function AuthFlow({ gate = false }) {
       patch({ govCitizen: citizen, setupEmail: st.setupEmail || citizen?.email || '', authStep: 'otp', otpSource: 'registry', otpValue: '', otpError: '', otpTries: 0, otpExpired: false, eidCardError: '' });
       startOtpClock();
     },
-    linkConfirm: () => settle('verified'),
+    // The record is confirmed. Like the no-e-ID path, the account is finished
+    // with a one-time code to the contact on record, then email + password —
+    // a code that already passed earlier in this journey isn't asked again.
+    linkConfirm: () => {
+      if (st.otpVerified) {
+        patch({ setupEmail: st.setupEmail || st.govCitizen?.email || '', authStep: 'setup' });
+        return;
+      }
+      patch({
+        otpSource: 'linkconfirm', contactMode: 'phone',
+        contactValue: st.govCitizen?.phoneMasked || '••• ••• 4820',
+        authStep: 'otp', otpValue: '', otpError: '', otpTries: 0, otpExpired: false,
+      });
+      startOtpClock();
+    },
     linkDecline: () => patch({ authStep: 'mismatch', discoverResult: null, eidCardNo: '', eidDob: '', eidCardError: '' }),
     mismatchAltMethod: () => showToast('An approved alternative is being confirmed with the identity team'),
     // The citizen said the record isn't theirs — continue with a basic account
@@ -553,7 +572,7 @@ export default function AuthFlow({ gate = false }) {
       if (st.otpValue === '000000') {
         const tries = st.otpTries + 1;
         if (tries >= 3) {
-          if (st.otpSource === 'registry' || st.otpSource === 'govrecord') { patch({ otpTries: 0, otpValue: '', authStep: 'blocked' }); return; }
+          if (st.otpSource === 'registry' || st.otpSource === 'govrecord' || st.otpSource === 'linkconfirm') { patch({ otpTries: 0, otpValue: '', authStep: 'blocked' }); return; }
           patch({ otpTries: 0, otpValue: '', otpError: 'That code is wrong. Wait a minute before trying again.' });
           return;
         }
@@ -565,10 +584,15 @@ export default function AuthFlow({ gate = false }) {
       if (st.otpSource === 'registry') {
         if (st.consentFrom === 'recovery') { finish('Signed in with your e-ID'); return; }
         // Code verified — on to the record link (via the face check when enabled).
-        setSt((s) => toFaceCheckOr({ ...s, otpSource: 'contact' }, 'link'));
+        setSt((s) => toFaceCheckOr({ ...s, otpSource: 'contact', otpVerified: true }, 'link'));
         return;
       }
-      if (st.otpSource === 'govrecord') { setSt((s) => toFaceCheckOr({ ...s, otpSource: 'contact' }, 'record')); return; }
+      if (st.otpSource === 'govrecord') { setSt((s) => toFaceCheckOr({ ...s, otpSource: 'contact', otpVerified: true }, 'record')); return; }
+      if (st.otpSource === 'linkconfirm') {
+        // Record linked and code verified — finish the account with email + password.
+        patch({ otpSource: 'contact', otpVerified: true, setupEmail: st.setupEmail || st.govCitizen?.email || '', authStep: 'setup' });
+        return;
+      }
       if (st.otpSource === 'eidsignin') { finish(`Welcome back, ${st.govCitizen?.firstName || ''}`.trim(), st.govCitizen); return; }
       // 'contact' / 'otherways'
       if (st.authIntent === 'signin' && st.contactValue.trim().toLowerCase() === 'new') { patch({ authStep: 'no-account' }); return; }
@@ -585,6 +609,7 @@ export default function AuthFlow({ gate = false }) {
       if (otpTick.current) { clearInterval(otpTick.current); otpTick.current = null; }
       patch({
         authStep: st.otpSource === 'registry' ? 'eid-card'
+          : st.otpSource === 'linkconfirm' ? 'link-confirm'
           : st.otpSource === 'govrecord' ? 'govcontact'
             : st.otpSource === 'eidsignin' ? 'eid-signin'
               : st.otpSource === 'otherways' ? 'otherways'
