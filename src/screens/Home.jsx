@@ -67,10 +67,10 @@ export default function Home() {
   const connected = persona.connectedAgencies || [];
 
   // Required personal details the government record could not supply — drives
-  // the avatar dot and the banner; tapping either goes straight to the
-  // Personal Information page (backlog 2.3–2.5).
+  // the red dot on the avatar and the banner. Both open the profile sheet, whose
+  // badged Personal information row leads to the full page (backlog 2.3–2.5).
   const missingPersonal = missingPersonalFields(user, persona);
-  const openProfileOrCompletion = () => openOverlay(missingPersonal.length > 0 ? 'personalInfo' : 'profile');
+  const openProfileOrCompletion = () => openOverlay('profile');
 
   // --- Which agencies lead the Home (backlog 2.1) ---
   // Pinned first; when nothing is pinned, the most-frequently-used; and for a
@@ -396,7 +396,7 @@ export default function Home() {
               <Icon name="user-round" size={19} color="#fff" />
             </span>
             <button
-              className="press focus-ring" onClick={() => openOverlay('personalInfo')}
+              className="press focus-ring" onClick={() => openOverlay('profile')}
               style={{ flex: 1, minWidth: 0, textAlign: 'left', cursor: 'pointer', border: 'none', background: 'none', padding: 0, fontFamily: 'inherit' }}
             >
               <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>Complete your profile</span>

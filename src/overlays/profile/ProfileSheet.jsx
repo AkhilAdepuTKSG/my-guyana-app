@@ -1,6 +1,5 @@
 import Sheet from '../../components/ui/Sheet';
 import Icon from '../../components/ui/Icon';
-import MissingBadge from '../../components/ui/MissingBadge';
 import { useAppState } from '../../state/AppStateContext';
 import { missingPersonalFields } from '../../lib/profileFields';
 import { useRegionName } from './regionStore';
@@ -24,7 +23,10 @@ function QuickRow({ icon, title, sub, badge = 0, onClick }) {
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>{title}</span>
-          <MissingBadge count={badge} />
+          {/* Red dot: something in here still needs the citizen (backlog 2.4). */}
+          {badge > 0 && (
+            <span aria-label={`${badge} missing ${badge === 1 ? 'field' : 'fields'}`} style={{ width: 10, height: 10, borderRadius: 999, background: 'var(--status-error)', flexShrink: 0 }} />
+          )}
         </span>
         <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, color: 'var(--fg-2)' }}>{sub}</span>
       </span>
