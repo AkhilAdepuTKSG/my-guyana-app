@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import PageOverlay from '../../components/ui/PageOverlay';
 import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
-import { SERVICE_CENTRES } from '../../state/mockData';
+import { AGENCIES, SERVICE_CENTRES } from '../../state/mockData';
+import { AGENCY_HUBS, agencyCategoryId, SERVICE_ACCESS } from '../../lib/serviceCatalog';
 
 // Ask Gov, scoped per review (backlog 4.1): information, pointing the citizen
 // to the right service, eligibility, and application status. Every answer that
@@ -245,6 +246,48 @@ function eidReply(t, persona) {
   return { text: 'The e-ID is your digital identity card from MoPS — apply in about five minutes and book a Service Centre visit to enrol.', actions: [act('Apply for an e-ID', 'fingerprint', GO.eidApply), all] };
 }
 
+// -- every other agency on the account (Task: information for the rest) ------
+// Any of the ~45 master-list agencies can be asked about by name (or by its
+// citizen-facing service name — Water, Tax & Revenue, …). The answer says what
+// state it's in and links to wherever its services live today.
+function findAgencyInText(t) {
+  const alias = Object.values(SERVICE_ACCESS).find((s) => t.includes(s.name.toLowerCase()));
+  if (alias && AGENCIES[alias.id]) return AGENCIES[alias.id];
+  const words = t.split(/[^a-z0-9]+/);
+  return Object.values(AGENCIES).find((a) => {
+    const long = a.name.toLowerCase();
+    const short = (a.shortName || '').toLowerCase();
+    if (t.includes(long)) return true;
+    if (!short || short.length < 3) return false;
+    return short.includes(' ') ? t.includes(short) : words.includes(short);
+  }) || null;
+}
+
+function agencyReply(a) {
+  const svc = SERVICE_ACCESS[a.id];
+  const friendly = svc ? `${a.name} — ${svc.name} —` : `${a.name}`;
+  if (a.comingSoon) {
+    return {
+      text: `${friendly} is joining My Guyana soon; its online services aren't live yet. I'll be able to take you there the moment it lands.`,
+      actions: [act('Browse services', 'layout-grid', GO.services)],
+    };
+  }
+  const catId = agencyCategoryId(a.id);
+  const actions = [];
+  if (AGENCY_HUBS.includes(a.id)) actions.push(act(`Open ${svc?.name || a.shortName}`, svc?.icon || a.icon, { screen: a.id }));
+  if (catId) actions.push(act(`Browse ${a.shortName} services`, 'layout-grid', { overlay: 'category', payload: { id: catId } }));
+  if (actions.length === 0) {
+    return {
+      text: `${friendly} is connected to your account from your government record. Its online services are still being added to My Guyana — until then, any Service Centre can help with it.`,
+      actions: [act('Book a Service Centre visit', 'calendar', GO.calendar), act('Browse services', 'layout-grid', GO.services)],
+    };
+  }
+  return {
+    text: `${friendly} is connected to your account — here's where its services live.`,
+    actions: [...actions, act('All services', 'layout-grid', GO.services)],
+  };
+}
+
 function pickReply(text, { persona, applications, ctxId }) {
   const t = text.toLowerCase();
 
@@ -269,6 +312,9 @@ function pickReply(text, { persona, applications, ctxId }) {
     return { text: 'Birth certificate copies and changes of name are handled under Identity & Records.', actions: [act('Open Identity & Records', 'file-text', GO.identityServices)] };
   }
   if (t.includes('mops') || t.includes('public service')) return { text: 'MoPS (Ministry of Public Service) issues your e-ID and runs the Service Centres.', actions: [act('Open MoPS', 'landmark', GO.mopsHub), act('Open my Vault', 'user-lock', GO.vault)] };
+  // Any other agency on the account, asked for by name or by its service name.
+  const agencyHit = findAgencyInText(t);
+  if (agencyHit) return agencyReply(agencyHit);
   if (t.includes('vault') || t.includes('document')) return { text: 'Your Vault holds your e-ID, IDs, certificates and records — and connects them into any application so you never re-upload them.', actions: [act('Open my Vault', 'user-lock', GO.vault)] };
   if (t.includes('service')) return { text: 'Every service is under Services, grouped by category with the owning agency labelled.', actions: [act('Browse services', 'layout-grid', GO.services)] };
 

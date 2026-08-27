@@ -4,7 +4,7 @@ import Button from '../../components/ui/Button';
 import Icon from '../../components/ui/Icon';
 import StepProgress from '../../components/ui/StepProgress';
 import { useAppState } from '../../state/AppStateContext';
-import { AGENCIES, SERVICE_CENTRES } from '../../state/mockData';
+import { AGENCIES, centresFor } from '../../state/mockData';
 import { getApplicationDef } from '../../state/requirements';
 import { buildEidDateOptions, EID_TIME_OPTIONS, formatEidDate } from '../eid/eidData';
 import { recognizeImage, parseFields } from '../../lib/ocr';
@@ -479,7 +479,8 @@ export default function ApplyFlow() {
                     <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-3)' }}>{def.appointment.note}</p>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {SERVICE_CENTRES.map((c) => {
+                    {/* The owning agency's own offices (a passport books at a Passport Office). */}
+                    {centresFor(def.agency).map((c) => {
                       const active = appt.office === c.name;
                       return (
                         <button key={c.id} className="press focus-ring" onClick={() => setAppt((a) => ({ ...a, office: c.name }))}

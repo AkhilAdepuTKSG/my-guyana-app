@@ -282,3 +282,30 @@ export const SERVICE_CENTRES = [
   { id: 'sc2', name: 'MoPS Service Centre — Linden', address: 'Mackenzie, Linden' },
   { id: 'sc3', name: 'MoPS Service Centre — New Amsterdam', address: 'Main St, New Amsterdam' },
 ];
+
+// Offices per agency — which locations a booking offers depends on what the
+// visit is for: a passport visit happens at a Passport Office, an NIS enquiry
+// at an NIS office, everything else at a MoPS Service Centre.
+export const AGENCY_CENTRES = {
+  mops: SERVICE_CENTRES,
+  immigration: [
+    { id: 'po1', name: 'Passport Office — Georgetown', address: 'Camp Street, Georgetown' },
+    { id: 'po2', name: 'Passport Office — New Amsterdam', address: 'Strand, New Amsterdam' },
+    { id: 'po3', name: 'Passport Office — Anna Regina', address: 'Anna Regina, Essequibo Coast' },
+  ],
+  nis: [
+    { id: 'nis1', name: 'NIS Head Office — Georgetown', address: 'Brickdam & Winter Place, Georgetown' },
+    { id: 'nis2', name: 'NIS Office — Linden', address: 'Republic Avenue, Linden' },
+    { id: 'nis3', name: 'NIS Office — Corriverton', address: 'Springlands, Corriverton' },
+  ],
+  gpl: [
+    { id: 'gpl1', name: 'GPL Customer Office — Georgetown', address: '257 Middle Street, Georgetown' },
+    { id: 'gpl2', name: 'GPL Customer Office — Anna Regina', address: 'Anna Regina, Essequibo Coast' },
+  ],
+};
+
+// The offices a visit for this agency can be booked at; MoPS Service Centres
+// stand in for any agency without its own counters.
+export function centresFor(agencyId) {
+  return AGENCY_CENTRES[agencyId] || SERVICE_CENTRES;
+}
