@@ -1,8 +1,11 @@
 // #5 — the requirements engine. One config describes what each application
 // asks for: personal fields, the documents that must be attached, and whether
 // an in-person appointment is needed. The generic ApplyFlow overlay renders
-// straight from these definitions, so adding an agency/service (e.g. #4 Passport,
-// #6 Cash Grant) is a data change, not a new bespoke screen.
+// straight from these definitions.
+//
+// Only the passport still lives here. Cash Grants, the Single Window services
+// and the GRO certificates moved to the seeded `services` table (src/data/seed)
+// and render through the shared View / Apply / Track shell in overlays/service.
 //
 // Field: { key, label, type: 'text'|'tel'|'email'|'date'|'select', options?, required, hint? }
 // Document: { id, label, issuer, required, hint?, source? }
@@ -47,78 +50,6 @@ export const APPLICATION_DEFS = {
     ],
   },
 
-  cashGrant: {
-    id: 'cashGrant',
-    agency: 'mof',
-    title: 'Cash Grant',
-    blurb: 'Apply to the Ministry of Finance for a cash grant. We check your details against your records and pay approved grants to your linked bank account.',
-    connectsAgency: true,
-    appointment: null, // reviewed remotely, no in-person visit
-    // Backlog 3.8 — eligibility is checked against the signed-in citizen before
-    // the application opens. Each rule reads real session state; ApplyFlow
-    // renders the pass/fail list and only unlocks the form when every rule passes.
-    eligibility: [
-      {
-        id: 'identity',
-        passLabel: 'Your identity is verified',
-        failLabel: 'Your identity is not verified yet',
-        failHint: 'Grants are paid against your government record — confirm your identity from your profile first.',
-        passes: ({ user, persona }) => !!(persona?.verified || user?.verificationLevel === 'verified'),
-        failAction: { label: 'Confirm my identity', overlay: 'idv', payload: { purpose: 'sensitive' } },
-      },
-      {
-        id: 'record',
-        passLabel: 'You are on record as a citizen resident in Guyana',
-        failLabel: 'We could not match you to a government record',
-        failHint: 'Verify your identity so your record can be matched.',
-        passes: ({ user }) => !!user?.gov,
-      },
-      {
-        id: 'once',
-        passLabel: 'No cash grant application on file — one grant per person',
-        failLabel: 'You already have a cash grant application',
-        failHint: 'One grant per person — track your existing application instead.',
-        passes: ({ applications }) => !(applications || []).some((a) => a.serviceId === 'cashGrant'),
-        failAction: { label: 'View my applications', screen: 'applications' },
-      },
-    ],
-    fields: [
-      {
-        key: 'grantType', label: 'Which grant?', type: 'select', required: true,
-        options: [
-          { value: '', label: 'Select…' },
-          { value: 'because-i-care', label: 'Because We Care school grant' },
-          { value: 'public-assistance', label: 'Public assistance' },
-          { value: 'one-off', label: 'One-off relief grant' },
-        ],
-      },
-      {
-        key: 'householdSize', label: 'People in your household', type: 'select', required: true,
-        options: [
-          { value: '', label: 'Select…' },
-          { value: '1', label: '1' }, { value: '2', label: '2' }, { value: '3', label: '3' },
-          { value: '4', label: '4' }, { value: '5', label: '5' }, { value: '6+', label: '6 or more' },
-        ],
-      },
-      {
-        key: 'monthlyIncome', label: 'Household monthly income', type: 'select', required: true,
-        options: [
-          { value: '', label: 'Select…' },
-          { value: '0-50k', label: 'Under $50,000' },
-          { value: '50-100k', label: '$50,000 – $100,000' },
-          { value: '100-200k', label: '$100,000 – $200,000' },
-          { value: '200k+', label: 'Over $200,000' },
-        ],
-      },
-      { key: 'bankAccount', label: 'Bank account for payment', type: 'text', required: true, hint: 'Account number the grant is paid into' },
-      { key: 'reason', label: 'Anything we should know?', type: 'text', required: false },
-    ],
-    documents: [
-      { id: 'nationalId', label: 'National ID', issuer: 'GECOM', required: true, source: 'vault', hint: 'Confirms who you are' },
-      { id: 'proofIncome', label: 'Proof of income', issuer: 'Pay slip / letter', required: true, hint: 'Most recent pay slip, or a letter if self-employed' },
-      { id: 'proofAddress', label: 'Proof of address', issuer: 'Dated within 3 months', required: true, hint: 'Utility bill or bank statement' },
-    ],
-  },
 };
 
 export function getApplicationDef(serviceId) {

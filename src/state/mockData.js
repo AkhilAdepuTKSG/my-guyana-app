@@ -32,9 +32,28 @@ export const AGENCIES = {
     id: 'humanServices', name: 'Human Services & Social Security', shortName: 'Human Services',
     icon: 'hand-heart', mark: '#c2365f', dataAgency: 'human-services', comingSoon: true,
   },
+  // The citizen-facing "Housing" relationship the Final design pins to Home
+  // (see SERVICE_ACCESS in lib/serviceCatalog). Kept as its own record because
+  // the discovery sheet and the Home sockets look it up by this id.
   housing: {
     id: 'housing', name: 'Housing & Water (CH&PA)', shortName: 'Housing',
     icon: 'home', mark: '#b45f16', dataAgency: 'housing', comingSoon: true,
+  },
+  // CH&PA also runs the Single Window, which is live: those services are
+  // seeded in the `services` table (see src/data/seed/servicesSingleWindow.js).
+  chpa: {
+    id: 'chpa', name: 'Central Housing & Planning Authority', shortName: 'CH&PA',
+    icon: 'home', mark: '#b45f16', dataAgency: 'chpa',
+  },
+  // Reviewing agencies inside the Single Window that the master list did not
+  // previously carry.
+  cbh: {
+    id: 'cbh', name: 'Central Board of Health', shortName: 'Central Board of Health',
+    icon: 'heart-pulse', mark: '#c02a3c', dataAgency: 'cbh',
+  },
+  seadefence: {
+    id: 'seadefence', name: 'Sea & River Defence Department', shortName: 'Sea Defence',
+    icon: 'waves', mark: '#146b8c', dataAgency: 'seadefence',
   },
   appointments: {
     id: 'appointments', name: 'Appointments (cross-government)', shortName: 'Appointments',
@@ -250,16 +269,23 @@ export const NIS_BENEFITS = [
   { id: 'b-inj', key: 'injury', name: 'Injury Benefit', icon: 'bandage' },
 ];
 
+// The legacy catalogue: services whose flows still live as bespoke overlays.
+//
+// Cash Grants, the Single Window services and the GRO certificates are NOT
+// listed here — they are seeded rows in the `services` table and are read
+// through src/api/catalog.js, so their overview, form, fees and routing all
+// come from data. The Services screen merges the two sources.
 export const SERVICE_DIRECTORY = [
   // The e-ID is deliberately absent from Identity & Records — it is not a
   // service (backlog 3.7): applied for from Home, accessed from the Vault.
-  { id: 'cat-id', name: 'Identity & Records', icon: 'id-card', agency: 'mops', services: ['Birth certificate copy', 'Change of name'] },
+  { id: 'cat-id', name: 'Identity & Records', icon: 'id-card', agency: 'mops', services: ['Change of name'] },
   { id: 'cat-social', name: 'Social Security', icon: 'shield-check', agency: 'nis', services: ['NIS registration', 'Sickness Benefit', 'Maternity Benefit', 'Funeral Grant', 'Pension estimate'] },
-  { id: 'cat-utilities', name: 'Utilities', icon: 'zap', agency: 'gpl', services: ['Pay electricity bill', 'Report an outage', 'New connection application'] },
+  { id: 'cat-utilities', name: 'Utilities', icon: 'zap', agency: 'gpl', services: ['Pay electricity bill', 'Report an outage'] },
   { id: 'cat-immigration', name: 'Immigration & Passport', icon: 'plane', agency: 'immigration', services: ['Guyana Passport'] },
-  { id: 'cat-finance', name: 'Finance & Grants', icon: 'banknote', agency: 'mof', services: ['Cash Grant'] },
   { id: 'cat-revenue', name: 'Revenue & Tax', icon: 'receipt', agency: 'gra', services: ['TIN registration', 'File annual return'], comingSoon: true },
-  { id: 'cat-housing', name: 'Housing & Land', icon: 'home', agency: 'housing', services: ['House lot application', 'Water connection'], comingSoon: true },
+  // Water connection used to live here; it is now a seeded Single Window
+  // service, so it is listed there instead of twice.
+  { id: 'cat-housing', name: 'Housing & Land', icon: 'home', agency: 'housing', services: ['House lot application'], comingSoon: true },
 ];
 
 export const GPL_TICKETS = [];

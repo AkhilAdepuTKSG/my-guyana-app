@@ -14,13 +14,16 @@ function formatApptDate(iso) {
 export default function Mops() {
   const { openOverlay, showToast, appointments } = useAppState();
   const appointment = appointments.find((a) => a.agency === 'mops');
+  // Named explicitly rather than derived by position from the directory: the
+  // e-ID is not a directory service (backlog 3.7), and the birth certificate is
+  // a seeded General Register Office service with its own flow.
   const idCategory = SERVICE_DIRECTORY.find((c) => c.id === 'cat-id');
-  const [eidServiceName, ...otherServices] = idCategory?.services || [];
+  const changeOfName = (idCategory?.services || []).find((s) => s === 'Change of name');
 
   const actions = [
-    { icon: 'fingerprint', label: eidServiceName || 'National e-ID Card', hint: 'Apply for your digital identity card', onClick: () => openOverlay('eid') },
-    { icon: 'file-text', label: otherServices[0] || 'Birth certificate copy', hint: 'Request a certified copy from the registry', onClick: () => showToast('Coming soon') },
-    { icon: 'file-signature', label: otherServices[1] || 'Change of name', hint: 'Update your legal name on record', onClick: () => showToast('Coming soon') },
+    { icon: 'fingerprint', label: 'National e-ID Card', hint: 'Apply for your digital identity card', onClick: () => openOverlay('eid') },
+    { icon: 'file-text', label: 'Birth certificate', hint: 'Collect a certified copy from the General Register Office', onClick: () => openOverlay('serviceView', { serviceId: 'svc_gro_birth' }) },
+    { icon: 'file-signature', label: changeOfName || 'Change of name', hint: 'Update your legal name on record', onClick: () => showToast('Coming soon') },
   ];
 
   return (

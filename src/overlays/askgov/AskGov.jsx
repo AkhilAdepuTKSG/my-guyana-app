@@ -47,6 +47,66 @@ const CONTEXTS = {
       { id: 'c-status', label: 'Track my application', prompt: "What's the status of my cash grant application?" },
     ],
   },
+  // The seeded services are keyed by their service id, which is what
+  // ServiceView / ServiceApply pass in as the Ask Gov context.
+  svc_cash_grant: {
+    title: 'Cash Grant',
+    chips: [
+      { id: 'c-elig', label: 'Am I eligible?', prompt: 'Am I eligible for the cash grant?' },
+      { id: 'c-docs', label: 'Documents required', prompt: 'What documents do I need for the cash grant?' },
+      { id: 'c-status', label: 'Track my application', prompt: "What's the status of my cash grant application?" },
+    ],
+  },
+  svc_sw_water_connection: {
+    title: 'Water connection',
+    chips: [
+      { id: 'w-empty', label: 'My plot is empty', prompt: 'What happens if my plot is empty?' },
+      { id: 'w-need', label: 'What do I need first?', prompt: 'What do I need before applying for a water connection?' },
+      { id: 'w-who', label: 'Who reviews it?', prompt: 'Which agencies review a water connection?' },
+    ],
+  },
+  svc_sw_construction_permit: {
+    title: 'Construction permit',
+    chips: [
+      { id: 'p-who', label: 'Who reviews my plan?', prompt: 'Which agencies review my building plan?' },
+      { id: 'p-need', label: 'What do I need first?', prompt: 'What do I need before applying for a construction permit?' },
+    ],
+  },
+  svc_sw_power_connection: {
+    title: 'Power connection',
+    chips: [
+      { id: 'e-need', label: 'What do I need first?', prompt: 'What do I need before applying for a power connection?' },
+      { id: 'e-who', label: 'Who reviews it?', prompt: 'Which agencies review a power connection?' },
+    ],
+  },
+  svc_sw_construction_utilities: {
+    title: 'Construction utilities',
+    chips: [
+      { id: 'u-need', label: 'What do I need first?', prompt: 'What do I need before applying for construction utilities?' },
+      { id: 'u-what', label: 'What is the Single Window?', prompt: 'What is the Single Window?' },
+    ],
+  },
+  svc_gro_birth: {
+    title: 'Birth certificate',
+    chips: [
+      { id: 'b-no', label: 'Where is my registration number?', prompt: 'Where do I find my registration number?' },
+      { id: 'b-how', label: 'How does this work?', prompt: 'How do I get my birth certificate?' },
+    ],
+  },
+  svc_gro_death: {
+    title: 'Death certificate',
+    chips: [
+      { id: 'd-no', label: 'Where is my registration number?', prompt: 'Where do I find my registration number?' },
+      { id: 'd-how', label: 'How does this work?', prompt: 'How do I get a death certificate?' },
+    ],
+  },
+  svc_gro_marriage: {
+    title: 'Marriage certificate',
+    chips: [
+      { id: 'm-no', label: 'Where is my registration number?', prompt: 'Where do I find my registration number?' },
+      { id: 'm-how', label: 'How does this work?', prompt: 'How do I get a marriage certificate?' },
+    ],
+  },
 };
 
 // -- deep-link targets ----------------------------------------------------
@@ -57,7 +117,15 @@ const GO = {
   passportRenew: { overlay: 'apply', payload: { serviceId: 'passport', preset: { applicationType: 'renewal' } } },
   passportReplace: { overlay: 'apply', payload: { serviceId: 'passport', preset: { applicationType: 'replacement' } } },
   immigrationServices: { overlay: 'category', payload: { id: 'cat-immigration' } },
-  cashGrant: { overlay: 'apply', payload: { serviceId: 'cashGrant' } },
+  cashGrant: { overlay: 'serviceView', payload: { serviceId: 'svc_cash_grant' } },
+  singleWindow: { overlay: 'singleWindow' },
+  waterConnection: { overlay: 'serviceView', payload: { serviceId: 'svc_sw_water_connection' } },
+  constructionPermit: { overlay: 'serviceView', payload: { serviceId: 'svc_sw_construction_permit' } },
+  powerConnection: { overlay: 'serviceView', payload: { serviceId: 'svc_sw_power_connection' } },
+  constructionUtilities: { overlay: 'serviceView', payload: { serviceId: 'svc_sw_construction_utilities' } },
+  groBirth: { overlay: 'serviceView', payload: { serviceId: 'svc_gro_birth' } },
+  groDeath: { overlay: 'serviceView', payload: { serviceId: 'svc_gro_death' } },
+  groMarriage: { overlay: 'serviceView', payload: { serviceId: 'svc_gro_marriage' } },
   financeServices: { overlay: 'category', payload: { id: 'cat-finance' } },
   nisHub: { screen: 'nis' },
   nisRegister: { overlay: 'nisReg' },
@@ -197,6 +265,58 @@ function cashGrantReply(t) {
   };
 }
 
+// The Single Window — land-development approvals routed across agencies.
+function singleWindowReply(t, ctxId) {
+  const openWindow = act('Open the Single Window', 'building-2', GO.singleWindow);
+  if (t.includes('empty')) {
+    return {
+      text: 'If the plot is still empty, GWI sends an officer to investigate the site first — they measure the run to the nearest main, fix the service size, and quote the connection before you are asked to pay anything.',
+      actions: [act('Open water connection', 'droplets', GO.waterConnection), openWindow],
+    };
+  }
+  if (t.includes('who') || t.includes('agenc') || t.includes('review')) {
+    return {
+      text: 'A building plan is reviewed by CH&PA, Lands & Surveys, the Central Board of Health, the EPA, the Fire Service, Public Works, and Sea Defence where the parcel sits inside a reserve. You see each decision on your tracker.',
+      actions: [act('Open construction permit', 'hard-hat', GO.constructionPermit), openWindow],
+    };
+  }
+  if (t.includes('need') || t.includes('before') || t.includes('require')) {
+    return {
+      text: 'Two things gate everything in the Single Window: proof that you hold the land (a transport, title, lease or CH&PA agreement of sale) and outline planning permission from CH&PA. You confirm both as part of the application.',
+      actions: [openWindow],
+    };
+  }
+  if (ctxId === 'svc_sw_power_connection' || t.includes('power') || t.includes('electric')) {
+    return {
+      text: 'GPL runs the connection, but it goes through the Single Window so the wiring inspection and any Public Works clearance for a new pole are handled in one place. A new building needs a construction permit and a wiring certificate first.',
+      actions: [act('Open power connection', 'plug-zap', GO.powerConnection), openWindow],
+    };
+  }
+  return {
+    text: 'The Single Window is one place for every land-development approval — the building permit, the water connection, the power connection and construction utilities. You apply once and it is routed to every agency that has to approve it.',
+    actions: [openWindow, act('Browse services', 'layout-grid', GO.services)],
+  };
+}
+
+// GRO certificates — everything starts from the registration number.
+function groReply(t, ctxId) {
+  const type = ctxId === 'svc_gro_death' || t.includes('death') ? 'death'
+    : ctxId === 'svc_gro_marriage' || t.includes('marriage') ? 'marriage'
+      : 'birth';
+  const target = { birth: GO.groBirth, death: GO.groDeath, marriage: GO.groMarriage }[type];
+  const open = act(`Open ${type} certificate`, 'book-open', target);
+  if (t.includes('number') || t.includes('where')) {
+    return {
+      text: 'Your registration number is on the slip the GRO gave the informant when the entry was registered. It looks like B/GT/1990/004512 — spacing, dashes and slashes do not matter when you type it.',
+      actions: [open],
+    };
+  }
+  return {
+    text: 'Births, deaths and marriages are registered inside the General Register Office, and registration produces a registration number. Enter that number here to follow it — and once it is approved, to view and download your certificate. A copy is filed in your Vault, visible only to you.',
+    actions: [open, act('Open my Vault', 'user-lock', GO.vault)],
+  };
+}
+
 function nisReply(t, persona) {
   const hub = act('Open NIS', 'shield-check', GO.nisHub);
   const all = act('All Social Security services', 'layout-grid', GO.socialServices);
@@ -304,7 +424,17 @@ function pickReply(text, { persona, applications, ctxId }) {
   }
   // Services and agencies — the context sharpens the match, keywords work anywhere.
   if (ctxId === 'passport' || t.includes('passport') || t.includes('travel')) return passportReply(t, applications);
-  if (ctxId === 'cashGrant' || (t.includes('cash') && t.includes('grant')) || t.includes('grant')) return cashGrantReply(t);
+  if (String(ctxId).startsWith('svc_sw_') || t.includes('single window') || t.includes('permit')
+      || t.includes('water connection') || t.includes('power connection') || t.includes('building plan')
+      || t.includes('construction')) {
+    return singleWindowReply(t, ctxId);
+  }
+  if (String(ctxId).startsWith('svc_gro_') || t.includes('registration number')
+      || t.includes('birth cert') || t.includes('death cert') || t.includes('marriage cert')
+      || t.includes('certificate')) {
+    return groReply(t, ctxId);
+  }
+  if (ctxId === 'cashGrant' || ctxId === 'svc_cash_grant' || (t.includes('cash') && t.includes('grant')) || t.includes('grant')) return cashGrantReply(t);
   if (t.includes('e-id') || t.includes('eid') || t.includes('digital id') || t.includes('vote')) return eidReply(t, persona);
   if (t.includes('nis') || t.includes('pension') || t.includes('benefit') || t.includes('sick') || t.includes('matern') || t.includes('funeral') || t.includes('social security') || t.includes('contribution')) return nisReply(t, persona);
   if (t.includes('gpl') || t.includes('electric') || t.includes('bill') || t.includes('outage') || t.includes('power')) return gplReply(t);

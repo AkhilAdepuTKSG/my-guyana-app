@@ -1,5 +1,10 @@
 import { useRef, useState } from 'react';
 import { useAppState } from '../state/AppStateContext';
+import { useApi, useUserId } from '../hooks/useApi';
+import { listDocuments, vaultDateLabel } from '../api/vault';
+import { loadCertificateForVault } from '../api/gro';
+import { renderCertificatePdf, certificateFileName } from '../lib/certificates';
+import { downloadBlob } from '../lib/format';
 import Icon from '../components/ui/Icon';
 import ListRow from '../components/ui/ListRow';
 import Sheet from '../components/ui/Sheet';
@@ -129,6 +134,32 @@ export default function Vault() {
   const { navigate, openOverlay, persona, showToast, user, vaultDocs, addVaultDoc, removeVaultDoc, requireOtp, addNotification } = useAppState();
   const cards = buildCards(persona, user);
   const records = buildRecords(persona, user);
+
+  // Documents filed against this citizen's own account by the services: the
+  // GRO certificates they collected, and anything an application attached.
+  // Read by userId, so nobody else's ever appear — see src/api/vault.js.
+  const userId = useUserId();
+  const issued = useApi(() => listDocuments(userId), [userId], { enabled: !!userId, initial: [] });
+  const issuedDocs = issued.data || [];
+
+  // A certificate is redrawn from the register entry on demand rather than
+  // stored as bytes, so what downloads is always the current document.
+  const openIssued = async (doc) => {
+    if (doc.content?.generator === 'groCertificate') {
+      const { certificate, registration } = await loadCertificateForVault(doc.content.args);
+      const blob = renderCertificatePdf({ certificate, registration, issuedTo: doc.content.args.issuedTo || user?.name || null });
+      downloadBlob(blob, certificateFileName(certificate));
+      showToast('Certificate downloaded');
+      return;
+    }
+    if (doc.blob) {
+      const url = URL.createObjectURL(doc.blob);
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      return;
+    }
+    showToast(doc.issuedBy ? `${doc.title} — issued by ${doc.issuedBy}` : doc.title);
+  };
   const fileRef = useRef(null);
   const otpChannel = user?.gov?.phoneMasked || '••• ••• 4820';
 
@@ -333,7 +364,7 @@ export default function Vault() {
           </button>
         </div>
 
-        {records.length === 0 && vaultDocs.length === 0 ? (
+        {records.length === 0 && vaultDocs.length === 0 && issuedDocs.length === 0 ? (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center',
             padding: '30px 20px', border: '1px dashed var(--surface-border)', borderRadius: 18, background: 'var(--surface-1)',
@@ -358,7 +389,7 @@ export default function Vault() {
                 subtitle={d.sub}
                 chevron={false}
                 onClick={() => showToast(`${d.title} — issued by government`)}
-                style={rowStyle(i === records.length - 1 && vaultDocs.length === 0)}
+                style={rowStyle(i === records.length - 1 && vaultDocs.length === 0 && issuedDocs.length === 0)}
               />
             ))}
             {vaultDocs.map((d, i) => (
@@ -380,7 +411,32 @@ export default function Vault() {
                     <Icon name="trash-2" size={15} />
                   </button>
                 )}
-                style={rowStyle(i === vaultDocs.length - 1)}
+                style={rowStyle(i === vaultDocs.length - 1 && issuedDocs.length === 0)}
+              />
+            ))}
+            {/* Filed by a service against this citizen's account — GRO
+                certificates they collected, and application attachments. */}
+            {issuedDocs.map((d, i) => (
+              <ListRow
+                key={d.id}
+                icon={d.icon || 'file-badge'}
+                iconColor={d.source === 'government' ? 'var(--status-success)' : 'var(--brand-600)'}
+                iconBg={d.source === 'government' ? 'var(--status-success-bg)' : 'var(--brand-100)'}
+                title={d.title}
+                subtitle={`${d.subtitle} · ${vaultDateLabel(d.addedAt)}`}
+                chevron={false}
+                onClick={() => openIssued(d)}
+                trailing={(
+                  <button
+                    className="press focus-ring"
+                    onClick={(e) => { e.stopPropagation(); openIssued(d); }}
+                    aria-label={`${d.content?.generator ? 'Download' : 'Open'} ${d.title}`}
+                    style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 999, border: 'none', background: 'var(--surface-2)', color: 'var(--fg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  >
+                    <Icon name={d.content?.generator ? 'download' : 'eye'} size={15} />
+                  </button>
+                )}
+                style={rowStyle(i === issuedDocs.length - 1)}
               />
             ))}
           </div>

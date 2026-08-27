@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { useAppState } from '../state/AppStateContext';
 import Icon from '../components/ui/Icon';
 import NotificationBell from '../components/ui/NotificationBell';
-import { AGENCIES, NOTIFICATIONS, ONGOING_APPLICATIONS, REGIONS } from '../state/mockData';
+import { AGENCIES, NOTIFICATIONS, REGIONS } from '../state/mockData';
 import { AGENCY_HUBS, agencyCategoryId, SERVICE_ACCESS } from '../lib/serviceCatalog';
 import { missingPersonalFields } from '../lib/profileFields';
+import { useApi, useUserId } from '../hooks/useApi';
+import { listAll } from '../api/applications';
 
 // ---------------------------------------------------------------------------
 // Local helpers / mock-derived data. Home reads persona + shared fixtures but
@@ -45,6 +47,10 @@ const RECOMMENDED_AGENCIES = ['mops', 'nis', 'gpl'];
 // lives in Appointments / Applications. Flip to true to show them again.
 const SHOW_HOME_NUDGES = false;
 
+// One shared empty array, so an unloaded application list keeps the same
+// identity between renders.
+const EMPTY_APPLICATIONS = [];
+
 const SOCKET_DEFS = {
   mops: { label: 'Digital ID', icon: 'id-card', color: '#ff9ebb', bg: 'rgba(190,60,110,0.24)', ring: 'rgba(255,158,187,0.45)' },
   nis: { label: 'Social Security', icon: 'shield-check', color: '#4ade9b', bg: 'rgba(0,155,103,0.20)', ring: 'rgba(74,222,155,0.5)' },
@@ -70,6 +76,11 @@ const ELIGIBILITY_DEFS = [
 export default function Home() {
   const { navigate, openOverlay, showToast, persona, user, updateUser, pinnedAgencies, agencyUsage, recordAgencyUse } = useAppState();
   const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
+  // Everything the citizen has applied for, across all three services.
+  const userId = useUserId();
+  const applicationsQuery = useApi(() => listAll(userId), [userId], { enabled: !!userId, initial: [] });
+  // Stable across renders so the memos below are not invalidated every time.
+  const liveApplications = applicationsQuery.data ?? EMPTY_APPLICATIONS;
 
   const connected = persona.connectedAgencies || [];
 
@@ -152,16 +163,19 @@ export default function Home() {
         open: () => openOverlay('notifications'),
       });
     });
-    ONGOING_APPLICATIONS
-      .filter((a) => connected.includes(a.agency) && (a.pendingActions || []).length > 0)
+    // Live applications that are waiting on the citizen — a reviewing agency
+    // has asked for something, or a draft was never submitted.
+    liveApplications
+      .filter((a) => a.status === 'actionNeeded' || a.status === 'draft')
       .forEach((a) => {
-        a.pendingActions.forEach((pa, i) => {
-          items.push({
-            id: `${a.id}-pa-${i}`, agencyId: a.agency, icon: 'triangle-alert',
-            agency: AGENCIES[a.agency]?.shortName || a.agency.toUpperCase(),
-            title: pa.label, sub: a.title, cta: 'Review', tone: 'error',
-            open: () => openOverlay('track', { id: a.id }),
-          });
+        items.push({
+          id: `${a.id}-action`, agencyId: a.agencyId, icon: 'triangle-alert',
+          agency: a.agencyShortName,
+          title: a.status === 'draft' ? `Finish your ${a.title.toLowerCase()} application` : `${a.agencyShortName} needs something from you`,
+          sub: a.title, cta: 'Review', tone: a.status === 'draft' ? 'warning' : 'error',
+          open: () => (a.status === 'draft'
+            ? openOverlay('serviceApply', { serviceId: a.serviceId, applicationId: a.id })
+            : openOverlay('serviceTrack', { group: a.group, id: a.id })),
         });
       });
     // The bill amount is told once: when the next-step card already leads
@@ -175,7 +189,7 @@ export default function Home() {
       });
     }
     return items;
-  }, [connected, persona, billIsNextStep, openOverlay]);
+  }, [connected, persona, billIsNextStep, openOverlay, liveApplications]);
 
   const attentionByAgency = useMemo(() => {
     const m = {};
@@ -189,18 +203,20 @@ export default function Home() {
     info: { color: 'var(--status-info)', bg: 'var(--status-info-bg)' },
   };
 
-  const ongoingApps = useMemo(() => ONGOING_APPLICATIONS
-    .filter((a) => connected.includes(a.agency))
+  // What the citizen has in flight, straight from the applications endpoint —
+  // the same rows the Applications tab and the profile section show.
+  const ongoingApps = useMemo(() => liveApplications
+    .filter((a) => !['approved', 'rejected', 'withdrawn'].includes(a.status))
+    .slice(0, 3)
     .map((a) => {
-      const mark = AGENCIES[a.agency]?.mark || '#142b44';
+      const mark = a.agencyMark || '#142b44';
       return {
         ...a,
-        color: mark,
-        iconBg: hexToRgba(mark, 0.12),
-        icon: AGENCIES[a.agency]?.icon || 'file-text',
+        color: mark.startsWith('#') ? mark : '#142b44',
+        iconBg: mark.startsWith('#') ? hexToRgba(mark, 0.12) : 'var(--surface-2)',
         stepBars: Array.from({ length: a.totalSteps }, (_, i) => (i < a.step ? mark : 'var(--surface-4)')),
       };
-    }), [connected]);
+    }), [liveApplications]);
 
   const suggestions = useMemo(() => ELIGIBILITY_DEFS
     .filter((sg) => connected.includes(sg.need) && !dismissedSuggestions.includes(sg.id))
@@ -588,7 +604,7 @@ export default function Home() {
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 15.5, fontWeight: 700, color: 'var(--fg-1)' }}>{oa.title}</span>
-                <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, color: oa.color }}>{oa.status}</span>
+                <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, color: oa.color }}>{oa.statusLabel}</span>
               </span>
             </div>
             <div style={{ display: 'flex', gap: 5 }}>
@@ -598,10 +614,13 @@ export default function Home() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-3)' }}>Step {oa.step} of {oa.totalSteps}</span>
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-3)' }}>Expected {oa.eta}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-3)' }}>{oa.agencyShortName}</span>
             </div>
             <button
-              className="press focus-ring" onClick={() => openOverlay('track', { id: oa.id })}
+              className="press focus-ring"
+              onClick={() => (oa.status === 'draft'
+                ? openOverlay('serviceApply', { serviceId: oa.serviceId, applicationId: oa.id })
+                : openOverlay('serviceTrack', { group: oa.group, id: oa.id }))}
               style={{
                 display: 'flex', alignItems: 'stretch', width: '100%', height: 48, border: 'none', borderRadius: 14,
                 background: 'var(--brand-50)', cursor: 'pointer', overflow: 'hidden', padding: 0,

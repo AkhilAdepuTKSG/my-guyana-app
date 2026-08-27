@@ -1,0 +1,312 @@
+import PageOverlay from '../../components/ui/PageOverlay';
+import Button from '../../components/ui/Button';
+import Icon from '../../components/ui/Icon';
+import { useAppState } from '../../state/AppStateContext';
+import { useApi, useUserId } from '../../hooks/useApi';
+import { getServiceDetail } from '../../api/catalog';
+import { listAll } from '../../api/applications';
+import {
+  SectionHeading, InfoPanel, Card, StepList, BulletList, FeeTable,
+  LoadingState, ErrorState,
+} from '../../components/service/ServicePieces';
+import { formatGyd, formatTimeframe } from '../../lib/format';
+
+// The View screen every service opens with: what it is, who can apply, what you
+// need before you start, what it costs, how long it takes, and which agencies
+// will see it. One component serves all three groups — everything on it comes
+// from the seeded service record, so no service has a bespoke overview screen.
+
+export default function ServiceView() {
+  const { isOpen, getPayload, closeOverlay, openOverlay } = useAppState();
+  const open = isOpen('serviceView');
+  const payload = getPayload('serviceView');
+  const serviceId = payload && typeof payload === 'object' ? payload.serviceId : null;
+  const userId = useUserId();
+
+  const detail = useApi(
+    () => getServiceDetail(serviceId),
+    [serviceId],
+    { enabled: open && !!serviceId }
+  );
+
+  // Anything the citizen already has open for this service, so the screen
+  // offers "resume" or "track" rather than a second application.
+  const mine = useApi(
+    () => listAll(userId),
+    [userId, serviceId],
+    { enabled: open && !!userId, initial: [] }
+  );
+
+  if (!open) return null;
+
+  const service = detail.data?.service;
+  const agency = detail.data?.agency;
+  const accent = agency?.mark || 'var(--brand-600)';
+  const existing = (mine.data || []).filter((a) => a.serviceId === serviceId);
+  const draft = existing.find((a) => a.status === 'draft');
+  const openApplication = existing.find((a) => a.status !== 'draft');
+
+  const startApply = () => {
+    if (!service) return;
+    if (service.group === 'gro') {
+      openOverlay('groLookup', { serviceId: service.id });
+      return;
+    }
+    openOverlay('serviceApply', { serviceId: service.id, applicationId: draft?.id || null });
+  };
+
+  const track = () => {
+    if (!openApplication) return;
+    openOverlay('serviceTrack', { group: openApplication.group, id: openApplication.id });
+  };
+
+  const supportButton = service && (
+    <button
+      className="press focus-ring"
+      onClick={() => openOverlay('askGov', { serviceId: service.id, serviceTitle: service.name })}
+      aria-label={`Ask Gov about ${service.name}`}
+      style={{
+        width: 34, height: 34, borderRadius: 999, border: 'none', background: accent,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}
+    >
+      <Icon name="sparkles" size={17} color="#fff" />
+    </button>
+  );
+
+  const footer = service && (
+    <div style={{
+      padding: '12px 20px calc(16px + env(safe-area-inset-bottom, 0px))',
+      background: 'var(--surface-1)', borderTop: '1px solid var(--surface-hairline)',
+      display: 'flex', flexDirection: 'column', gap: 9,
+    }}>
+      <Button fullWidth style={{ background: accent }} onClick={startApply}>
+        {service.group === 'gro'
+          ? 'Enter my registration number'
+          : draft ? 'Resume my application' : `Apply for ${service.name.toLowerCase()}`}
+      </Button>
+      {openApplication && (
+        <Button fullWidth variant="outline" onClick={track}>
+          Track my {openApplication.statusLabel.toLowerCase() === 'certificate ready' ? 'certificate' : 'application'}
+        </Button>
+      )}
+    </div>
+  );
+
+  return (
+    <PageOverlay
+      open={open}
+      onClose={() => closeOverlay('serviceView')}
+      title={service?.name || 'Service'}
+      subtitle={agency?.name}
+      headerRight={supportButton}
+      footer={footer}
+    >
+      {detail.loading ? (
+        <LoadingState label="Loading this service…" />
+      ) : detail.error ? (
+        <ErrorState error={detail.error} onRetry={detail.reload} />
+      ) : service ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+          {/* --- Hero ---------------------------------------------------- */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 48, height: 48, flexShrink: 0, borderRadius: 'var(--radius-lg)',
+                  background: `color-mix(in oklch, ${accent} 14%, transparent)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <Icon name={service.icon} size={23} color={accent} />
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h1 style={{ margin: 0, fontSize: 21, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2, color: 'var(--fg-1)' }}>
+                  {service.name}
+                </h1>
+                <span style={{ display: 'block', marginTop: 3, fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: accent }}>
+                  {agency?.shortName}
+                </span>
+              </div>
+            </div>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>{service.summary}</p>
+
+            {/* At-a-glance: cost and time, the two things people ask first */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <GlanceTile
+                icon="banknote"
+                label="To apply"
+                value={formatGyd(detail.data.feesPayableNow, { free: 'Free' })}
+                accent={accent}
+              />
+              <GlanceTile
+                icon="clock"
+                label="Decision in"
+                value={formatTimeframe(service.timeframeDays)}
+                accent={accent}
+              />
+            </div>
+          </div>
+
+          {/* --- Overview ------------------------------------------------- */}
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <SectionHeading eyebrow="Overview" title="What this is" accent={accent} />
+            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.65, color: 'var(--fg-2)' }}>{service.overview}</p>
+          </section>
+
+          {/* --- How it works --------------------------------------------- */}
+          {service.steps?.length > 0 && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <SectionHeading eyebrow="The process" title="How it works" accent={accent} />
+              <StepList steps={service.steps} accent={accent} />
+            </section>
+          )}
+
+          {/* --- Before you start ------------------------------------------ */}
+          {service.prerequisites?.length > 0 && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <SectionHeading
+                eyebrow="Before you start"
+                title="What you must already hold"
+                description="These are checked before anything else. You confirm each one as part of the application."
+                accent={accent}
+              />
+              <Card>
+                {service.prerequisites.map((p, i) => (
+                  <div key={p.id} style={{
+                    display: 'flex', gap: 11, padding: '13px 14px',
+                    borderBottom: i < service.prerequisites.length - 1 ? '1px solid var(--surface-hairline)' : 'none',
+                  }}>
+                    <Icon name="key-round" size={16} color={accent} style={{ flexShrink: 0, marginTop: 2 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: 'var(--fg-1)' }}>{p.label}</span>
+                      <p style={{ margin: '4px 0 0', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-2)' }}>{p.detail}</p>
+                      <span style={{ display: 'block', marginTop: 4, fontSize: 11.5, color: 'var(--fg-4)' }}>Issued by {p.issuedBy}</span>
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            </section>
+          )}
+
+          {/* --- Eligibility ----------------------------------------------- */}
+          {service.eligibilityNotes?.length > 0 && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <SectionHeading eyebrow="Eligibility" title="Who can apply" accent={accent} />
+              <BulletList items={service.eligibilityNotes} icon="check" color={accent} />
+            </section>
+          )}
+
+          {/* --- Documents -------------------------------------------------- */}
+          {service.documents?.length > 0 && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <SectionHeading
+                eyebrow="Requirements"
+                title="What you will need"
+                description="Anything already in your Vault can be attached without uploading it again."
+                accent={accent}
+              />
+              <Card>
+                {service.documents.map((d, i) => (
+                  <div key={d.id} style={{
+                    display: 'flex', gap: 11, padding: '12px 14px',
+                    borderBottom: i < service.documents.length - 1 ? '1px solid var(--surface-hairline)' : 'none',
+                  }}>
+                    <Icon
+                      name={d.required ? 'file-check-2' : 'file'}
+                      size={16}
+                      color={d.required ? accent : 'var(--fg-4)'}
+                      style={{ flexShrink: 0, marginTop: 2 }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--fg-1)' }}>
+                        {d.label}
+                        {!d.required && <span style={{ color: 'var(--fg-4)', fontWeight: 600 }}> · optional</span>}
+                      </span>
+                      <span style={{ display: 'block', marginTop: 2, fontSize: 11.5, color: 'var(--fg-3)' }}>{d.issuer}</span>
+                      {d.hint && <span style={{ display: 'block', marginTop: 3, fontSize: 11.5, lineHeight: 1.45, color: 'var(--fg-4)' }}>{d.hint}</span>}
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            </section>
+          )}
+
+          {/* --- Fees -------------------------------------------------------- */}
+          {detail.data.fees.length > 0 && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <SectionHeading eyebrow="Fees" title="What it costs" accent={accent} />
+              <FeeTable fees={detail.data.fees} accent={accent} />
+            </section>
+          )}
+
+          {/* --- Agencies involved -------------------------------------------- */}
+          {detail.data.routes.length > 1 && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <SectionHeading
+                eyebrow="Single Window"
+                title="Who reviews it"
+                description="You apply once. We route it to each of these and show you where it has reached — you never contact them yourself."
+                accent={accent}
+              />
+              <Card>
+                {detail.data.routes.map((route, i) => (
+                  <div key={route.id} style={{
+                    display: 'flex', gap: 11, padding: '12px 14px',
+                    borderBottom: i < detail.data.routes.length - 1 ? '1px solid var(--surface-hairline)' : 'none',
+                  }}>
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 32, height: 32, flexShrink: 0, borderRadius: 'var(--radius-md)',
+                        background: `color-mix(in oklch, ${route.agency?.mark || accent} 14%, transparent)`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <Icon name={route.agency?.icon || 'building-2'} size={15} color={route.agency?.mark || accent} />
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: 'var(--fg-1)' }}>
+                        {route.agency?.shortName || route.agencyId}
+                        {route.appliesWhen === 'emptyPlot' && (
+                          <span style={{ color: 'var(--fg-4)', fontWeight: 600 }}> · empty plots only</span>
+                        )}
+                      </span>
+                      <p style={{ margin: '3px 0 0', fontSize: 12, lineHeight: 1.45, color: 'var(--fg-2)' }}>{route.purpose}</p>
+                      <span style={{ display: 'block', marginTop: 3, fontSize: 11, color: 'var(--fg-4)' }}>
+                        {route.slaDays} working-day target
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            </section>
+          )}
+
+          {/* --- Timeframe ------------------------------------------------------ */}
+          <InfoPanel tone="accent" accent={accent} icon="clock" title={`Decision in ${formatTimeframe(service.timeframeDays)}`}>
+            {service.timeframeNote}
+          </InfoPanel>
+
+          <div style={{ height: 4 }} />
+        </div>
+      ) : null}
+    </PageOverlay>
+  );
+}
+
+function GlanceTile({ icon, label, value, accent }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 6, padding: '13px 14px',
+      border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-lg)', background: 'var(--surface-1)',
+    }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-3)' }}>
+        <Icon name={icon} size={13} color={accent} />
+        {label}
+      </span>
+      <span style={{ fontSize: 16.5, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>{value}</span>
+    </div>
+  );
+}

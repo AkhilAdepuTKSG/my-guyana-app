@@ -46,6 +46,12 @@ import NotificationsSheet from '../../overlays/profile/NotificationsSheet';
 import RegionSheet from '../../overlays/profile/RegionSheet';
 import CategoryDrillDown from '../../overlays/services/CategoryDrillDown';
 import PushBanner from './PushBanner';
+import ServiceView from '../../overlays/service/ServiceView';
+import ServiceApply from '../../overlays/service/ServiceApply';
+import ServiceTrack from '../../overlays/service/ServiceTrack';
+import SingleWindowHub from '../../overlays/singleWindow/SingleWindowHub';
+import GroLookup from '../../overlays/gro/GroLookup';
+import GroCertificate from '../../overlays/gro/GroCertificate';
 import WelcomeCarousel from '../../overlays/welcome/WelcomeCarousel';
 import TourSheet from '../../overlays/welcome/TourSheet';
 import AddAgencyDiscoverySheet from '../../overlays/welcome/AddAgencyDiscoverySheet';
@@ -83,6 +89,15 @@ export default function AppShell() {
 
       {/* Full-screen flows and sheets — layered above the primary screens.
           The auth flow itself lives at the app root as the pre-shell gate. */}
+      {/* The seeded services — Cash Grants, Single Window and GRO — all share
+          this View / Apply / Track shell, driven by the `services` table. */}
+      {/* <SingleWindowHub /> */}
+      <ServiceView />
+      <ServiceApply />
+      <ServiceTrack />
+      <GroLookup />
+      <GroCertificate />
+
       <EidApplicationFlow />
       <ApplyFlow />
       <NisRegistrationFlow />
