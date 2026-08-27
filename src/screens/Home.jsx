@@ -38,6 +38,13 @@ function getDayGreeting() {
 // for a first-time citizen. Colors are the design's socket treatment (bright
 // on the dark hero); agencies outside the trio derive from their agency mark.
 const RECOMMENDED_AGENCIES = ['mops', 'nis', 'gpl'];
+
+// The design's "Complete your profile" banner and next-step card are kept in
+// code but switched off on request: profile completion is carried by the red
+// dot on the avatar → profile sheet → Personal information, and the e-ID visit
+// lives in Appointments / Applications. Flip to true to show them again.
+const SHOW_HOME_NUDGES = false;
+
 const SOCKET_DEFS = {
   mops: { label: 'Digital ID', icon: 'id-card', color: '#ff9ebb', bg: 'rgba(190,60,110,0.24)', ring: 'rgba(255,158,187,0.45)' },
   nis: { label: 'Social Security', icon: 'shield-check', color: '#4ade9b', bg: 'rgba(0,155,103,0.20)', ring: 'rgba(74,222,155,0.5)' },
@@ -61,7 +68,7 @@ const ELIGIBILITY_DEFS = [
 ];
 
 export default function Home() {
-  const { navigate, openOverlay, showToast, persona, user, pinnedAgencies, agencyUsage, recordAgencyUse } = useAppState();
+  const { navigate, openOverlay, showToast, persona, user, updateUser, pinnedAgencies, agencyUsage, recordAgencyUse } = useAppState();
   const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
 
   const connected = persona.connectedAgencies || [];
@@ -103,6 +110,36 @@ export default function Home() {
   const heroStatusLabel = persona.eidStatus === 'issued' ? 'Identity verified · e-ID active' : 'Identity verified';
   const showHowItWorks = connected.length <= 1;
 
+  // Only true while the next-step card is shown — otherwise the bill surfaces in the alerts list.
+  const billIsNextStep = SHOW_HOME_NUDGES && persona.eidStatus === 'issued' && persona.gpl?.status === 'unpaid';
+
+  const nextStep = useMemo(() => {
+    if (persona.eidStatus === 'applied') {
+      return {
+        icon: 'calendar-check', eyebrow: 'Booked', title: 'Finish your e-ID',
+        sub: 'Attend your Service Centre visit', cta: 'View',
+        action: () => navigate('calendar'),
+      };
+    }
+    if (persona.eidStatus !== 'issued') {
+      return {
+        icon: 'fingerprint', eyebrow: 'Start here', title: 'Apply for your e-ID',
+        sub: 'Your digital identity — about 5 minutes', cta: 'Start',
+        action: () => openOverlay('eid'),
+      };
+    }
+    if (billIsNextStep) {
+      return {
+        icon: 'receipt', eyebrow: 'Due soon', title: `Electricity bill ${formatMoney(persona.gpl.balance)}`,
+        sub: `Due ${formatShortDate(persona.gpl.dueDate)}`, cta: 'Pay',
+        action: () => openOverlay('gplPay'),
+      };
+    }
+    // Nothing urgent left. Accessing the e-ID lives in the Vault/profile, not
+    // on Home (backlog 2.2) — no card renders and the content below reflows.
+    return null;
+  }, [persona, billIsNextStep, navigate, openOverlay]);
+
   // ONE source of truth for "needs attention" — feeds both the list below and
   // the alert dots on the dial nodes, so they can never disagree.
   const attentionItems = useMemo(() => {
@@ -127,7 +164,9 @@ export default function Home() {
           });
         });
       });
-    if (persona.gpl?.status === 'unpaid') {
+    // The bill amount is told once: when the next-step card already leads
+    // with it, it drops out of this list so the two never repeat themselves.
+    if (persona.gpl?.status === 'unpaid' && !billIsNextStep) {
       items.push({
         id: 'gpl-bill', agencyId: 'gpl', icon: 'receipt', agency: 'GPL',
         title: `${formatMoney(persona.gpl.balance)} due ${formatShortDate(persona.gpl.dueDate)}`,
@@ -136,7 +175,7 @@ export default function Home() {
       });
     }
     return items;
-  }, [connected, persona, openOverlay]);
+  }, [connected, persona, billIsNextStep, openOverlay]);
 
   const attentionByAgency = useMemo(() => {
     const m = {};
@@ -355,10 +394,64 @@ export default function Home() {
 
       <div style={{ paddingTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-        {/* No profile banner and no next-step card here (dropped on request):
-            profile completion is the red dot on the avatar → profile sheet →
-            Personal information; the e-ID visit lives in Appointments and
-            Applications; a bill due surfaces below. */}
+        {/* Complete-your-profile banner (Final design) — shown while the
+            profile has missing fields, dismissible. Opens the same profile the
+            top-nav avatar opens, where the pending sections are badged
+            (backlog 2.3 / 2.4). */}
+        {SHOW_HOME_NUDGES && user && missingPersonal.length > 0 && !user.profileBannerDismissed && (
+          <div style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--brand-200, var(--surface-border))', borderRadius: 18, background: 'var(--brand-50)', padding: 15, display: 'flex', alignItems: 'center', gap: 13 }}>
+            <span aria-hidden="true" style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 12, background: 'var(--brand-600)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="user-round" size={19} color="#fff" />
+            </span>
+            <button
+              className="press focus-ring" onClick={() => openOverlay('profile')}
+              style={{ flex: 1, minWidth: 0, textAlign: 'left', cursor: 'pointer', border: 'none', background: 'none', padding: 0, fontFamily: 'inherit' }}
+            >
+              <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>Complete your profile</span>
+              <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, lineHeight: 1.4, color: 'var(--fg-2)' }}>
+                {`Add your ${missingPersonal.map((f) => f.label.toLowerCase()).join(', ')} so government services can reach you.`}
+              </span>
+            </button>
+            <button
+              className="press focus-ring" onClick={() => updateUser({ profileBannerDismissed: true })} aria-label="Dismiss"
+              style={{ flexShrink: 0, width: 30, height: 30, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Icon name="x" size={16} color="var(--fg-3)" />
+            </button>
+          </div>
+        )}
+
+        {/* Next step nudge — only while something is actually pending */}
+        {SHOW_HOME_NUDGES && nextStep && (
+        <button
+          className="press focus-ring" onClick={nextStep.action}
+          style={{
+            width: '100%', textAlign: 'left', cursor: 'pointer', border: '1px solid var(--surface-border)',
+            borderRadius: 18, background: 'var(--surface-1)', padding: 16, display: 'flex',
+            alignItems: 'center', gap: 13, boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <span aria-hidden="true" style={{
+            width: 42, height: 42, flexShrink: 0, borderRadius: 13, background: 'rgba(20,43,68,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Icon name={nextStep.icon} size={20} color="#142b44" />
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--fg-3)' }}>
+              {nextStep.eyebrow}
+            </span>
+            <span style={{ display: 'block', marginTop: 3, fontSize: 15.5, fontWeight: 800, color: 'var(--fg-1)' }}>{nextStep.title}</span>
+            <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, color: 'var(--fg-2)' }}>{nextStep.sub}</span>
+          </span>
+          <span style={{
+            flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, minHeight: 36, padding: '0 13px',
+            borderRadius: 999, background: 'var(--brand-600)', color: '#fff', fontSize: 12.5, fontWeight: 800,
+          }}>
+            {nextStep.cta}<Icon name="arrow-right" size={14} color="#fff" />
+          </span>
+        </button>
+        )}
 
         {/* Eligible benefits and grants — the approved label (backlog 2.6).
             The account alerts and the eligibility suggestions live under this

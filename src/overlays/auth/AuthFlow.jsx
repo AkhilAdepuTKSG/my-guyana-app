@@ -205,9 +205,11 @@ export default function AuthFlow({ gate = false }) {
         });
       }
     }
-    // No e-ID (John): the enrolment visit was booked as part of sign-up, and he
-    // lands on the full list of agencies connected from his government record.
-    if (st.authIntent === 'create' && st.eidApplied && (citizen?.linkedAgencies || []).length) {
+    // No e-ID (John): after the enrolment visit is booked he lands on Home. The
+    // "open the agencies sheet on landing" behaviour is kept but switched off on
+    // request — the sheet opens from Home's "See all" instead.
+    const OPEN_AGENCIES_AFTER_SIGNUP = false;
+    if (OPEN_AGENCIES_AFTER_SIGNUP && st.authIntent === 'create' && st.eidApplied && (citizen?.linkedAgencies || []).length) {
       openOverlay('addAgency');
     }
     // A citizen who registered without an e-ID has one started for them, with a
