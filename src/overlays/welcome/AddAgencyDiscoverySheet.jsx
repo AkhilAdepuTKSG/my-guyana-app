@@ -91,9 +91,14 @@ export default function AddAgencyDiscoverySheet() {
 
         {yours.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <h3 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>
-              Connected · {yours.length}
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)', flex: 1, minWidth: 0 }}>
+                Connected from your government record · {yours.length}
+              </h3>
+              <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 800, color: pinnedAgencies.length >= 6 ? 'var(--status-warning)' : 'var(--fg-3)' }}>
+                Pinned {pinnedAgencies.length} of 6
+              </span>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {yours.map((a) => {
                 const isPinned = pinnedAgencies.includes(a.id);

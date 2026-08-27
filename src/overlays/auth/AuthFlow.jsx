@@ -91,7 +91,7 @@ function makeInitialState(persona) {
 }
 
 export default function AuthFlow({ gate = false }) {
-  const { isOpen, closeOverlay, persona, showToast, signIn, addNotification, addAppointment, addApplication, connectAgency } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, persona, showToast, signIn, addNotification, addAppointment, addApplication, connectAgency } = useAppState();
   const open = gate || isOpen('auth');
   const [st, setSt] = useState(() => makeInitialState(persona));
   const timers = useRef([]);
@@ -204,6 +204,11 @@ export default function AuthFlow({ gate = false }) {
           body: `Your NIS record is connected — ${reg.contributions.weeks} contributions on file. Confirm your employer's details.`,
         });
       }
+    }
+    // No e-ID (John): the enrolment visit was booked as part of sign-up, and he
+    // lands on the full list of agencies connected from his government record.
+    if (st.authIntent === 'create' && st.eidApplied && (citizen?.linkedAgencies || []).length) {
+      openOverlay('addAgency');
     }
     // A citizen who registered without an e-ID has one started for them, with a
     // Service Centre visit booked. Surface it as a real appointment, a tracked

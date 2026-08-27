@@ -211,10 +211,17 @@ export function AppStateProvider({ children }) {
   const disconnectAgency = useCallback((id) => {
     setConnectedAgencies((list) => list.filter((a) => a !== id));
   }, []);
-  // Pin/unpin an agency so it leads the Home tiles (backlog 2.1).
+  // Pin/unpin an agency so it leads the Home tiles (backlog 2.1). The Home
+  // hero has six sockets, so pinning is capped at six — the design's rule.
+  const MAX_PINNED = 6;
   const togglePinAgency = useCallback((id) => {
-    setPinnedAgencies((list) => (list.includes(id) ? list.filter((a) => a !== id) : [...list, id]));
-  }, []);
+    if (pinnedAgencies.includes(id)) { setPinnedAgencies(pinnedAgencies.filter((a) => a !== id)); return; }
+    if (pinnedAgencies.length >= MAX_PINNED) {
+      showToast(`You can pin up to ${MAX_PINNED} agencies to Home. Unpin one to add another.`);
+      return;
+    }
+    setPinnedAgencies([...pinnedAgencies, id]);
+  }, [pinnedAgencies, showToast]);
   // Count every real use of an agency (opening its hub or one of its services) —
   // the most-frequently-used ordering falls out of this when nothing is pinned.
   const recordAgencyUse = useCallback((id) => {

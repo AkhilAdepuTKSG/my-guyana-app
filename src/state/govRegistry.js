@@ -72,7 +72,10 @@ export const GOV_CITIZENS = [
     gender: 'm',
     region: 'r4', // Region 4 — Demerara-Mahaica
     placeOfBirth: 'New Amsterdam, Guyana',
-    address: 'Lot 8 Sheriff Street, Georgetown',
+    // No verified current address on record — the one detail his profile asks
+    // him to complete after sign-up (backlog 2.3–2.5). His older documents still
+    // print his last known address.
+    address: null,
     phone: '+592 645 7391',
     phoneMasked: '••• ••• 7391',
     email: 'john.doe@example.gy',

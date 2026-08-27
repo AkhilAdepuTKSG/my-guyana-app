@@ -4,6 +4,7 @@ import Icon from '../components/ui/Icon';
 import NotificationBell from '../components/ui/NotificationBell';
 import { AGENCIES, NOTIFICATIONS, ONGOING_APPLICATIONS, REGIONS } from '../state/mockData';
 import { AGENCY_HUBS, agencyCategoryId } from '../lib/serviceCatalog';
+import { missingPersonalFields } from '../lib/profileFields';
 
 // ---------------------------------------------------------------------------
 // Local helpers / mock-derived data. Home reads persona + shared fixtures but
@@ -64,6 +65,12 @@ export default function Home() {
   const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
 
   const connected = persona.connectedAgencies || [];
+
+  // Required personal details the government record could not supply — drives
+  // the avatar dot and the banner; tapping either goes straight to the
+  // Personal Information page (backlog 2.3–2.5).
+  const missingPersonal = missingPersonalFields(user);
+  const openProfileOrCompletion = () => openOverlay(missingPersonal.length > 0 ? 'personalInfo' : 'profile');
 
   // --- Which agencies lead the Home (backlog 2.1) ---
   // Pinned first; when nothing is pinned, the most-frequently-used; and for a
@@ -214,15 +221,21 @@ export default function Home() {
         display: 'flex', alignItems: 'center', gap: 10, background: 'var(--brand-800)',
       }}>
         <button
-          className="press focus-ring" onClick={() => openOverlay('profile')}
-          aria-label="Your profile, region and settings"
+          className="press focus-ring" onClick={openProfileOrCompletion}
+          aria-label={missingPersonal.length > 0 ? `Your profile — ${missingPersonal.length} required ${missingPersonal.length === 1 ? 'detail' : 'details'} missing` : 'Your profile, region and settings'}
           style={{
-            flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 11,
+            position: 'relative', flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 11,
             height: 52, padding: '6px 12px 6px 6px', borderRadius: 999,
             background: 'var(--surface-1)', border: '1px solid var(--surface-border)',
             cursor: 'pointer', textAlign: 'left',
           }}
         >
+          {missingPersonal.length > 0 && (
+            <span aria-hidden="true" style={{
+              position: 'absolute', top: 4, left: 36, width: 13, height: 13, borderRadius: 999,
+              background: 'var(--status-error)', border: '2px solid var(--surface-1)', zIndex: 1,
+            }} />
+          )}
           <span aria-hidden="true" style={{
             width: 40, height: 40, borderRadius: '50%', background: 'var(--agency-accent)',
             color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -377,18 +390,18 @@ export default function Home() {
             profile has missing fields, dismissible. Opens the same profile the
             top-nav avatar opens, where the pending sections are badged
             (backlog 2.3 / 2.4). */}
-        {user && user.profileComplete === false && !user.profileBannerDismissed && (
+        {user && missingPersonal.length > 0 && !user.profileBannerDismissed && (
           <div style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--brand-200, var(--surface-border))', borderRadius: 18, background: 'var(--brand-50)', padding: 15, display: 'flex', alignItems: 'center', gap: 13 }}>
             <span aria-hidden="true" style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 12, background: 'var(--brand-600)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="user-round" size={19} color="#fff" />
             </span>
             <button
-              className="press focus-ring" onClick={() => openOverlay('profile')}
+              className="press focus-ring" onClick={() => openOverlay('personalInfo')}
               style={{ flex: 1, minWidth: 0, textAlign: 'left', cursor: 'pointer', border: 'none', background: 'none', padding: 0, fontFamily: 'inherit' }}
             >
               <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: 'var(--fg-1)' }}>Complete your profile</span>
               <span style={{ display: 'block', marginTop: 1, fontSize: 12.5, lineHeight: 1.4, color: 'var(--fg-2)' }}>
-                Add your region and contact details so government services can reach you.
+                {`Add your ${missingPersonal.map((f) => f.label.toLowerCase()).join(', ')} so government services can reach you.`}
               </span>
             </button>
             <button
