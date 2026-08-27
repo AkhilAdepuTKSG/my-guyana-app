@@ -22,7 +22,7 @@ export const GOV_ID_TYPES = [
 ];
 
 export const GOV_ID_PLACEHOLDER = {
-  'e-ID': 'e.g. GUY-04471-0928', TIN: 'e.g. 1234-5678', 'National ID': 'e.g. 884 213 004',
+  'e-ID': 'e.g. 123-4567-8901', TIN: 'e.g. 1234-5678', 'National ID': 'e.g. 884 213 004',
   Passport: 'e.g. R0123456', "Driver's licence": 'e.g. DL-884213',
 };
 export const GOV_ID_TITLE = {

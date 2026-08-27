@@ -5,7 +5,7 @@
 //
 // Two demo citizens, each with fully self-consistent details (no value is
 // shared or mismatched across a person's documents):
-//   • Nicole Persaud — already has an e-ID (GUY-04471-0928)
+//   • Nicole Persaud — already has an e-ID (123-4567-8901)
 //   • John Doe       — no e-ID yet, but is on record with other documents
 //
 // The sample documents in public/sample-docs/ are generated from these exact
@@ -41,8 +41,8 @@ export const GOV_CITIZENS = [
 
     // Identity documents on record
     hasEid: true,
-    // 3-5-4 format supplied by MoPS — the confirmed standard (backlog 1.1).
-    eidNo: 'GUY-04471-0928',
+    // e-ID number as printed on the card (format as issued by MoPS; backlog 1.1).
+    eidNo: '123-4567-8901',
     eidCardNo: '0000 1234 5678', // number printed on the physical smart card
     nationalId: 'N1234567890',
     passport: 'P1234567890',
@@ -91,7 +91,7 @@ const DOC_FIELD = {
   "Driver's licence": 'driversLicence',
 };
 
-// Loose normaliser so "GUY-04471-0928", "guy 04471 0928" and "GUY044710928"
+// Loose normaliser so "123-4567-8901", "123 4567 8901" and "12345678901"
 // all compare equal — real cards are read/typed with inconsistent spacing.
 function norm(value) {
   return String(value ?? '').replace(/[\s-]/g, '').toUpperCase();
@@ -115,7 +115,7 @@ export function findByDocument(type, number) {
 }
 
 // Look a citizen up by their e-ID — accepts either the printed e-ID number
-// (GUY-04471-0928, the MoPS 3-5-4 format) or the long card number (0000 1234 5678).
+// (123-4567-8901) or the long card number (0000 1234 5678).
 export function findByEid(value) {
   if (!value) return null;
   const n = norm(value);

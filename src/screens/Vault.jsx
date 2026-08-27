@@ -16,8 +16,8 @@ const DOC_TYPES = [
   { id: 'other', label: 'Other document', icon: 'file' },
 ];
 
-// Display fallback only — MoPS 3-5-4 e-ID format (backlog 1.1).
-const EID_NUMBER = 'GUY-04471-0928';
+// Display fallback only — e-ID number format as issued by MoPS (backlog 1.1).
+const EID_NUMBER = '123-4567-8901';
 
 function buildWalletCards(persona) {
   const cards = [];

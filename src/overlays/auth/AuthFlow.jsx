@@ -335,8 +335,8 @@ export default function AuthFlow({ gate = false }) {
       try {
         const text = await recognizeImage(file);
         const parsed = parseFields(text);
-        // e-ID numbers follow the MoPS 3-5-4 format, e.g. GUY-04471-0928 (backlog 1.1).
-        const num = parsed.documentNumber || (text.match(/\b[A-Z]{2,3}-?\d{5}-?\d{4}\b/i)?.[0]) || '';
+        // e-ID numbers as printed on the card, e.g. 123-4567-8901 (backlog 1.1).
+        const num = parsed.documentNumber || (text.match(/\b\d{3}-?\d{4}-?\d{4}\b/)?.[0]) || '';
         const citizen = findByEid(num);
         if (!citizen) {
           setSt((s) => ({ ...s, authStep: 'eid-signin', eidSignInError: "We couldn't read a known e-ID from that image. Try tapping the card, or create an account." }));
