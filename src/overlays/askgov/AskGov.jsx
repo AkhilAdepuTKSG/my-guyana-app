@@ -4,6 +4,7 @@ import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
 import { AGENCIES, SERVICE_CENTRES } from '../../state/mockData';
 import { AGENCY_HUBS, agencyCategoryId, SERVICE_ACCESS } from '../../lib/serviceCatalog';
+import { useMyApplications, openTargetFor } from '../../hooks/useMyApplications';
 
 // Ask Gov, scoped per review (backlog 4.1): information, pointing the citizen
 // to the right service, eligibility, and application status. Every answer that
@@ -153,12 +154,19 @@ const act = (label, icon, go) => ({ label, icon, go });
 // Which application a question is about, by the words the citizen uses.
 const APP_MATCHERS = [
   { keys: ['passport'], ids: ['passport'], label: 'passport', apply: act('Apply for a passport', 'plane', GO.passportApply) },
-  { keys: ['cash grant', 'grant'], ids: ['cashGrant'], label: 'cash grant', apply: act('Check eligibility and apply', 'banknote', GO.cashGrant) },
+  { keys: ['cash grant', 'grant'], ids: ['cashGrant', 'cash_grant'], label: 'cash grant', apply: act('Check eligibility and apply', 'banknote', GO.cashGrant) },
   { keys: ['e-id', 'eid', 'digital id', 'id card'], ids: ['eid'], label: 'e-ID', apply: act('Apply for an e-ID', 'fingerprint', GO.eidApply) },
   { keys: ['nis registration', 'registration', 'register'], ids: ['nisReg'], label: 'NIS registration', apply: act('Register with NIS', 'badge-check', GO.nisRegister) },
   { keys: ['sickness'], ids: ['sickness'], label: 'sickness benefit', apply: act('Apply for Sickness Benefit', 'thermometer', GO.benefit('sickness')) },
   { keys: ['maternity'], ids: ['maternity'], label: 'maternity benefit', apply: act('Apply for Maternity Benefit', 'baby', GO.benefit('maternity')) },
   { keys: ['funeral'], ids: ['funeral'], label: 'funeral grant', apply: act('Apply for the Funeral Grant', 'flower-2', GO.benefit('funeral')) },
+  // GRO certificates and Single Window applications (api-layer services).
+  { keys: ['birth certificate'], ids: ['gro_birth'], label: 'birth certificate', apply: act('Request a birth certificate', 'book-open', GO.groBirth) },
+  { keys: ['death certificate'], ids: ['gro_death'], label: 'death certificate', apply: act('Request a death certificate', 'book-open', GO.groDeath) },
+  { keys: ['marriage certificate'], ids: ['gro_marriage'], label: 'marriage certificate', apply: act('Request a marriage certificate', 'book-open', GO.groMarriage) },
+  { keys: ['water connection', 'water'], ids: ['sw_water'], label: 'water connection', apply: act('Apply for a water connection', 'droplets', GO.waterConnection) },
+  { keys: ['construction permit', 'building permit', 'permit'], ids: ['sw_construction_permit'], label: 'construction permit', apply: act('Apply for a construction permit', 'hard-hat', GO.constructionPermit) },
+  { keys: ['power connection'], ids: ['sw_power'], label: 'power connection', apply: act('Apply for a power connection', 'zap', GO.powerConnection) },
   { keys: ['connection', 'new electricity'], ids: ['gpl-new'], label: 'new electricity connection', apply: act('Apply for a new connection', 'plug', GO.gplNew) },
 ];
 
@@ -179,7 +187,10 @@ function statusPhrase(status = '') {
 
 // Land on My applications with this application's tracking page on top —
 // closing the details leaves the citizen on My applications.
-const trackAction = (a) => act(`${a.title} — details`, 'route', { screen: 'applications', overlay: 'track', payload: a });
+// Whichever store the application came from, the button opens ITS details page
+// over My applications (legacy tracker for e-ID/passport, service tracker for
+// the api-layer services).
+const trackAction = (a) => act(`${a.title} — details`, 'route', { screen: 'applications', ...openTargetFor(a) });
 
 function statusReply(text, applications) {
   const t = text.toLowerCase();
@@ -457,7 +468,9 @@ function pickReply(text, { persona, applications, ctxId }) {
 let msgSeq = 2;
 
 export default function AskGov() {
-  const { isOpen, closeOverlay, openOverlay, navigate, getPayload, persona, applications } = useAppState();
+  const { isOpen, closeOverlay, openOverlay, navigate, getPayload, persona } = useAppState();
+  // Every application from every store — the same merge My applications shows.
+  const { applications } = useMyApplications();
   const open = isOpen('askGov');
 
   // Service context (4.2): { serviceId } when opened from inside a service.

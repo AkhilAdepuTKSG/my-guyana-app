@@ -5,8 +5,7 @@ import NotificationBell from '../components/ui/NotificationBell';
 import { AGENCIES, NOTIFICATIONS, REGIONS } from '../state/mockData';
 import { AGENCY_HUBS, agencyCategoryId, SERVICE_ACCESS } from '../lib/serviceCatalog';
 import { missingPersonalFields } from '../lib/profileFields';
-import { useApi, useUserId } from '../hooks/useApi';
-import { listAll } from '../api/applications';
+import { useMyApplications, openTargetFor } from '../hooks/useMyApplications';
 
 // ---------------------------------------------------------------------------
 // Local helpers / mock-derived data. Home reads persona + shared fixtures but
@@ -49,7 +48,6 @@ const SHOW_HOME_NUDGES = false;
 
 // One shared empty array, so an unloaded application list keeps the same
 // identity between renders.
-const EMPTY_APPLICATIONS = [];
 
 const SOCKET_DEFS = {
   mops: { label: 'Digital ID', icon: 'id-card', color: '#ff9ebb', bg: 'rgba(190,60,110,0.24)', ring: 'rgba(255,158,187,0.45)' },
@@ -76,11 +74,9 @@ const ELIGIBILITY_DEFS = [
 export default function Home() {
   const { navigate, openOverlay, showToast, persona, user, updateUser, pinnedAgencies, agencyUsage, recordAgencyUse } = useAppState();
   const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
-  // Everything the citizen has applied for, across all three services.
-  const userId = useUserId();
-  const applicationsQuery = useApi(() => listAll(userId), [userId], { enabled: !!userId, initial: [] });
-  // Stable across renders so the memos below are not invalidated every time.
-  const liveApplications = applicationsQuery.data ?? EMPTY_APPLICATIONS;
+  // Everything the citizen has applied for, from every store — the one merge
+  // the Applications tab and Ask Gov read too (hooks/useMyApplications).
+  const { applications: liveApplications } = useMyApplications();
 
   const connected = persona.connectedAgencies || [];
 
@@ -173,9 +169,7 @@ export default function Home() {
           agency: a.agencyShortName,
           title: a.status === 'draft' ? `Finish your ${a.title.toLowerCase()} application` : `${a.agencyShortName} needs something from you`,
           sub: a.title, cta: 'Review', tone: a.status === 'draft' ? 'warning' : 'error',
-          open: () => (a.status === 'draft'
-            ? openOverlay('serviceApply', { serviceId: a.serviceId, applicationId: a.id })
-            : openOverlay('serviceTrack', { group: a.group, id: a.id })),
+          open: () => { const t = openTargetFor(a); openOverlay(t.overlay, t.payload); },
         });
       });
     // The bill amount is told once: when the next-step card already leads
@@ -618,9 +612,7 @@ export default function Home() {
             </div>
             <button
               className="press focus-ring"
-              onClick={() => (oa.status === 'draft'
-                ? openOverlay('serviceApply', { serviceId: oa.serviceId, applicationId: oa.id })
-                : openOverlay('serviceTrack', { group: oa.group, id: oa.id }))}
+              onClick={() => { const t = openTargetFor(oa); openOverlay(t.overlay, t.payload); }}
               style={{
                 display: 'flex', alignItems: 'stretch', width: '100%', height: 48, border: 'none', borderRadius: 14,
                 background: 'var(--brand-50)', cursor: 'pointer', overflow: 'hidden', padding: 0,

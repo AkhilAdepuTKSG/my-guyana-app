@@ -1,8 +1,7 @@
 import Icon from '../ui/Icon';
 import StatusPill from '../ui/StatusPill';
 import { useAppState } from '../../state/AppStateContext';
-import { useApi, useUserId } from '../../hooks/useApi';
-import { listAll } from '../../api/applications';
+import { useMyApplications, openTargetFor } from '../../hooks/useMyApplications';
 import { Card, LoadingState, EmptyState } from './ServicePieces';
 import DocumentProgress from './DocumentProgress';
 import { formatDate, formatRelativeDate } from '../../lib/format';
@@ -22,24 +21,14 @@ import { formatDate, formatRelativeDate } from '../../lib/format';
  */
 export default function MyApplicationsList({ limit, onNavigate }) {
   const { openOverlay, navigate } = useAppState();
-  const userId = useUserId();
-  const { data, loading } = useApi(() => listAll(userId), [userId], { enabled: !!userId, initial: [] });
-
-  const all = data || [];
+  const { applications: all, loading } = useMyApplications();
   const rows = limit ? all.slice(0, limit) : all;
 
   const go = (fn) => { onNavigate?.(); fn(); };
 
   const openApplication = (app) => {
-    if (app.status === 'draft') {
-      go(() => openOverlay('serviceApply', { serviceId: app.serviceId, applicationId: app.id }));
-      return;
-    }
-    if (app.group === 'gro' && app.status === 'approved') {
-      go(() => openOverlay('groCertificate', { requestId: app.id }));
-      return;
-    }
-    go(() => openOverlay('serviceTrack', { group: app.group, id: app.id }));
+    const target = openTargetFor(app);
+    go(() => openOverlay(target.overlay, target.payload));
   };
 
   if (loading) return <LoadingState label="Loading your applications…" />;
@@ -118,7 +107,7 @@ export default function MyApplicationsList({ limit, onNavigate }) {
                 <RowAction
                   icon="route"
                   label="Track"
-                  onClick={() => go(() => openOverlay('serviceTrack', { group: app.group, id: app.id }))}
+                  onClick={() => { const t = openTargetFor(app); go(() => openOverlay(t.overlay, t.payload)); }}
                 />
               )}
               {app.hasCertificate && (
