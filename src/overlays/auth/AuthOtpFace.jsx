@@ -1,6 +1,6 @@
 import Icon from '../../components/ui/Icon';
 import {
-  Screen, Heading, IconBadge, PrimaryButton, TextButton, ErrorBox, DemoHint,
+  Screen, BackButton, Heading, IconBadge, PrimaryButton, TextButton, ErrorBox, DemoHint,
 } from './ui';
 import { POL_TIPS } from './authData';
 
@@ -20,32 +20,46 @@ function otpSentToLabel(st) {
     : 'your email';
 }
 
+// VERIFY IDENTITY · the one-time code (Final design): a header bar with the
+// back control and title, the big code field, Continue, the resend countdown
+// and the switch-channel link, with the demo hint pinned to the foot.
 export function Otp({ st, on }) {
-  const resendLabel = st.otpExpired || st.otpSeconds === 0 ? 'Send a new code' : `Send a new code in 0:${String(st.otpSeconds).padStart(2, '0')}`;
+  const canResend = st.otpExpired || st.otpSeconds === 0;
+  const resendLabel = canResend ? 'Send a new code' : `Send a new code in 0:${String(st.otpSeconds).padStart(2, '0')}`;
   return (
-    <Screen onBack={on.otpBack}>
-      <Heading title="Enter the 6 digits we sent" sub={`Sent to ${otpSentToLabel(st)}`} />
-      <input
-        aria-label="6-digit code" inputMode="numeric" maxLength={6} placeholder="000000"
-        value={st.otpValue} onChange={on.updateOtp}
-        style={{
-          width: '100%', boxSizing: 'border-box', minHeight: 60,
-          border: `1px solid ${st.otpError ? 'var(--status-error)' : 'var(--surface-border)'}`,
-          borderRadius: 14, background: 'var(--surface-2)', textAlign: 'center', fontFamily: 'inherit',
-          fontSize: 26, fontWeight: 800, letterSpacing: '0.36em', textIndent: '0.36em', color: 'var(--fg-1)', outline: 'none',
-        }}
-      />
-      {st.otpError && <ErrorBox>{st.otpError}</ErrorBox>}
-      <PrimaryButton busy={st.otpBusy} onClick={on.otpSubmit}>{st.otpBusy ? 'Checking…' : 'Continue'}</PrimaryButton>
-      <TextButton tone={st.otpExpired || st.otpSeconds === 0 ? 'var(--brand-500)' : 'var(--fg-4)'} onClick={on.otpResend}>
-        {resendLabel}
-      </TextButton>
-      {st.otpSource !== 'registry' && (
-        <TextButton tone="var(--fg-2)" onClick={on.otpSwitchChannel} style={{ minHeight: 42 }}>
-          {st.contactMode === 'phone' ? 'Send it to my email instead' : 'Send it to my number instead'}
+    <Screen padTop={0} gap={0} style={{ padding: 0 }}>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '58px 20px 14px', borderBottom: '1px solid var(--surface-hairline)', background: 'var(--surface-1)' }}>
+        <BackButton onClick={on.otpBack} />
+        <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>Verify Identity</span>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '22px 20px 30px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.15, color: 'var(--fg-1)' }}>Enter the 6 digits we sent</h1>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: 'var(--fg-3)' }}>Sent to {otpSentToLabel(st)}</p>
+        </div>
+        <input
+          aria-label="6-digit code" inputMode="numeric" maxLength={6} placeholder="000000"
+          value={st.otpValue} onChange={on.updateOtp}
+          style={{
+            width: '100%', boxSizing: 'border-box', minHeight: 62,
+            border: `1px solid ${st.otpError ? 'var(--status-error)' : 'var(--surface-border)'}`,
+            borderRadius: 14, background: 'var(--surface-2)', textAlign: 'center', fontFamily: 'inherit',
+            fontSize: 26, fontWeight: 800, letterSpacing: '0.36em', textIndent: '0.36em', color: 'var(--fg-1)', outline: 'none',
+          }}
+        />
+        {st.otpError && <ErrorBox>{st.otpError}</ErrorBox>}
+        <PrimaryButton busy={st.otpBusy} onClick={on.otpSubmit}>{st.otpBusy ? 'Checking…' : 'Continue'}</PrimaryButton>
+        <TextButton tone={canResend ? 'var(--brand-700)' : 'var(--fg-3)'} onClick={on.otpResend} style={{ fontWeight: 700 }}>
+          {resendLabel}
         </TextButton>
-      )}
-      <DemoHint>Demo: any six digits work. Type 000000 to see the wrong-code message.</DemoHint>
+        {st.otpSource !== 'registry' && (
+          <TextButton tone="var(--fg-1)" onClick={on.otpSwitchChannel} style={{ minHeight: 42, fontWeight: 700 }}>
+            {st.contactMode === 'phone' ? 'Send it to my email instead' : 'Send it to my number instead'}
+          </TextButton>
+        )}
+        <div style={{ flex: 1 }} />
+        <DemoHint>Demo: any six digits work. Type 000000 to see the wrong-code message.</DemoHint>
+      </div>
     </Screen>
   );
 }

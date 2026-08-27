@@ -131,7 +131,7 @@ export function ListCard({ children }) {
   );
 }
 
-export function Row({ icon, iconBg = 'var(--surface-2)', iconFg = 'var(--brand-700)', title, sub, onClick, border, right, tag }) {
+export function Row({ icon, iconBg = 'var(--surface-2)', iconFg = 'var(--brand-700)', iconRound = false, title, sub, onClick, border, right, tag }) {
   return (
     <button
       className="press focus-ring" onClick={onClick}
@@ -144,7 +144,7 @@ export function Row({ icon, iconBg = 'var(--surface-2)', iconFg = 'var(--brand-7
       }}
     >
       {icon && (
-        <span aria-hidden="true" style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span aria-hidden="true" style={{ width: 36, height: 36, flexShrink: 0, borderRadius: iconRound ? 999 : 11, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon} size={17} color={iconFg} />
         </span>
       )}
