@@ -3,7 +3,9 @@ import { useAppState } from '../state/AppStateContext';
 import { useApi, useUserId } from '../hooks/useApi';
 import { listDocuments, vaultDateLabel } from '../api/vault';
 import { loadCertificateForVault } from '../api/gro';
+import { loadAwardForVault } from '../api/oldAgePension';
 import { renderCertificatePdf, certificateFileName } from '../lib/certificates';
+import { renderAwardPdf, awardFileName } from '../lib/pensionAward';
 import { downloadBlob } from '../lib/format';
 import { buildCards, buildRecords } from '../lib/vaultRecords';
 import { isIdCard, resolveType, documentType, REQUESTABLE_TYPE_IDS } from '../data/documentTypes';
@@ -145,6 +147,13 @@ export default function Vault() {
       const blob = renderCertificatePdf({ certificate, registration, issuedTo: doc.content.args.issuedTo || user?.name || null });
       downloadBlob(blob, certificateFileName(certificate));
       showToast('Certificate downloaded');
+      return;
+    }
+    if (doc.content?.generator === 'pensionAward') {
+      const { application, service } = await loadAwardForVault(doc.content.args);
+      const blob = renderAwardPdf({ application, service, issuedTo: user?.name || null });
+      downloadBlob(blob, awardFileName(application));
+      showToast('Award letter downloaded');
       return;
     }
     if (doc.blob) {

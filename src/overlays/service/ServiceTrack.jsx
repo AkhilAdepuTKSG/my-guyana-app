@@ -11,10 +11,12 @@ import { useVaultAttach } from '../../hooks/useVaultAttach';
 import * as cashGrants from '../../api/cashGrants';
 import * as singleWindow from '../../api/singleWindow';
 import * as gra from '../../api/gra';
+import * as oldAgePension from '../../api/oldAgePension';
 
 function apiForGroup(group) {
   if (group === 'cashGrants') return cashGrants;
   if (group === 'gra') return gra;
+  if (group === 'mhsss') return oldAgePension;
   return singleWindow;
 }
 import AgencyRoute, { routeSummary } from '../../components/service/AgencyRoute';
@@ -33,7 +35,7 @@ import { visibleFields } from '../../api/validate';
 // and the full timeline of what has actually happened.
 
 export default function ServiceTrack() {
-  const { isOpen, getPayload, closeOverlay, openOverlay, showToast, requireOtp } = useAppState();
+  const { isOpen, getPayload, closeOverlay, openOverlay, navigate, showToast, requireOtp } = useAppState();
   const open = isOpen('serviceTrack');
   const payload = getPayload('serviceTrack');
   const group = payload && typeof payload === 'object' ? payload.group : null;
@@ -310,6 +312,33 @@ export default function ServiceTrack() {
                 <DetailRow label="Paid into" value={application.bankAccountLast4 ? `Account ending ${application.bankAccountLast4}` : '—'} />
                 <DetailRow label="Basis" value={data.award?.basis || application.decisionNote || '—'} last />
               </Card>
+            </section>
+          )}
+
+          {/* --- Pension award ------------------------------------------------ */}
+          {!isGro && group === 'mhsss' && application.status === 'approved' && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              <SectionHeading
+                eyebrow="Your pension"
+                title="Awarded"
+                description="Your award letter is filed in your Vault — only you can open it."
+                accent={accent}
+              />
+              <Card>
+                <DetailRow label="Monthly pension" value={formatGyd(application.monthlyBenefitGyd || 0)} />
+                <DetailRow label="Transportation grant" value={`${formatGyd(application.transportGrantGyd || 0)} a year`} />
+                <DetailRow label="Effective from" value={formatDate(application.awardStartsOn) || '—'} />
+                <DetailRow
+                  label="Paid to"
+                  value={application.disbursementDetail?.last4
+                    ? `${application.disbursementMethod === 'mmg' ? 'Wallet' : 'Account'} ending ${application.disbursementDetail.last4}`
+                    : '—'}
+                  last
+                />
+              </Card>
+              <Button variant="outline" onClick={() => { closeOverlay('serviceTrack'); navigate('vault'); }}>
+                Open my award letter in the Vault
+              </Button>
             </section>
           )}
 

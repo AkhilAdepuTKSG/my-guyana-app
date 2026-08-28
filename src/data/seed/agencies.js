@@ -92,4 +92,14 @@ export const AGENCY_SEED = [
     icon: 'receipt',
     mark: '#2563c9',
   },
+  {
+    // The same id the legacy catalogue uses for this ministry
+    // (src/state/mockData.js), so the pension rendered from the database and
+    // the Public Assistance relationship on Home are one agency, not two.
+    id: 'humanServices',
+    name: 'Ministry of Human Services & Social Security',
+    shortName: 'MHSSS',
+    icon: 'hand-heart',
+    mark: '#c2365f',
+  },
 ];

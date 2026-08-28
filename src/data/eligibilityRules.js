@@ -6,7 +6,13 @@
 // existing applications); nothing here asks the citizen to self-declare.
 //
 // Shape: { id, passLabel, failLabel, failHint?, failAction?, passes(ctx) }
-// ctx = { user, persona, applications }
+// ctx = { user, persona, applications, service }
+//
+// `service` carries its own configuration (see src/api/catalog.js), so a rule
+// that turns on a threshold — the pension's qualifying age and apply window —
+// reads the configured value rather than one written into this file.
+
+import { assessPension, formatLongDate } from '../lib/pension';
 
 /** @type {Record<string, {
  *   id: string,
@@ -14,7 +20,8 @@
  *   failLabel: string,
  *   failHint?: string,
  *   failAction?: {label: string, overlay?: string, screen?: string, payload?: unknown},
- *   passes: (ctx: {user: any, persona: any, applications: any[]}) => boolean
+ *   passes: (ctx: {user: any, persona: any, applications: any[], service?: any}) => boolean,
+ *   describe?: (ctx: {user: any, persona: any, applications: any[], service?: any}) => string|null
  * }>} */
 export const ELIGIBILITY_RULES = {
   identityVerified: {
@@ -75,6 +82,54 @@ export const ELIGIBILITY_RULES = {
     },
   },
 
+  // --- Old age pension (MHSSS) ---------------------------------------------
+  // Age is the entitlement. Applications open a configured number of weeks
+  // before the qualifying birthday so the first payment is ready on the day it
+  // falls due — both numbers come from the service's config rows, and the same
+  // assessment runs again at the endpoint when the application is submitted.
+  pensionAgeWindow: {
+    id: 'pensionAgeWindow',
+    passLabel: 'You are old enough to claim the pension',
+    failLabel: 'It is not time to apply yet',
+    failHint: 'Applications open six weeks before your qualifying birthday.',
+    passes: ({ user, persona, service }) => {
+      const dob = user?.gov?.dob || user?.profile?.dob || persona?.dob;
+      // Nothing on file to test. The form asks for the date of birth and the
+      // endpoint checks it there, so a citizen is never stopped at the gate for
+      // something the app has simply not been told yet.
+      if (!dob) return true;
+      return assessPension({ service, dob }).ageOk;
+    },
+    // The gate shows the date rather than just refusing, so somebody who is
+    // close knows exactly when to come back.
+    describe: ({ user, persona, service }) => {
+      const dob = user?.gov?.dob || user?.profile?.dob || persona?.dob;
+      if (!dob) return null;
+      const check = assessPension({ service, dob });
+      if (check.ageOk) {
+        return check.age !== null ? `You are ${check.age}.` : null;
+      }
+      return check.opensOn
+        ? `You can apply from ${formatLongDate(check.opensOn)}.`
+        : null;
+    },
+  },
+
+  noOpenPension: {
+    id: 'noOpenPension',
+    passLabel: 'No pension application on file — one pension per person',
+    failLabel: 'You already have a pension application',
+    failHint: 'One old age pension per person. Open your existing application instead.',
+    failAction: { label: 'View my applications', screen: 'applications' },
+    // A draft is not an application; only something actually with the Ministry
+    // counts — the same rule the cash grant follows.
+    passes: ({ applications }) => !(applications || []).some(
+      (a) => a.group === 'mhsss'
+        && a.status !== 'draft'
+        && !['rejected', 'withdrawn'].includes(a.status)
+    ),
+  },
+
   // Single Window: the whole system assumes the applicant already holds land.
   // The proof itself is captured as a prerequisite on the form; this rule only
   // checks that the citizen has an identity we can attach the parcel to.
@@ -91,11 +146,17 @@ export const ELIGIBILITY_RULES = {
 /**
  * Resolve a service's seeded rule ids into evaluated rules.
  * @param {string[]} ruleIds
- * @param {{user: any, persona: any, applications: any[]}} ctx
+ * @param {{user: any, persona: any, applications: any[], service?: any}} ctx
  */
 export function evaluateEligibility(ruleIds, ctx) {
   return (ruleIds || [])
     .map((id) => ELIGIBILITY_RULES[id])
     .filter(Boolean)
-    .map((rule) => ({ ...rule, ok: !!rule.passes(ctx) }));
+    .map((rule) => ({
+      ...rule,
+      ok: !!rule.passes(ctx),
+      // A rule may say something specific about this citizen — the date their
+      // pension window opens, for instance — rather than only pass or fail.
+      detail: rule.describe ? rule.describe(ctx) : null,
+    }));
 }

@@ -49,6 +49,9 @@ export default function ServiceView() {
   const service = detail.data?.service;
   const agency = detail.data?.agency;
   const accent = agency?.mark || 'var(--brand-600)';
+  // The configured amounts the service publishes — the pension and its
+  // transportation grant. Any service that seeds them gets the panel.
+  const benefits = (service?.configRows || []).filter((row) => row.showOnView);
   const existing = (mine.applications || []).filter((a) => a.serviceId === serviceId);
   const draft = existing.find((a) => a.status === 'draft');
   // Anything already submitted. If one exists, this screen must open it rather
@@ -181,6 +184,43 @@ export default function ServiceView() {
               />
             </div>
           </div>
+
+          {/* --- What you receive ------------------------------------------
+              Rendered from the service's own configuration rows, so a change of
+              rate is a seed change and this screen follows automatically. Only
+              rows the Ministry marks as public appear. */}
+          {benefits.length > 0 && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <SectionHeading
+                eyebrow="What you receive"
+                title="The payment"
+                description="Set by the Ministry. These are the current rates."
+                accent={accent}
+              />
+              <Card>
+                {benefits.map((row, i) => (
+                  <div key={row.id} style={{
+                    display: 'flex', alignItems: 'baseline', gap: 11, padding: '13px 14px',
+                    borderBottom: i < benefits.length - 1 ? '1px solid var(--surface-hairline)' : 'none',
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--fg-1)' }}>
+                        {row.label}
+                      </span>
+                      {row.note && (
+                        <span style={{ display: 'block', marginTop: 3, fontSize: 11.5, lineHeight: 1.45, color: 'var(--fg-3)' }}>
+                          {row.note}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ flexShrink: 0, fontSize: 15, fontWeight: 800, letterSpacing: '-0.01em', color: accent }}>
+                      {configValueLabel(row)}
+                    </span>
+                  </div>
+                ))}
+              </Card>
+            </section>
+          )}
 
           {/* --- Overview ------------------------------------------------- */}
           <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -327,6 +367,24 @@ export default function ServiceView() {
       ) : null}
     </PageOverlay>
   );
+}
+
+/**
+ * One configured value, written the way a citizen reads it — an amount with its
+ * cadence, a count with its unit. The type comes from the row, so the screen
+ * does not need to know what any particular key means.
+ * @param {import('../../data/types').ServiceConfig} row
+ */
+function configValueLabel(row) {
+  const per = row.unit ? `/${row.unit}` : '';
+  switch (row.valueType) {
+    case 'money': return `${formatGyd(Number(row.value) || 0)}${per}`;
+    case 'years': return `${row.value} ${Number(row.value) === 1 ? 'year' : 'years'}`;
+    case 'weeks': return `${row.value} ${Number(row.value) === 1 ? 'week' : 'weeks'}`;
+    case 'days': return `${row.value} ${Number(row.value) === 1 ? 'day' : 'days'}`;
+    case 'number': return String(row.value);
+    default: return String(row.value);
+  }
 }
 
 function GlanceTile({ icon, label, value, accent }) {

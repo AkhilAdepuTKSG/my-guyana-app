@@ -15,19 +15,21 @@ import { CASH_GRANT_SERVICES, CASH_GRANT_FEES, CASH_GRANT_ROUTES } from './seed/
 import { SINGLE_WINDOW_SERVICES, SINGLE_WINDOW_FEES, SINGLE_WINDOW_ROUTES } from './seed/servicesSingleWindow';
 import { GRO_SERVICES, GRO_FEES, GRO_ROUTES } from './seed/servicesGro';
 import { GRA_SERVICES, GRA_FEES, GRA_ROUTES } from './seed/servicesGra';
+import { MHSSS_SERVICES, MHSSS_FEES, MHSSS_ROUTES, MHSSS_CONFIG } from './seed/servicesMhsss';
 import { GRO_REGISTRATION_SEED, normaliseRegNo } from './seed/groRegistry';
 
 /** Raise this when any seed file changes. */
-export const SEED_REVISION = 10;
+export const SEED_REVISION = 12;
 
 const SEED_META_KEY = 'seedRevision';
 
-/** Every service across the three groups. */
+/** Every service across every group. */
 export const ALL_SERVICES = [
   ...CASH_GRANT_SERVICES,
   ...SINGLE_WINDOW_SERVICES,
   ...GRO_SERVICES,
   ...GRA_SERVICES,
+  ...MHSSS_SERVICES,
 ];
 
 export const ALL_FEES = [
@@ -35,6 +37,7 @@ export const ALL_FEES = [
   ...SINGLE_WINDOW_FEES,
   ...GRO_FEES,
   ...GRA_FEES,
+  ...MHSSS_FEES,
 ];
 
 export const ALL_ROUTES = [
@@ -42,6 +45,16 @@ export const ALL_ROUTES = [
   ...SINGLE_WINDOW_ROUTES,
   ...GRO_ROUTES,
   ...GRA_ROUTES,
+  ...MHSSS_ROUTES,
+];
+
+/**
+ * Per-service configuration — benefit amounts, qualifying age, apply window,
+ * residency thresholds. Reference data like everything else here, so a change
+ * of rate is a seed bump rather than a code change.
+ */
+export const ALL_CONFIG = [
+  ...MHSSS_CONFIG,
 ];
 
 /** Register rows carry a normalised lookup key alongside the printed number. */
@@ -89,7 +102,7 @@ export async function runSeed(db) {
   if (applied === SEED_REVISION) return;
 
   await new Promise((resolve, reject) => {
-    const stores = ['agencies', 'services', 'service_fees', 'service_routes', 'gro_registrations', 'meta'];
+    const stores = ['agencies', 'services', 'service_fees', 'service_routes', 'service_config', 'gro_registrations', 'meta'];
     const tx = db.transaction(stores, 'readwrite');
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error || new Error('Seeding failed'));
@@ -105,6 +118,7 @@ export async function runSeed(db) {
       replaceTable(tx, 'services', ALL_SERVICES),
       replaceTable(tx, 'service_fees', ALL_FEES),
       replaceTable(tx, 'service_routes', ALL_ROUTES),
+      replaceTable(tx, 'service_config', ALL_CONFIG),
       mergeRegister(tx),
     ]).catch((err) => {
       reject(err);

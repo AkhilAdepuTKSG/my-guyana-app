@@ -6,7 +6,7 @@
 // treat a change here as a change every layer must follow (models, seed,
 // endpoints, validation, UI).
 
-/** @typedef {'cashGrants'|'singleWindow'|'gro'} ServiceGroup */
+/** @typedef {'cashGrants'|'singleWindow'|'gro'|'gra'|'mhsss'} ServiceGroup */
 
 /** @typedef {'draft'|'submitted'|'inReview'|'actionNeeded'|'approved'|'rejected'|'withdrawn'} ApplicationStatus */
 
@@ -118,6 +118,32 @@
  * @property {string} timeframeNote
  * @property {number} sortOrder
  * @property {boolean} active
+ * @property {Record<string, number|string>} [config]  resolved service_config values,
+ *                                 merged on read by src/api/catalog.js so a screen or
+ *                                 an endpoint reads a threshold without a second call
+ * @property {ServiceConfig[]} [configRows]  the same values with their labels and
+ *                                 notes, for the screens that display them
+ */
+
+/**
+ * One configured value for a service — a benefit amount, a qualifying age, an
+ * apply window, a processing time.
+ *
+ * These are the numbers a ministry changes by circular rather than by rewriting
+ * its forms, so they are rows in `service_config` and never constants in the
+ * code. `valueType` is what lets a screen render one without knowing what the
+ * key means; `showOnView` is what puts it on the service's overview.
+ * @typedef {Object} ServiceConfig
+ * @property {string} id
+ * @property {string} serviceId
+ * @property {string} key                what the endpoints look it up by
+ * @property {string} label              what a citizen sees
+ * @property {'money'|'number'|'years'|'weeks'|'days'|'text'} valueType
+ * @property {number|string} value
+ * @property {string} [unit]             'month' | 'year' — what the amount is per
+ * @property {string} [note]
+ * @property {string} [effectiveFrom]    ISO date the value took effect
+ * @property {boolean} [showOnView]      surfaced on the service's overview screen
  */
 
 /**
@@ -182,6 +208,28 @@
  * @property {string} updatedAt
  * @property {string|null} decisionAt
  * @property {string|null} decisionNote
+ */
+
+/**
+ * An old age pension application (MHSSS).
+ *
+ * `dateOfBirth` and `ageAtApplication` are stored on the row rather than left
+ * in `fields`: the age test is the whole basis of the award, so what was
+ * checked has to survive on the application itself.
+ * @typedef {ApplicationBase & {
+ *   dateOfBirth: string|null,
+ *   ageAtApplication: number|null,
+ *   citizenship: string|null,
+ *   yearsInGuyana: number|null,
+ *   activeResidentYears: number|null,
+ *   firstTimeApplicant: boolean,
+ *   disbursementMethod: 'bank'|'mmg'|null,
+ *   disbursementDetail: {provider: string|null, branch: string|null, last4: string|null, holder: string|null}|null,
+ *   monthlyBenefitGyd: number|null,
+ *   transportGrantGyd: number|null,
+ *   awardStartsOn: string|null,
+ *   awardDocumentId: string|null
+ * }} OldAgePensionApplication
  */
 
 /**

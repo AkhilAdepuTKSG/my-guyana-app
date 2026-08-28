@@ -34,6 +34,7 @@ export const DOCUMENT_CATEGORIES = {
   plan: { id: 'plan', label: 'Plan or drawing', section: 'records' },
   permit: { id: 'permit', label: 'Permit or approval', section: 'records' },
   letter: { id: 'letter', label: 'Letter', section: 'records' },
+  benefit: { id: 'benefit', label: 'Benefit or award', section: 'records' },
   photo: { id: 'photo', label: 'Photograph', section: 'records' },
   other: { id: 'other', label: 'Other document', section: 'records' },
 };
@@ -120,6 +121,13 @@ export const DOCUMENT_TYPES = {
     issuer: 'the National Insurance Scheme',
     patterns: [/nis registration/, /national insurance/],
   },
+  IMMIGRATION_REPORT: {
+    id: 'IMMIGRATION_REPORT', label: 'Immigration report', category: 'clearance', icon: 'plane',
+    issuer: 'the Immigration Department',
+    // Obtained in person from Immigration and handed in, so it is uploaded like
+    // any other paper the citizen is holding — not connected from the Vault.
+    patterns: [/immigration report/, /travel history/],
+  },
   EID_LETTER: {
     id: 'EID_LETTER', issued: true, unique: true, label: 'e-ID issuance letter', category: 'letter', icon: 'badge-check',
     issuer: 'the Digital Identity Card Registry',
@@ -187,6 +195,16 @@ export const DOCUMENT_TYPES = {
   LOAD_SCHEDULE: {
     id: 'LOAD_SCHEDULE', label: 'Load schedule', category: 'plan', icon: 'list-checks',
     patterns: [/load schedule/],
+  },
+
+  // --- Benefits and awards --------------------------------------------------
+  PENSION_BOOK: {
+    id: 'PENSION_BOOK', issued: true, unique: true, label: 'Old age pension award',
+    category: 'benefit', icon: 'hand-heart',
+    issuer: 'the Ministry of Human Services & Social Security',
+    // A citizen draws one old age pension, so a re-issued award replaces the
+    // one on file rather than sitting beside it.
+    patterns: [/pension award/, /pension book/, /old age pension/],
   },
 
   OTHER: {

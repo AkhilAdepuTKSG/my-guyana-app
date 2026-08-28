@@ -48,7 +48,7 @@ const PEOPLE = [
   {
     id: 'john',
     name: 'JOHN DOE',
-    dob: '30/09/1985',
+    dob: '30/08/1961',
     address: 'Lot 8 Sheriff Street, Georgetown',
     placeOfBirth: 'New Amsterdam, Guyana',
     hasEid: false,
@@ -58,7 +58,7 @@ const PEOPLE = [
     passport: 'P0987654321',
     driversLicence: 'DL0987654321',
     tin: '0987654321',
-    birthCertNo: 'GRO-1985-0930',
+    birthCertNo: 'GRO-1961-0830',
     tinIssued: '09/06/2016',
     utilityAccount: 'GPL-73914-2',
     statementDate: '04/08/2026',

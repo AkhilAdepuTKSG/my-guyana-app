@@ -186,6 +186,32 @@ export const MIGRATIONS = [
       ]);
     },
   },
+  {
+    version: 8,
+    name: '0008_old_age_pension',
+    up(db) {
+      // MHSSS old age pension applications. Same shape discipline as the other
+      // application stores, plus the fields the pension itself turns on: the
+      // date of birth the age test is computed from, the declared residency,
+      // and how the citizen is to be paid.
+      store(db, 'old_age_pension_applications', 'id', [
+        ['byUser', 'userId', { unique: false }],
+        ['byRef', 'ref', { unique: true }],
+        ['byService', 'serviceId', { unique: false }],
+        ['byStatus', 'status', { unique: false }],
+      ]);
+
+      // Per-service configuration: benefit amounts, the qualifying age, the
+      // apply window, residency thresholds, processing time. These are values
+      // a ministry changes by circular — the January 2026 pension rise is
+      // exactly that — so they are rows, not constants in the code. Everything
+      // that renders or enforces them reads from here.
+      store(db, 'service_config', 'id', [
+        ['byService', 'serviceId', { unique: false }],
+        ['byKey', 'key', { unique: false }],
+      ]);
+    },
+  },
 ];
 
 export const DB_VERSION = MIGRATIONS.reduce((max, m) => Math.max(max, m.version), 0);
@@ -205,8 +231,10 @@ export const STORE_NAMES = [
   'gro_requests',
   'vault_documents',
   'gra_applications',
+  'old_age_pension_applications',
+  'service_config',
   'meta',
 ];
 
 /** Stores holding seeded reference data — safe to refresh wholesale. */
-export const REFERENCE_STORES = ['agencies', 'services', 'service_fees', 'service_routes'];
+export const REFERENCE_STORES = ['agencies', 'services', 'service_fees', 'service_routes', 'service_config'];

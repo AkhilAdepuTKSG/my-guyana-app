@@ -30,9 +30,12 @@ export const AGENCIES = {
     id: 'mof', name: 'Ministry of Finance', shortName: 'MoF',
     icon: 'banknote', mark: '#0f7b6c', dataAgency: 'mof',
   },
+  // MHSSS. No longer coming soon: the old age pension is a seeded service
+  // (src/data/seed/servicesMhsss.js) rendered from the database, and the
+  // agency row there carries this same id so the two never drift apart.
   humanServices: {
-    id: 'humanServices', name: 'Human Services & Social Security', shortName: 'Human Services',
-    icon: 'hand-heart', mark: '#c2365f', dataAgency: 'human-services', comingSoon: true,
+    id: 'humanServices', name: 'Ministry of Human Services & Social Security', shortName: 'MHSSS',
+    icon: 'hand-heart', mark: '#c2365f', dataAgency: 'human-services',
   },
   // The citizen-facing "Housing" relationship the Final design pins to Home
   // (see SERVICE_ACCESS in lib/serviceCatalog). Kept as its own record because

@@ -1,9 +1,10 @@
-// Behaviour shared by the two application stores.
+// Behaviour shared by every application store.
 //
-// Cash grants and Single Window applications live in their own tables because
-// they carry different detail, but everything below is identical for both: how
-// a draft is shaped, how documents are attached, how the timeline is written,
-// and how a submitted application is routed to its reviewing agencies.
+// Cash grants, Single Window, GRA and the old age pension each live in their
+// own table because they carry different detail, but everything below is
+// identical for all of them: how a draft is shaped, how documents are attached,
+// how the timeline is written, and how a submitted application is routed to its
+// reviewing agencies.
 
 import { getAllBy, put, withTx, requestToPromise } from '../data/db';
 import { newId, newReference, now } from '../data/ids';
@@ -28,6 +29,7 @@ export const STORE_BY_GROUP = {
   cashGrants: 'cash_grant_applications',
   singleWindow: 'single_window_applications',
   gra: 'gra_applications',
+  mhsss: 'old_age_pension_applications',
 };
 
 /**

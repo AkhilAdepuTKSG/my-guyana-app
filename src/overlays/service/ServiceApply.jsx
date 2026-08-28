@@ -12,6 +12,7 @@ import { listAll } from '../../api/applications';
 import * as cashGrants from '../../api/cashGrants';
 import * as singleWindow from '../../api/singleWindow';
 import * as gra from '../../api/gra';
+import * as oldAgePension from '../../api/oldAgePension';
 import { evaluateEligibility } from '../../data/eligibilityRules';
 import { validateFields, visibleFields, validateDocuments, validatePrerequisites } from '../../api/validate';
 import FormField from '../../components/service/FormField';
@@ -35,6 +36,7 @@ import { formatGyd, displayFieldValue, formatTimeframe } from '../../lib/format'
 function apiFor(group) {
   if (group === 'cashGrants') return cashGrants;
   if (group === 'gra') return gra;
+  if (group === 'mhsss') return oldAgePension;
   return singleWindow;
 }
 
@@ -175,7 +177,9 @@ export default function ServiceApply() {
 
   // --- eligibility -------------------------------------------------------
   const eligibility = useMemo(
-    () => (service ? evaluateEligibility(service.eligibilityRuleIds, { user, persona, applications: mine.data || [] }) : []),
+    () => (service
+      ? evaluateEligibility(service.eligibilityRuleIds, { user, persona, applications: mine.data || [], service })
+      : []),
     [service, user, persona, mine.data]
   );
   const eligibilityOk = eligibility.every((r) => r.ok);
@@ -501,6 +505,7 @@ function prefillFromRecord(service, user, persona) {
     else if (key === 'address' && gov?.address) out[key] = gov.address;
     else if (key === 'region' && (gov?.region || persona?.region)) out[key] = gov?.region || persona.region;
     else if (key === 'tin' && gov?.tin) out[key] = gov.tin;
+    else if (key === 'passport' && gov?.passport) out[key] = gov.passport;
     else if (key === 'licenceNumber' && gov?.driversLicence) out[key] = gov.driversLicence;
     else if (key === 'accountHolder' && user?.name) out[key] = user.name;
     else if (key === 'siteContactName' && user?.name) out[key] = user.name;
@@ -538,6 +543,12 @@ function EligibilityGate({ rules, ok, accent, service, onContinue, onAction }) {
               <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, lineHeight: 1.4, color: 'var(--fg-1)' }}>
                 {rule.ok ? rule.passLabel : rule.failLabel}
               </span>
+              {/* What the rule found about this citizen — the date their
+                  pension window opens, say. Telling somebody who is close
+                  exactly when to come back beats refusing them flatly. */}
+              {rule.detail && (
+                <p style={{ margin: '3px 0 0', fontSize: 12, lineHeight: 1.45, color: 'var(--fg-2)' }}>{rule.detail}</p>
+              )}
               {!rule.ok && rule.failHint && (
                 <p style={{ margin: '3px 0 0', fontSize: 12, lineHeight: 1.45, color: 'var(--fg-2)' }}>{rule.failHint}</p>
               )}

@@ -5,8 +5,10 @@
 //
 // Two demo citizens, each with fully self-consistent details (no value is
 // shared or mismatched across a person's documents):
-//   • Nicole Persaud — already has an e-ID (E1234567890)
-//   • John Doe       — no e-ID yet, but is on record with other documents
+//   • Nicole Persaud — already has an e-ID (E1234567890), working age
+//   • John Doe       — no e-ID yet, but is on record with other documents, and
+//     is turning 65: the citizen the old age pension exists for. Between them
+//     the two records cover both sides of every age-tested service.
 //
 // The sample documents in public/sample-docs/ are generated from these exact
 // values (see scripts/gen-sample-docs.mjs), so scanning a sample card resolves
@@ -29,7 +31,7 @@ export const GOV_CITIZENS = [
     lastName: 'Persaud',
     name: 'Nicole Persaud',
     initials: 'NP',
-    dob: '1990-04-12',
+    dob: '1950-04-12',
     gender: 'f',
     region: 'r4', // Region 4 — Demerara-Mahaica
     placeOfBirth: 'Georgetown, Guyana',
@@ -71,7 +73,10 @@ export const GOV_CITIZENS = [
     lastName: 'Doe',
     name: 'John Doe',
     initials: 'JD',
-    dob: '1985-09-30',
+    // Turns 65 on 30 August 2026. Applications for the old age pension open six
+    // weeks before that, so he is inside the window — which is what makes the
+    // apply-window rule visible rather than theoretical.
+    dob: '1961-08-30',
     gender: 'm',
     region: 'r4', // Region 4 — Demerara-Mahaica
     placeOfBirth: 'New Amsterdam, Guyana',

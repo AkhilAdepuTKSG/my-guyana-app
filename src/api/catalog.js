@@ -6,7 +6,7 @@
 import { getAll, getAllBy, get, getOneBy } from '../data/db';
 import { ApiError } from './validate';
 
-/** Human labels for the three service groups. */
+/** Human labels for each service group. */
 export const SERVICE_GROUPS = {
   cashGrants: {
     id: 'cashGrants',
@@ -36,7 +36,49 @@ export const SERVICE_GROUPS = {
     icon: 'receipt',
     accent: '#2563c9',
   },
+  mhsss: {
+    id: 'mhsss',
+    name: 'Pensions & Public Assistance',
+    tagline: 'The old age pension and the support the Ministry of Human Services & Social Security pays.',
+    icon: 'hand-heart',
+    accent: '#c2365f',
+  },
 };
+
+/**
+ * Every configured value for one service, keyed by its `key`.
+ *
+ * A service's thresholds and amounts are rows, not constants — see
+ * src/data/seed/servicesMhsss.js. Both the screens and the endpoints read them
+ * from here, so the number a citizen is shown and the number they are tested
+ * against are the same number.
+ * @param {string} serviceId
+ * @returns {Promise<import('../data/types').ServiceConfig[]>}
+ */
+export async function listConfig(serviceId) {
+  const rows = await getAllBy('service_config', 'byService', serviceId);
+  return rows.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/** The config rows flattened to `{key: value}` — what an endpoint reads. */
+export function configValues(rows) {
+  return Object.fromEntries((rows || []).map((r) => [r.key, r.value]));
+}
+
+/**
+ * Attach a service's configuration to the record itself.
+ *
+ * Doing it on read is what keeps `requiredDocumentsFor(service, fields)` and
+ * every screen working off one object: a threshold is always available wherever
+ * the service is, and nothing has to remember to fetch it separately.
+ * @param {import('../data/types').Service|null} service
+ */
+async function withConfig(service) {
+  if (!service) return service;
+  const rows = await listConfig(service.id);
+  if (!rows.length) return service;
+  return { ...service, config: configValues(rows), configRows: rows };
+}
 
 /**
  * Every agency in the catalogue, as a lookup keyed by id.
@@ -69,25 +111,32 @@ export function getAgency(agencyId) {
  */
 export async function listServices(opts = {}) {
   const rows = opts.group ? await getAllBy('services', 'byGroup', opts.group) : await getAll('services');
-  return rows
+  const active = rows
     .filter((s) => s.active)
     .sort((a, b) => a.sortOrder - b.sortOrder);
+  // One read of the config table for the whole list rather than one per service.
+  const config = await getAll('service_config');
+  if (!config.length) return active;
+  return active.map((service) => {
+    const own = config.filter((c) => c.serviceId === service.id);
+    return own.length ? { ...service, config: configValues(own), configRows: own } : service;
+  });
 }
 
 /**
  * @param {string} serviceId
  * @returns {Promise<import('../data/types').Service|null>}
  */
-export function getService(serviceId) {
-  return get('services', serviceId);
+export async function getService(serviceId) {
+  return withConfig(await get('services', serviceId));
 }
 
 /**
  * @param {string} slug
  * @returns {Promise<import('../data/types').Service|null>}
  */
-export function getServiceBySlug(slug) {
-  return getOneBy('services', 'bySlug', slug);
+export async function getServiceBySlug(slug) {
+  return withConfig(await getOneBy('services', 'bySlug', slug));
 }
 
 /**
