@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import PageOverlay from '../../components/ui/PageOverlay';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
-import { useApi, useUserId } from '../../hooks/useApi';
+import { useApi } from '../../hooks/useApi';
 import { getServiceDetail } from '../../api/catalog';
-import { listAll } from '../../api/applications';
+import { useMyApplications, openTargetFor } from '../../hooks/useMyApplications';
 import {
   SectionHeading, InfoPanel, Card, StepList, BulletList, FeeTable,
   LoadingState, ErrorState,
@@ -21,7 +22,6 @@ export default function ServiceView() {
   const open = isOpen('serviceView');
   const payload = getPayload('serviceView');
   const serviceId = payload && typeof payload === 'object' ? payload.serviceId : null;
-  const userId = useUserId();
 
   const detail = useApi(
     () => getServiceDetail(serviceId),
@@ -29,36 +29,64 @@ export default function ServiceView() {
     { enabled: open && !!serviceId }
   );
 
-  // Anything the citizen already has open for this service, so the screen
-  // offers "resume" or "track" rather than a second application.
-  const mine = useApi(
-    () => listAll(userId),
-    [userId, serviceId],
-    { enabled: open && !!userId, initial: [] }
-  );
+  // What the citizen already has for this service. The one call the whole app
+  // reads, so this screen can never disagree with My Applications.
+  const mine = useMyApplications(open);
+
+  // Applying, tracking and the GRO lookup all open on top of this screen, and
+  // all change what the citizen has. Coming back from any of them re-reads, so
+  // this screen never goes on offering "Apply" for something already applied
+  // for. It reloads rather than switching the read off, so what is already on
+  // screen stays put while the new answer arrives.
+  const covered = isOpen('serviceApply') || isOpen('serviceTrack') || isOpen('groLookup') || isOpen('groCertificate');
+  const { reload } = mine;
+  useEffect(() => {
+    if (open && !covered) reload();
+  }, [open, covered, reload]);
 
   if (!open) return null;
 
   const service = detail.data?.service;
   const agency = detail.data?.agency;
   const accent = agency?.mark || 'var(--brand-600)';
-  const existing = (mine.data || []).filter((a) => a.serviceId === serviceId);
+  const existing = (mine.applications || []).filter((a) => a.serviceId === serviceId);
   const draft = existing.find((a) => a.status === 'draft');
-  const openApplication = existing.find((a) => a.status !== 'draft');
+  // Anything already submitted. If one exists, this screen must open it rather
+  // than offering to apply again — sending the citizen into a form that the
+  // eligibility gate will refuse is a dead end, not a choice.
+  const submitted = existing.find((a) => a.status !== 'draft');
 
-  const startApply = () => {
-    if (!service) return;
-    if (service.group === 'gro') {
-      openOverlay('groLookup', { serviceId: service.id });
-      return;
+  const openExisting = () => {
+    if (!submitted) return;
+    const target = openTargetFor(submitted);
+    openOverlay(target.overlay, target.payload);
+  };
+
+  // The one action this screen offers, decided by what the citizen already has.
+  const primary = (() => {
+    if (!service) return null;
+    if (submitted) {
+      return {
+        label: service.group === 'gro' && submitted.hasCertificate
+          ? 'View my certificate'
+          : 'View my application',
+        run: openExisting,
+      };
     }
-    openOverlay('serviceApply', { serviceId: service.id, applicationId: draft?.id || null });
-  };
-
-  const track = () => {
-    if (!openApplication) return;
-    openOverlay('serviceTrack', { group: openApplication.group, id: openApplication.id });
-  };
+    if (service.group === 'gro') {
+      return { label: 'Enter my registration number', run: () => openOverlay('groLookup', { serviceId: service.id }) };
+    }
+    if (draft) {
+      return {
+        label: 'Resume my application',
+        run: () => openOverlay('serviceApply', { serviceId: service.id, applicationId: draft.id }),
+      };
+    }
+    return {
+      label: `Apply for ${service.name.toLowerCase()}`,
+      run: () => openOverlay('serviceApply', { serviceId: service.id, applicationId: null }),
+    };
+  })();
 
   const supportButton = service && (
     <button
@@ -80,15 +108,20 @@ export default function ServiceView() {
       background: 'var(--surface-1)', borderTop: '1px solid var(--surface-hairline)',
       display: 'flex', flexDirection: 'column', gap: 9,
     }}>
-      <Button fullWidth style={{ background: accent }} onClick={startApply}>
-        {service.group === 'gro'
-          ? 'Enter my registration number'
-          : draft ? 'Resume my application' : `Apply for ${service.name.toLowerCase()}`}
+      <Button fullWidth style={{ background: accent }} onClick={primary?.run}>
+        {primary?.label}
       </Button>
-      {openApplication && (
-        <Button fullWidth variant="outline" onClick={track}>
-          Track my {openApplication.statusLabel.toLowerCase() === 'certificate ready' ? 'certificate' : 'application'}
+      {/* A second GRO certificate is a different registration number, so that
+          service keeps its lookup available alongside the one already collected. */}
+      {submitted && service.group === 'gro' && (
+        <Button fullWidth variant="outline" onClick={() => openOverlay('groLookup', { serviceId: service.id })}>
+          Look up another registration number
         </Button>
+      )}
+      {submitted && (
+        <span style={{ textAlign: 'center', fontSize: 11.5, lineHeight: 1.45, color: 'var(--fg-3)' }}>
+          {`Reference ${submitted.ref} · ${submitted.statusLabel}`}
+        </span>
       )}
     </div>
   );

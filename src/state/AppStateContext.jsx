@@ -119,15 +119,13 @@ export function AppStateProvider({ children }) {
 
   const navigate = useCallback((next) => {
     setScreenState(next);
-    // Going to a screen always leaves the services category drill-down behind:
-    // it covers the whole frame, so "See my applications" from a service
-    // launched inside it must not land underneath the category page.
-    setOverlays((prev) => {
-      if (!prev.has('category')) return prev;
-      const n = new Map(prev);
-      n.delete('category');
-      return n;
-    });
+    // Going to a screen closes whatever was covering the frame. Overlays sit on
+    // top of the screen, so leaving one open would show the citizen the screen
+    // they asked for hidden behind the service they were just in — which is
+    // exactly what "View my applications" from an eligibility notice used to do.
+    // A flow that means to land somewhere with an overlay open opens it after
+    // this call, and that still works: the two updates apply in order.
+    setOverlays((prev) => (prev.size ? new Map() : prev));
     window.scrollTo?.(0, 0);
   }, []);
 

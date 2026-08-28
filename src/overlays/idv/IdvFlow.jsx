@@ -21,7 +21,7 @@ function agencyMetaFor(purpose, agencyId) {
 }
 
 export default function IdvFlow() {
-  const { isOpen, closeOverlay, getPayload, showToast, persona } = useAppState();
+  const { isOpen, closeOverlay, getPayload, showToast, persona, updateUser } = useAppState();
   const open = isOpen('idv');
   const rawPayload = getPayload('idv');
   const payload = rawPayload && typeof rawPayload === 'object' ? rawPayload : {};
@@ -47,6 +47,12 @@ export default function IdvFlow() {
 
   const succeed = () => {
     clearTimeout(timerRef.current);
+    // Record it on the account. Confirming identity is a prerequisite for
+    // applying for anything, so a flow that only said "verified" and changed
+    // nothing sent the citizen straight back to the same blocked screen.
+    // An agency confirming its own records is not the citizen proving who they
+    // are, so those purposes leave the account's own level alone.
+    if (!isAgencyPurpose) updateUser({ verificationLevel: 'verified' });
     closeOverlay('idv');
     showToast('Identity verified');
   };

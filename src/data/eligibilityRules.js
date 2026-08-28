@@ -30,18 +30,29 @@ export const ELIGIBILITY_RULES = {
     id: 'hasGovRecord',
     passLabel: 'You are on record as a citizen resident in Guyana',
     failLabel: 'We could not match you to a government record',
-    failHint: 'Verify your identity so your record can be matched.',
-    passes: ({ user }) => !!user?.gov,
+    failHint: 'Confirm your identity so your record can be matched.',
+    failAction: { label: 'Confirm my identity', overlay: 'idv', payload: { purpose: 'sensitive' } },
+    // Confirming identity IS the record match in this app, so a verified
+    // citizen is on record whether or not the demo registry happens to hold a
+    // full profile for them. Without this, anyone who is not one of the seeded
+    // citizens could never apply for anything that reads the record.
+    passes: ({ user, persona }) => !!user?.gov
+      || !!(persona?.verified || user?.verificationLevel === 'verified'),
   },
 
   noOpenCashGrant: {
     id: 'noOpenCashGrant',
     passLabel: 'No cash grant application on file — one grant per person',
     failLabel: 'You already have a cash grant application',
-    failHint: 'One grant per person per cycle. Track your existing application instead.',
+    failHint: 'One grant per person per cycle. Open your existing application instead.',
     failAction: { label: 'View my applications', screen: 'applications' },
+    // A draft is not an application — it has not been submitted, and blocking
+    // it would make a half-finished form impossible to go back and finish.
+    // Only something actually with the Ministry counts.
     passes: ({ applications }) => !(applications || []).some(
-      (a) => a.group === 'cashGrants' && !['rejected', 'withdrawn'].includes(a.status)
+      (a) => a.group === 'cashGrants'
+        && a.status !== 'draft'
+        && !['rejected', 'withdrawn'].includes(a.status)
     ),
   },
 
@@ -51,8 +62,12 @@ export const ELIGIBILITY_RULES = {
     failLabel: 'You must be 18 or older to apply',
     failHint: 'A parent or guardian can apply on your behalf at a service centre.',
     passes: ({ user, persona }) => {
-      const dob = user?.gov?.dob || persona?.dob;
-      if (!dob) return false;
+      // Date of birth comes from the government record, or from what the
+      // citizen filled in themselves. When neither knows it there is nothing to
+      // check — an unknown age is not evidence of being under 18, and failing
+      // closed here would block every citizen the demo registry does not hold.
+      const dob = user?.gov?.dob || user?.profile?.dob || persona?.dob;
+      if (!dob) return true;
       const born = new Date(`${dob}T00:00:00`);
       if (Number.isNaN(born.getTime())) return false;
       const age = (Date.now() - born.getTime()) / (365.25 * 24 * 3600 * 1000);

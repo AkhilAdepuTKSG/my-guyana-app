@@ -12,7 +12,7 @@
 //   • collecting a certificate files a copy in that citizen's Vault, and
 //     collecting it twice does not file it twice.
 
-import { get, getOneBy, getAllBy, put } from '../data/db';
+import { get, getAll, getOneBy, getAllBy, put } from '../data/db';
 import { newId, newCertificateNumber, now } from '../data/ids';
 import { normaliseRegNo } from '../data/seed/groRegistry';
 import { GRO_SERVICE_BY_TYPE } from '../data/seed/servicesGro';
@@ -65,6 +65,27 @@ export async function findRegistration(regNo) {
   const key = normaliseRegNo(regNo);
   if (!key) return null;
   return getOneBy(REG_STORE, 'byRegNoKey', key);
+}
+
+/**
+ * The registrations the register already holds against this citizen's National
+ * ID — the ones they are entitled to collect without typing anything.
+ *
+ * A citizen does not memorise their birth registration number, and asking them
+ * for one the state already has against their name is the kind of step that
+ * sends people to a district office. Where the register knows, the app offers.
+ *
+ * @param {{nationalId?: string|null, type?: 'birth'|'death'|'marriage'|null}} args
+ * @returns {Promise<import('../data/types').GroRegistration[]>}
+ */
+export async function findRegistrationsFor({ nationalId, type = null }) {
+  const key = normaliseRegNo(nationalId || '');
+  if (!key) return [];
+  const rows = await getAll(REG_STORE);
+  return rows
+    .filter((r) => r.claimNationalId && normaliseRegNo(r.claimNationalId) === key)
+    .filter((r) => !type || r.type === type)
+    .sort((a, b) => String(b.registeredAt || '').localeCompare(String(a.registeredAt || '')));
 }
 
 /**

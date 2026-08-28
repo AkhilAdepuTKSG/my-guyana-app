@@ -5,7 +5,7 @@
 //
 // Two demo citizens, each with fully self-consistent details (no value is
 // shared or mismatched across a person's documents):
-//   • Nicole Persaud — already has an e-ID (123-4567-8901)
+//   • Nicole Persaud — already has an e-ID (E1234567890)
 //   • John Doe       — no e-ID yet, but is on record with other documents
 //
 // The sample documents in public/sample-docs/ are generated from these exact
@@ -42,7 +42,7 @@ export const GOV_CITIZENS = [
     // Identity documents on record
     hasEid: true,
     // e-ID number as printed on the card (format as issued by MoPS; backlog 1.1).
-    eidNo: '123-4567-8901',
+    eidNo: 'E1234567890',
     eidCardNo: '0000 1234 5678', // number printed on the physical smart card
     nationalId: 'N1234567890',
     passport: 'P1234567890',
@@ -104,8 +104,9 @@ const DOC_FIELD = {
   "Driver's licence": 'driversLicence',
 };
 
-// Loose normaliser so "123-4567-8901", "123 4567 8901" and "12345678901"
-// all compare equal — real cards are read/typed with inconsistent spacing.
+// Loose normaliser so "E1234567890", "E123 4567 890" and "e1234567890"
+// all compare equal — real cards are read/typed with inconsistent spacing and
+// nobody types the prefix in the same case twice.
 function norm(value) {
   return String(value ?? '').replace(/[\s-]/g, '').toUpperCase();
 }
@@ -128,7 +129,7 @@ export function findByDocument(type, number) {
 }
 
 // Look a citizen up by their e-ID — accepts either the printed e-ID number
-// (123-4567-8901) or the long card number (0000 1234 5678).
+// (E1234567890) or the long card number (0000 1234 5678).
 export function findByEid(value) {
   if (!value) return null;
   const n = norm(value);
@@ -178,6 +179,9 @@ export function dobMatches(input, isoDob) {
 export function toSessionGov(citizen) {
   if (!citizen) return null;
   return {
+    // Where the details came from. A matched entry is the state's own record;
+    // see declaredGov() for the other case.
+    source: 'registry',
     citizenId: citizen.id,
     firstName: citizen.firstName,
     lastName: citizen.lastName,
@@ -195,4 +199,69 @@ export function toSessionGov(citizen) {
     driversLicence: citizen.driversLicence,
     tin: citizen.tin,
   };
+}
+
+// The record for a citizen the registry does not hold.
+//
+// Someone who creates an account by hand is still a citizen with a name, a date
+// of birth and a document number — they are simply not in this demo registry.
+// Without a record of their own, every screen that reads `user.gov` treated them
+// as having no details at all: applications could not be prefilled, age could
+// not be checked, and a GRO registration number could not be matched to them.
+// So what they typed becomes their record, marked as declared rather than
+// matched, and the app works the same way for them as for a matched citizen.
+//
+// @param {{first?: string, last?: string, dob?: string, gender?: string, phone?: string, email?: string, country?: string}} fields
+// @param {{docType?: string, docNo?: string}} [doc] the ID they registered with
+export function declaredGov(fields = {}, doc = {}) {
+  const first = String(fields.first || '').trim();
+  const last = String(fields.last || '').trim();
+  if (!first && !last && !fields.dob) return null;
+
+  const no = String(doc.docNo || '').trim() || null;
+  // The number goes in the slot for the document type it belongs to, so a
+  // National ID typed at sign-up is found where everything else looks for one.
+  const byType = {
+    'national-id': 'nationalId',
+    'National ID': 'nationalId',
+    passport: 'passport',
+    Passport: 'passport',
+    licence: 'driversLicence',
+    "Driver's licence": 'driversLicence',
+    tin: 'tin',
+    TIN: 'tin',
+  }[doc.docType] || null;
+
+  return {
+    source: 'declared',
+    citizenId: null,
+    firstName: first,
+    lastName: last,
+    dob: fields.dob || null,
+    gender: fields.gender || null,
+    region: fields.region || null,
+    placeOfBirth: fields.country || null,
+    address: fields.address || null,
+    phone: fields.phone || null,
+    phoneMasked: maskContact(fields.phone),
+    email: fields.email || null,
+    emailMasked: maskContact(fields.email),
+    nationalId: byType === 'nationalId' ? no : null,
+    passport: byType === 'passport' ? no : null,
+    driversLicence: byType === 'driversLicence' ? no : null,
+    tin: byType === 'tin' ? no : null,
+  };
+}
+
+// Same masking the registry entries carry, so a declared contact is shown the
+// way a matched one is.
+function maskContact(value) {
+  const v = String(value || '').trim();
+  if (!v) return null;
+  if (v.includes('@')) {
+    const [name, domain] = v.split('@');
+    return `${name.slice(0, 1)}${'•'.repeat(Math.max(1, name.length - 1))}@${domain}`;
+  }
+  const tail = v.replace(/\D/g, '').slice(-4);
+  return tail ? `••• ••• ${tail}` : null;
 }

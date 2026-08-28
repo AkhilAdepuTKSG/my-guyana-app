@@ -6,7 +6,7 @@ import StatusPill from '../../components/ui/StatusPill';
 import { useAppState } from '../../state/AppStateContext';
 import { useApi, useAction, useUserId } from '../../hooks/useApi';
 import { getServiceDetail } from '../../api/catalog';
-import { lookupRegistration, listRequests } from '../../api/gro';
+import { lookupRegistration, listRequests, findRegistrationsFor } from '../../api/gro';
 import { statusLabel, statusTone } from '../../api/applications';
 import {
   SectionHeading, InfoPanel, Card, LoadingState, ErrorState, EmptyState,
@@ -22,11 +22,30 @@ import { formatGyd, formatDate } from '../../lib/format';
 
 const ACCENT = '#7d3550';
 
+// Format hints only. Every one of these is a register entry that is not held
+// against anybody's National ID, so a citizen who copies the example to see
+// what happens gets a real result rather than "that belongs to someone else".
 const EXAMPLES = {
-  svc_gro_birth: 'B/GT/1990/004512',
+  svc_gro_birth: 'B/EC/2024/009341',
   svc_gro_death: 'D/EC/2024/001188',
   svc_gro_marriage: 'M/GT/2021/000734',
 };
+
+const TYPE_BY_SERVICE = {
+  svc_gro_birth: 'birth',
+  svc_gro_death: 'death',
+  svc_gro_marriage: 'marriage',
+};
+
+const SUBJECT_KEYS = ['childName', 'deceasedName', 'partyOneName', 'brideName', 'groomName'];
+
+/** The name a register entry is about, whichever kind it is. */
+function subjectOf(registration) {
+  const r = registration?.record || {};
+  const named = SUBJECT_KEYS.map((k) => r[k]).filter(Boolean);
+  if (r.partyOneName && r.partyTwoName) return `${r.partyOneName} & ${r.partyTwoName}`;
+  return named[0] || registration?.regNo || 'Register entry';
+}
 
 export default function GroLookup() {
   const { isOpen, getPayload, closeOverlay, openOverlay, user, showToast } = useAppState();
@@ -37,6 +56,15 @@ export default function GroLookup() {
 
   const detail = useApi(() => getServiceDetail(serviceId), [serviceId], { enabled: open && !!serviceId });
   const requests = useApi(() => listRequests(userId), [userId], { enabled: open && !!userId, initial: [] });
+
+  // What the register already holds in this citizen's name. Where there is one,
+  // they never have to find their number.
+  const nationalId = user?.gov?.nationalId || null;
+  const onRecord = useApi(
+    () => findRegistrationsFor({ nationalId, type: TYPE_BY_SERVICE[serviceId] || null }),
+    [nationalId, serviceId, open],
+    { enabled: open && !!nationalId, initial: [] }
+  );
 
   const [regNo, setRegNo] = useState('');
   const [tier, setTier] = useState('standard');
@@ -57,12 +85,12 @@ export default function GroLookup() {
   // Only this certificate type's previous lookups belong on this screen.
   const mine = (requests.data || []).filter((r) => !service || `svc_gro_${r.type}` === service.id);
 
-  const submit = async () => {
-    if (!regNo.trim()) { showToast('Enter your registration number'); return; }
+  const submit = async (number = regNo) => {
+    if (!String(number).trim()) { showToast('Enter your registration number'); return; }
     const result = await lookup.run({
       userId,
-      regNo,
-      nationalId: user?.gov?.nationalId || null,
+      regNo: number,
+      nationalId,
       tier,
     });
     if (!result) return;
@@ -81,7 +109,7 @@ export default function GroLookup() {
       padding: '12px 20px calc(16px + env(safe-area-inset-bottom, 0px))',
       background: 'var(--surface-1)', borderTop: '1px solid var(--surface-hairline)',
     }}>
-      <Button fullWidth style={{ background: ACCENT }} onClick={submit} disabled={lookup.pending}>
+      <Button fullWidth style={{ background: ACCENT }} onClick={() => submit()} disabled={lookup.pending}>
         {lookup.pending ? 'Looking it up…' : 'Find my registration'}
       </Button>
     </div>
@@ -101,9 +129,54 @@ export default function GroLookup() {
         <ErrorState error={detail.error} onRetry={detail.reload} />
       ) : !service ? null : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* --- Already in your name --------------------------------------
+              The register is the state's own record. Where it already holds an
+              entry against this citizen, making them go and find the number
+              first would be asking them for something the state gave them. */}
+          {(onRecord.data || []).length > 0 && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <SectionHeading
+                eyebrow="In your name"
+                title={(onRecord.data || []).length === 1
+                  ? 'The register already holds this for you'
+                  : 'The register already holds these for you'}
+                description="Registered against your National ID. Open one to follow it and collect the certificate — no number needed."
+                accent={ACCENT}
+              />
+              {(onRecord.data || []).map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  className="press focus-ring"
+                  onClick={() => submit(r.regNo)}
+                  disabled={lookup.pending}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '13px 14px',
+                    border: `1.5px solid ${ACCENT}`, borderRadius: 'var(--radius-lg)',
+                    background: `color-mix(in oklch, ${ACCENT} 7%, transparent)`,
+                    cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                  }}
+                >
+                  <Icon name="file-badge" size={18} style={{ color: ACCENT, flexShrink: 0 }} />
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flex: 1 }}>
+                    <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--fg-1)' }}>{subjectOf(r)}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.05em', color: 'var(--fg-3)' }}>
+                      {r.regNo}
+                    </span>
+                  </span>
+                  <StatusPill tone={statusTone(r.status === 'approved' ? 'approved' : 'inReview')}>
+                    {r.status === 'approved' ? 'Ready' : 'In progress'}
+                  </StatusPill>
+                </button>
+              ))}
+            </section>
+          )}
+
           <SectionHeading
             eyebrow="Your registration number"
-            title="Start with the number on your slip"
+            title={(onRecord.data || []).length > 0
+              ? 'Or enter a different number'
+              : 'Start with the number on your slip'}
             description="The GRO registers the entry and issues this number. Enter it and we will find the entry, show you where it has reached, and give you the certificate once it is approved."
             accent={ACCENT}
           />

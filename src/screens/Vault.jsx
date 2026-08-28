@@ -28,7 +28,7 @@ import NotificationBell from '../components/ui/NotificationBell';
 const DOC_TYPES = REQUESTABLE_TYPE_IDS.map((id) => documentType(id));
 
 // Display fallback only — e-ID number format as issued by MoPS (backlog 1.1).
-const EID_NUMBER = '123-4567-8901';
+const EID_NUMBER = 'E1234567890';
 
 // Documents are REQUESTED from the issuing agency, never uploaded by the
 // citizen: if the record exists in their name, the agency issues a digital

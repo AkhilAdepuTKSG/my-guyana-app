@@ -13,14 +13,27 @@ import { Recovery, RecoveryFix } from './AuthRecovery';
 import { EidBook } from './AuthEidApply';
 import { isBiometricSupported, hasEnrolledBiometric, authenticateBiometric, enrolBiometric, clearBiometric } from './biometric';
 import { recognizeImage, parseFields } from '../../lib/ocr';
-import { findByEid, findByDocument, toSessionGov, GOV_CITIZENS } from '../../state/govRegistry';
+import { findByEid, findByDocument, toSessionGov, declaredGov, GOV_CITIZENS } from '../../state/govRegistry';
 import { formatEidDate } from '../eid/eidData';
-
-const CONTACT_PLACEHOLDER = { phone: '••• ••• 4820', email: 'n••••••@example.gy' };
 
 // The one demo citizen who holds an e-ID — used when a create-account flow
 // discovers "you have an e-ID" without a specific number to look up.
 const EID_CITIZEN = GOV_CITIZENS.find((c) => c.hasEid) || null;
+
+// Whose account this device already holds. Signing back in on a device that is
+// already set up is not the same as arriving with no idea who you are: the
+// sign-in card shows this citizen's masked phone and email, so signing in has
+// to produce this citizen's account. It used to produce an empty one called
+// "Citizen", with no government record behind it — which is why services that
+// read the record turned the citizen away.
+const DEVICE_CITIZEN = EID_CITIZEN;
+
+// Masked contacts shown before any record is resolved. Taken from the device's
+// own citizen so the card and the account it signs into cannot disagree.
+const CONTACT_PLACEHOLDER = {
+  phone: DEVICE_CITIZEN?.phoneMasked || '••• ••• 4820',
+  email: DEVICE_CITIZEN?.emailMasked || 'n••••••@example.gy',
+};
 
 // Masked contact channels for whichever gov record is in play, falling back to
 // the generic placeholder before any record is resolved.
@@ -200,22 +213,29 @@ export default function AuthFlow({ gate = false }) {
       eidNo: citizen?.eidNo || null,
       eidApplied: !!st.eidApplied,
       eidAppointment: st.eidApplied ? { office: st.eidApptOffice, date: st.eidApptDate, time: st.eidApptTime } : null,
-      gov: toSessionGov(citizen), // masked contacts, TIN, address, etc. for prepopulation
+      // Masked contacts, TIN, address, etc. for prepopulation. A citizen the
+      // registry does not hold still gets a record — built from what they typed
+      // — so that every screen reading `user.gov` works the same for them.
+      gov: toSessionGov(citizen) || declaredGov(m, { docType: st.govIdType || st.docType, docNo: st.manualDocNo }),
     };
   };
 
   const finish = (msg, citizen = st.govCitizen, level) => {
     clearTimers();
-    signIn(buildUser(citizen, level));
+    // Signing back in on a device that is already set up resolves to the
+    // citizen whose account it is; creating an account resolves only to a
+    // record that was actually matched.
+    const who = citizen || (st.authIntent === 'signin' ? DEVICE_CITIZEN : null);
+    signIn(buildUser(who, level));
     // Every agency the government record links this citizen to comes in with
     // them — pulled from the master list, never a hand-picked few (backlog 1.5).
-    (citizen?.linkedAgencies || []).forEach((id) => connectAgency(id));
+    (who?.linkedAgencies || []).forEach((id) => connectAgency(id));
     // An employer may already have registered the citizen with NIS (Nicole):
     // the NIS record arrives connected and active. On first sign-up she is told
     // so with a push card on Home and asked to confirm the employer's details;
     // a returning sign-in treats it as already confirmed.
-    if (citizen?.nisRegistration) {
-      const reg = citizen.nisRegistration;
+    if (who?.nisRegistration) {
+      const reg = who.nisRegistration;
       const firstSignUp = st.authIntent === 'create';
       connectAgency('nis', {
         nisAccountState: 'active', nisNumber: reg.nisNumber, contributions: reg.contributions,
@@ -234,7 +254,7 @@ export default function AuthFlow({ gate = false }) {
     // "open the agencies sheet on landing" behaviour is kept but switched off on
     // request — the sheet opens from Home's "See all" instead.
     const OPEN_AGENCIES_AFTER_SIGNUP = false;
-    if (OPEN_AGENCIES_AFTER_SIGNUP && st.authIntent === 'create' && st.eidApplied && (citizen?.linkedAgencies || []).length) {
+    if (OPEN_AGENCIES_AFTER_SIGNUP && st.authIntent === 'create' && st.eidApplied && (who?.linkedAgencies || []).length) {
       openOverlay('addAgency');
     }
     // A citizen who registered without an e-ID has one started for them, with a
@@ -387,8 +407,13 @@ export default function AuthFlow({ gate = false }) {
       try {
         const text = await recognizeImage(file);
         const parsed = parseFields(text);
-        // e-ID numbers as printed on the card, e.g. 123-4567-8901 (backlog 1.1).
-        const num = parsed.documentNumber || (text.match(/\b\d{3}-?\d{4}-?\d{4}\b/)?.[0]) || '';
+        // e-ID numbers as printed on the card, e.g. E1234567890 (backlog 1.1).
+        // The long card number (0000 1234 5678) is printed on the card as well,
+        // and findByEid accepts either.
+        const num = parsed.documentNumber
+          || (text.match(/\bE\s?\d{3}\s?\d{4}\s?\d{3}\b/i)?.[0])
+          || (text.match(/\b\d{4}\s?\d{4}\s?\d{4}\b/)?.[0])
+          || '';
         const citizen = findByEid(num);
         if (!citizen) {
           setSt((s) => ({ ...s, authStep: 'eid-signin', eidSignInError: "We couldn't read a known e-ID from that image. Try tapping the card, or create an account." }));

@@ -92,10 +92,17 @@ export function openTargetFor(app) {
   return { overlay: 'serviceTrack', payload: { group: app.group, id: app.id } };
 }
 
-export function useMyApplications() {
+/**
+ * @param {boolean} [active] re-read whenever this turns true
+ */
+export function useMyApplications(active = true) {
   const { applications: legacy } = useAppState();
   const userId = useUserId();
-  const api = useApi(() => listAll(userId), [userId], { enabled: !!userId, initial: [] });
+  // `active` is a dependency on purpose. The screens that read this are mounted
+  // for the life of the app and only render when their overlay opens, so a
+  // fetch that ran once at start-up would never see an application submitted
+  // afterwards — and the service screen would go on offering "Apply".
+  const api = useApi(() => listAll(userId), [userId, active], { enabled: !!userId && active, initial: [] });
   const applications = useMemo(() => {
     const rows = [...(api.data || []), ...(legacy || []).map(toSummary)];
     return rows.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));

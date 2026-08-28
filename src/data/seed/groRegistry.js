@@ -243,7 +243,7 @@ export const GRO_REGISTRATION_SEED = [
     claimNationalId: null,
     record: {
       partyOneName: 'Shanice Marie Adams',
-      partyTwoName: 'Dwayne Oswald History',
+      partyTwoName: 'Dwayne Oswald Hinds',
       dateOfMarriage: '2026-08-01',
       placeOfMarriage: 'Anna Regina Magistrate\'s Court, Essequibo',
       officiant: 'Ms. J. Persaud, Marriage Officer',
