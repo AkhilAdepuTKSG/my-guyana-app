@@ -76,7 +76,10 @@
  * @property {string} issuer
  * @property {boolean} required
  * @property {string} [hint]
- * @property {string} [vaultKind]  matching Vault document kind, for "add from Vault"
+ * @property {string[]} [accepts]  DOCUMENT_TYPES ids this slot will take from the
+ *                                 Vault. A slot with no list accepts nothing from
+ *                                 the Vault; see src/data/documentTypes.js.
+ * @property {'vault'|'upload'} [source]
  */
 
 /**
@@ -329,7 +332,9 @@
  * @typedef {Object} VaultDocument
  * @property {string} id
  * @property {string} userId
- * @property {string} kind
+ * @property {string} type        a DOCUMENT_TYPES id — the single source of truth
+ * @property {string} [section]   derived from the type: 'cards' | 'records'
+ * @property {string} [typeLabel] derived from the type
  * @property {string} title
  * @property {string} subtitle
  * @property {string} icon

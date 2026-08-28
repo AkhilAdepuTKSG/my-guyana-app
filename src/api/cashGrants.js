@@ -12,6 +12,8 @@ import {
   newDraft, assignReference, syncReviewProgress, isLive,
 } from './applicationCommon';
 import { validateFields, validateDocuments, visibleFields, ApiError } from './validate';
+import { assertAttachable } from './vault';
+import { assertAttachmentsTyped } from './documentPolicy';
 
 const STORE = 'cash_grant_applications';
 export const CASH_GRANT_SERVICE_ID = 'svc_cash_grant';
@@ -177,6 +179,9 @@ export async function submitApplication({ userId, applicationId, fields, documen
   // Only enforce documents the citizen was actually asked for. The school
   // letter, for instance, is only required for the Because We Care grant.
   const requiredDocs = requiredDocumentsFor(service, fields);
+  // Every Vault-connected attachment must be of a type its slot accepts.
+  await assertAttachmentsTyped({ userId, documents: requiredDocs, attached: documents });
+
   const docCheck = validateDocuments(requiredDocs, documents);
   if (!docCheck.ok) {
     throw new ApiError(
@@ -289,6 +294,14 @@ export async function attachDocument({ userId, applicationId, docId, fileName, s
   const application = await getApplication(applicationId);
   if (!application) throw new ApiError('That application no longer exists.', 'notFound');
   if (application.userId !== userId) throw new ApiError('That application belongs to someone else.', 'forbidden');
+
+  // A document connected from the Vault must be of a type this slot accepts.
+  // The picker already filters by type; this is the authority that says so.
+  if (fromVault && vaultDocId) {
+    const service = await getService(application.serviceId);
+    const field = requiredDocumentsFor(service, application.fields).find((d) => d.id === docId);
+    await assertAttachable({ userId, documentId: vaultDocId, field });
+  }
 
   const documents = application.documents.map((d) => (d.docId === docId
     ? { ...d, status: fromVault ? 'fromVault' : 'attached', fileName, size: size ?? null, vaultDocId: vaultDocId ?? null, attachedAt: now() }

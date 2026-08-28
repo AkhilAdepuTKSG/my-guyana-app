@@ -17,7 +17,7 @@ import { GRO_SERVICES, GRO_FEES, GRO_ROUTES } from './seed/servicesGro';
 import { GRO_REGISTRATION_SEED, normaliseRegNo } from './seed/groRegistry';
 
 /** Raise this when any seed file changes. */
-export const SEED_REVISION = 8;
+export const SEED_REVISION = 9;
 
 const SEED_META_KEY = 'seedRevision';
 

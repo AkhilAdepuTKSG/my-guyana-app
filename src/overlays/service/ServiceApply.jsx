@@ -7,7 +7,7 @@ import { useAppState } from '../../state/AppStateContext';
 import { useApi, useAction, useUserId } from '../../hooks/useApi';
 import { getServiceDetail } from '../../api/catalog';
 import { fileUploadedDocument } from '../../api/vault';
-import { useVault } from '../../hooks/useVault';
+import { useVaultAttach } from '../../hooks/useVaultAttach';
 import { listAll } from '../../api/applications';
 import * as cashGrants from '../../api/cashGrants';
 import * as singleWindow from '../../api/singleWindow';
@@ -16,6 +16,7 @@ import { validateFields, visibleFields, validateDocuments, validatePrerequisites
 import FormField from '../../components/service/FormField';
 import DocumentSlot from '../../components/service/DocumentSlot';
 import DocumentProgress from '../../components/service/DocumentProgress';
+import VaultPickerSheet from '../../components/service/VaultPickerSheet';
 import {
   SectionHeading, InfoPanel, Card, DetailRow, FeeTable, LoadingState, ErrorState,
 } from '../../components/service/ServicePieces';
@@ -46,7 +47,24 @@ export default function ServiceApply() {
   const userId = useUserId();
 
   const detail = useApi(() => getServiceDetail(serviceId), [serviceId], { enabled: open && !!serviceId });
-  const vault = useVault();
+  // One shared attach-from-Vault behaviour, type-filtered (see useVaultAttach).
+  const attachFromVaultItem = (field, match) => {
+    setDocs((d) => ({
+      ...d,
+      [field.id]: {
+        status: 'fromVault',
+        fileName: match.fileName || match.title,
+        size: match.sizeBytes ?? null,
+        // Only a filed document has a row of its own; a card or a derived
+        // record is connected by reference, with nothing to re-upload.
+        vaultDocId: match.vaultDocId,
+        type: match.type,
+      },
+    }));
+    showToast(`${match.title} added from your Vault`);
+  };
+  const { vault, requestFromVault, pickerFor, pickerCandidates, pick, closePicker } =
+    useVaultAttach({ onAttach: attachFromVaultItem, showToast, active: open });
   const mine = useApi(() => listAll(userId), [userId, serviceId], { enabled: open && !!userId, initial: [] });
 
   const service = detail.data?.service;
@@ -239,25 +257,6 @@ export default function ServiceApply() {
   // the way the rest of the app does it. When the Vault has nothing that
   // answers this requirement, say so and point at the upload instead of
   // attaching something that is not what was asked for.
-  const attachFromVault = (doc) => {
-    const match = vault.find(doc);
-    if (!match) {
-      showToast(`No ${doc.label.toLowerCase()} in your Vault yet — upload it and we will keep it there`);
-      return;
-    }
-    setDocs((d) => ({
-      ...d,
-      [doc.id]: {
-        status: 'fromVault',
-        fileName: match.fileName || match.title,
-        size: match.sizeBytes ?? null,
-        // Only a filed document has a row of its own; a card or a derived
-        // record is connected by reference, with nothing to re-upload.
-        vaultDocId: match.vaultDocId,
-      },
-    }));
-    showToast(`${match.title} added from your Vault`);
-  };
   const viewDoc = async (docId) => {
     const vaultDocId = docs[docId]?.vaultDocId;
     const row = vault.storedDocs.find((v) => v.id === vaultDocId);
@@ -348,6 +347,15 @@ export default function ServiceApply() {
         style={{ display: 'none' }}
       />
 
+      <VaultPickerSheet
+        open={!!pickerFor}
+        field={pickerFor}
+        candidates={pickerCandidates}
+        accent={accent}
+        onPick={pick}
+        onClose={closePicker}
+      />
+
       {detail.loading ? (
         <LoadingState label="Opening the application…" />
       ) : detail.error ? (
@@ -423,7 +431,7 @@ export default function ServiceApply() {
               missing={showErrors ? docCheck.missing : []}
               accent={accent}
               onPick={pickFile}
-              onUseVault={attachFromVault}
+              onUseVault={requestFromVault}
               onView={viewDoc}
               onRemove={removeDoc}
             />

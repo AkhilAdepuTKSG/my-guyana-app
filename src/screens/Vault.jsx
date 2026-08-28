@@ -6,6 +6,7 @@ import { loadCertificateForVault } from '../api/gro';
 import { renderCertificatePdf, certificateFileName } from '../lib/certificates';
 import { downloadBlob } from '../lib/format';
 import { buildCards, buildRecords } from '../lib/vaultRecords';
+import { isIdCard, resolveType, documentType, REQUESTABLE_TYPE_IDS } from '../data/documentTypes';
 import Icon from '../components/ui/Icon';
 import ListRow from '../components/ui/ListRow';
 import Sheet from '../components/ui/Sheet';
@@ -20,15 +21,10 @@ import NotificationBell from '../components/ui/NotificationBell';
 // derived from the government record and connected agencies — nothing is
 // invented per screen.
 
-// The kinds of document a citizen can store in their Vault (DigiLocker-style).
-const DOC_TYPES = [
-  { id: 'national-id', label: 'National ID', icon: 'id-card' },
-  { id: 'passport', label: 'Passport', icon: 'book-user' },
-  { id: 'licence', label: "Driver's licence", icon: 'car' },
-  { id: 'birth-cert', label: 'Birth certificate', icon: 'file-text' },
-  { id: 'certificate', label: 'Certificate', icon: 'file-badge' },
-  { id: 'other', label: 'Other document', icon: 'file' },
-];
+// What a citizen may ask the issuing agency for, taken from the shared
+// document-type contract rather than listed again here — so a requested
+// document carries a real type and lands in the right section.
+const DOC_TYPES = REQUESTABLE_TYPE_IDS.map((id) => documentType(id));
 
 // Display fallback only — e-ID number format as issued by MoPS (backlog 1.1).
 const EID_NUMBER = '123-4567-8901';
@@ -37,14 +33,8 @@ const EID_NUMBER = '123-4567-8901';
 // citizen: if the record exists in their name, the agency issues a digital
 // copy into the Vault. The upload path is kept in code behind this flag.
 const ALLOW_UPLOADS = false;
-const DOC_ISSUERS = {
-  'national-id': 'GECOM',
-  passport: 'the Immigration Department',
-  licence: 'the Guyana Police Force',
-  'birth-cert': 'the General Register Office',
-  certificate: 'the issuing agency',
-  other: 'the issuing agency',
-};
+// The issuer comes from the type definition too.
+const issuerFor = (typeId) => documentType(typeId).issuer || 'the issuing agency';
 
 // The e-ID card — the one big card at the top of the Vault.
 function EidWalletCard({ persona, onOpen }) {
@@ -96,8 +86,13 @@ function formatAdded(iso) {
 
 export default function Vault() {
   const { navigate, openOverlay, persona, showToast, user, vaultDocs, addVaultDoc, removeVaultDoc, requireOtp, addNotification } = useAppState();
-  const cards = buildCards(persona, user);
-  const records = buildRecords(persona, user);
+  // Which section a document belongs in is decided by its TYPE, never by which
+  // list it happened to arrive in — so Cards & IDs holds identity cards and
+  // nothing else, wherever a document came from.
+  const derived = [
+    ...buildCards(persona, user).map((c) => ({ ...c, origin: 'derived' })),
+    ...buildRecords(persona, user).map((r) => ({ ...r, origin: 'derived' })),
+  ].map((d) => ({ ...d, type: resolveType(null, d.title) }));
 
   // Documents filed against this citizen's own account by the services: the
   // GRO certificates they collected, and anything an application attached.
@@ -105,6 +100,22 @@ export default function Vault() {
   const userId = useUserId();
   const issued = useApi(() => listDocuments(userId), [userId], { enabled: !!userId, initial: [] });
   const issuedDocs = issued.data || [];
+
+  // The citizen's requested documents carry the older loose type id, so they
+  // are resolved through the same contract as everything else.
+  const requested = (vaultDocs || []).map((d) => ({
+    ...d,
+    type: resolveType(d.type, d.label || d.typeLabel),
+  }));
+
+  const inCards = (d) => isIdCard(d.type);
+  const cards = derived.filter(inCards);
+  const records = derived.filter((d) => !inCards(d));
+  const requestedCards = requested.filter(inCards);
+  const requestedRecords = requested.filter((d) => !inCards(d));
+  const issuedCards = issuedDocs.filter(inCards);
+  const issuedRecords = issuedDocs.filter((d) => !inCards(d));
+  const cardCount = cards.length + requestedCards.length + issuedCards.length;
 
   // A certificate is redrawn from the register entry on demand rather than
   // stored as bytes, so what downloads is always the current document.
@@ -135,7 +146,7 @@ export default function Vault() {
   const [otpError, setOtpError] = useState('');
 
   const [adding, setAdding] = useState(false);
-  const [docType, setDocType] = useState('national-id');
+  const [docType, setDocType] = useState('NID');
   const [docLabel, setDocLabel] = useState('');
   const [fileName, setFileName] = useState('');
 
@@ -153,7 +164,7 @@ export default function Vault() {
     const typeDef = DOC_TYPES.find((t) => t.id === docType) || DOC_TYPES[DOC_TYPES.length - 1];
     const label = docLabel.trim() || typeDef.label;
     if (!fileName) { showToast('Attach a file or photo to store'); return; }
-    addVaultDoc({ label, typeId: typeDef.id, typeLabel: typeDef.label, icon: typeDef.icon, fileName });
+    addVaultDoc({ label, type: typeDef.id, typeId: typeDef.id, typeLabel: typeDef.label, icon: typeDef.icon, fileName });
     setAdding(false);
     resetForm();
     showToast(`${label} added to your Vault`);
@@ -165,7 +176,7 @@ export default function Vault() {
   const requestDoc = () => {
     const typeDef = DOC_TYPES.find((t) => t.id === docType) || DOC_TYPES[DOC_TYPES.length - 1];
     const label = docLabel.trim() || typeDef.label;
-    const issuer = DOC_ISSUERS[typeDef.id] || 'the issuing agency';
+    const issuer = issuerFor(typeDef.id);
     requireOtp({
       title: 'Confirm your request',
       confirmLabel: 'Request document',
@@ -178,7 +189,7 @@ export default function Vault() {
         }
         showToast(`Requested — ${issuer} is checking your record`);
         setTimeout(() => {
-          addVaultDoc({ label, typeId: typeDef.id, typeLabel: typeDef.label, icon: typeDef.icon, fileName: 'Issued digital copy' });
+          addVaultDoc({ label, type: typeDef.id, typeId: typeDef.id, typeLabel: typeDef.label, icon: typeDef.icon, fileName: 'Issued digital copy' });
           addNotification({
             agency: 'mops', icon: 'file-check-2',
             title: `${label} is in your Vault`,
@@ -284,7 +295,7 @@ export default function Vault() {
 
   const listCard = { border: '1px solid var(--surface-border)', borderRadius: 18, background: 'var(--surface-1)', overflow: 'hidden' };
   const rowStyle = (last) => ({ borderBottom: last ? 'none' : '1px solid var(--surface-hairline)', padding: '14px 14px' });
-  const selIssuer = DOC_ISSUERS[docType] || 'the issuing agency';
+  const selIssuer = issuerFor(docType);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -294,21 +305,29 @@ export default function Vault() {
         <EidWalletCard persona={persona} onOpen={() => openOverlay('eidCard')} />
       )}
 
-      {cards.length > 0 && (
+      {cardCount > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <h2 style={eyebrow}>Cards &amp; IDs</h2>
           <div style={listCard}>
-            {cards.map((c, i) => (
+            {[
+              ...cards.map((c) => ({ ...c, kind: 'derived' })),
+              ...requestedCards.map((c) => ({ ...c, title: c.label || c.typeLabel, sub: `Requested · ${documentType(c.type).label}`, kind: 'requested' })),
+              ...issuedCards.map((c) => ({ ...c, sub: c.subtitle, kind: 'filed' })),
+            ].map((c, i, arr) => (
               <ListRow
                 key={c.id}
-                icon={c.icon}
-                iconColor="#fff"
-                iconBg={c.bg}
+                icon={c.icon || documentType(c.type).icon}
+                iconColor={c.bg ? '#fff' : 'var(--brand-700)'}
+                iconBg={c.bg || 'var(--brand-100)'}
                 title={c.title}
                 subtitle={c.sub}
                 chevron={false}
-                onClick={() => (c.overlay ? openOverlay(c.overlay) : showToast(`${c.title} — issued by government`))}
-                style={rowStyle(i === cards.length - 1)}
+                onClick={() => {
+                  if (c.overlay) { openOverlay(c.overlay); return; }
+                  if (c.kind === 'filed') { openIssued(c); return; }
+                  showToast(`${c.title} — issued by government`);
+                }}
+                style={rowStyle(i === arr.length - 1)}
               />
             ))}
           </div>
@@ -328,7 +347,7 @@ export default function Vault() {
           </button>
         </div>
 
-        {records.length === 0 && vaultDocs.length === 0 && issuedDocs.length === 0 ? (
+        {records.length === 0 && requestedRecords.length === 0 && issuedRecords.length === 0 ? (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center',
             padding: '30px 20px', border: '1px dashed var(--surface-border)', borderRadius: 18, background: 'var(--surface-1)',
@@ -353,10 +372,10 @@ export default function Vault() {
                 subtitle={d.sub}
                 chevron={false}
                 onClick={() => showToast(`${d.title} — issued by government`)}
-                style={rowStyle(i === records.length - 1 && vaultDocs.length === 0 && issuedDocs.length === 0)}
+                style={rowStyle(i === records.length - 1 && requestedRecords.length === 0 && issuedRecords.length === 0)}
               />
             ))}
-            {vaultDocs.map((d, i) => (
+            {requestedRecords.map((d, i) => (
               <ListRow
                 key={d.id}
                 icon={d.icon || 'file'}
@@ -375,12 +394,12 @@ export default function Vault() {
                     <Icon name="trash-2" size={15} />
                   </button>
                 )}
-                style={rowStyle(i === vaultDocs.length - 1 && issuedDocs.length === 0)}
+                style={rowStyle(i === requestedRecords.length - 1 && issuedRecords.length === 0)}
               />
             ))}
             {/* Filed by a service against this citizen's account — GRO
                 certificates they collected, and application attachments. */}
-            {issuedDocs.map((d, i) => (
+            {issuedRecords.map((d, i) => (
               <ListRow
                 key={d.id}
                 icon={d.icon || 'file-badge'}
@@ -400,7 +419,7 @@ export default function Vault() {
                     <Icon name={d.content?.generator ? 'download' : 'eye'} size={15} />
                   </button>
                 )}
-                style={rowStyle(i === issuedDocs.length - 1)}
+                style={rowStyle(i === issuedRecords.length - 1)}
               />
             ))}
           </div>

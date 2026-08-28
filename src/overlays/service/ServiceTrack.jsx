@@ -7,13 +7,14 @@ import { useAppState } from '../../state/AppStateContext';
 import { useApi, useAction, useUserId } from '../../hooks/useApi';
 import { getDetail, statusLabel, statusTone } from '../../api/applications';
 import { fileUploadedDocument } from '../../api/vault';
-import { useVault } from '../../hooks/useVault';
+import { useVaultAttach } from '../../hooks/useVaultAttach';
 import * as cashGrants from '../../api/cashGrants';
 import * as singleWindow from '../../api/singleWindow';
 import AgencyRoute, { routeSummary } from '../../components/service/AgencyRoute';
 import StageList from '../../components/service/StageList';
 import DocumentSlot from '../../components/service/DocumentSlot';
 import DocumentProgress, { documentSummary } from '../../components/service/DocumentProgress';
+import VaultPickerSheet from '../../components/service/VaultPickerSheet';
 import {
   SectionHeading, InfoPanel, Card, DetailRow, FeeTable, LoadingState, ErrorState,
 } from '../../components/service/ServicePieces';
@@ -38,7 +39,13 @@ export default function ServiceTrack() {
     { enabled: open && !!userId && !!group && !!id }
   );
 
-  const vault = useVault();
+  // Same shared, type-filtered attach behaviour as the apply flow.
+  const onVaultPicked = async (field, match) => {
+    const result = await attach.run({ doc: field, vaultDoc: match });
+    if (result) { showToast(`${match.title} added from your Vault`); view.reload(); }
+  };
+  const { vault, requestFromVault, pickerFor, pickerCandidates, pick, closePicker } =
+    useVaultAttach({ onAttach: onVaultPicked, showToast, active: open });
 
   const fileInput = useRef(null);
   const pendingDoc = useRef(null);
@@ -89,17 +96,6 @@ export default function ServiceTrack() {
     if (result) { showToast('Attached and saved to your Vault'); vault.reload(); view.reload(); }
   };
 
-  // Same direct behaviour as the apply flow: attach the matching Vault
-  // document, or ask for an upload when there is nothing to attach.
-  const attachFromVault = async (doc) => {
-    const match = vault.find(doc);
-    if (!match) {
-      showToast(`No ${doc.label.toLowerCase()} in your Vault yet — upload it and we will keep it there`);
-      return;
-    }
-    const result = await attach.run({ doc, vaultDoc: match });
-    if (result) { showToast(`${match.title} added from your Vault`); view.reload(); }
-  };
 
   const viewAttached = (doc) => {
     const row = vault.storedDocs.find((v) => v.id === doc.vaultDocId);
@@ -133,6 +129,15 @@ export default function ServiceTrack() {
       subtitle={application?.ref}
     >
       <input ref={fileInput} type="file" accept="image/*,application/pdf" onChange={onFileChosen} style={{ display: 'none' }} />
+
+      <VaultPickerSheet
+        open={!!pickerFor}
+        field={pickerFor}
+        candidates={pickerCandidates}
+        accent={accent}
+        onPick={pick}
+        onClose={closePicker}
+      />
 
       {view.loading ? (
         <LoadingState label="Checking where this has reached…" />
@@ -280,7 +285,7 @@ export default function ServiceTrack() {
                         : { status: doc.status, fileName: doc.fileName, size: doc.size, vaultDocId: doc.vaultDocId }}
                       accent={accent}
                       onPick={() => { pendingDoc.current = doc.docId; fileInput.current?.click(); }}
-                      onUseVault={() => attachFromVault(def)}
+                      onUseVault={() => requestFromVault(def)}
                       onView={doc.vaultDocId ? () => viewAttached(doc) : undefined}
                     />
                   );

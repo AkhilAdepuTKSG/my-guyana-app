@@ -4,38 +4,77 @@
 // and every read here is filtered by that id. There is no endpoint that returns
 // another citizen's documents — a certificate filed for one person is invisible
 // to everyone else, including on a shared device.
+//
+// Every row also carries a `type` from the shared contract in
+// src/data/documentTypes.js. The type decides which Vault section a document
+// appears in and which form fields will accept it, so it is resolved on write
+// and re-resolved on read for rows written before types existed.
 
 import { getAllBy, get, put, del } from '../data/db';
 import { newId, now, today } from '../data/ids';
+import {
+  DOCUMENT_TYPES, documentType, resolveType, sectionForType, typeAccepted, acceptedLabel,
+} from '../data/documentTypes';
 import { ApiError } from './validate';
 
 const STORE = 'vault_documents';
 
-/** Document kinds the Vault recognises, with the icon each is shown with. */
-export const VAULT_KINDS = {
-  'national-id': { label: 'National ID', icon: 'id-card' },
-  passport: { label: 'Passport', icon: 'book-user' },
-  licence: { label: "Driver's licence", icon: 'car' },
-  'birth-certificate': { label: 'Birth certificate', icon: 'baby' },
-  'death-certificate': { label: 'Death certificate', icon: 'file-text' },
-  'marriage-certificate': { label: 'Marriage certificate', icon: 'heart-handshake' },
-  certificate: { label: 'Certificate', icon: 'file-badge' },
-  permit: { label: 'Permit or approval', icon: 'stamp' },
-  'proof-of-address': { label: 'Proof of address', icon: 'map-pin' },
-  'proof-of-income': { label: 'Proof of income', icon: 'receipt' },
-  plan: { label: 'Plan or drawing', icon: 'ruler' },
-  other: { label: 'Other document', icon: 'file' },
-};
+/**
+ * Bring a stored row up to the current contract: give it a resolved type, and
+ * derive its presentation from that type rather than from whatever was saved
+ * alongside it. Rows written before migration 6 come back typed.
+ * @param {any} row
+ * @returns {import('../data/types').VaultDocument}
+ */
+function hydrate(row) {
+  if (!row) return row;
+  const type = resolveType(row.type, row.title);
+  const def = documentType(type);
+  return {
+    ...row,
+    type,
+    // Icon and section follow the type, so a document cannot be filed under one
+    // type and presented as another.
+    icon: def.icon,
+    section: sectionForType(type),
+    typeLabel: def.label,
+    needsTypeBackfill: undefined,
+  };
+}
 
 /**
- * Everything in one citizen's Vault, newest first.
+ * Everything in one citizen's Vault, newest first, every row typed.
  * @param {string} userId
  * @returns {Promise<import('../data/types').VaultDocument[]>}
  */
 export async function listDocuments(userId) {
   if (!userId) return [];
   const rows = await getAllBy(STORE, 'byUser', userId);
-  return rows.sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+  return rows.map(hydrate).sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+}
+
+/**
+ * A citizen's documents of one type — the query the typed pickers run.
+ * @param {string} userId
+ * @param {string} typeId
+ */
+export async function listDocumentsOfType(userId, typeId) {
+  const rows = await listDocuments(userId);
+  return rows.filter((d) => d.type === typeId);
+}
+
+/**
+ * The documents in a citizen's Vault that a given field will accept.
+ *
+ * The picker and the endpoints both come through here, which is what makes the
+ * UI incapable of offering something the API would refuse.
+ *
+ * @param {string} userId
+ * @param {{accepts?: string[]}} field
+ */
+export async function listAcceptableDocuments(userId, field) {
+  const rows = await listDocuments(userId);
+  return rows.filter((d) => typeAccepted(field?.accepts, d.type));
 }
 
 /**
@@ -47,15 +86,19 @@ export async function getDocument({ userId, documentId }) {
   const row = await get(STORE, documentId);
   if (!row) throw new ApiError('That document is not in your Vault.', 'notFound');
   if (row.userId !== userId) throw new ApiError('That document is not in your Vault.', 'notFound');
-  return row;
+  return hydrate(row);
 }
 
 /**
  * File a document in a citizen's Vault.
+ *
+ * If no type is given it is resolved from the title: an untyped row could not
+ * be placed in a section or offered to a field, so there is no such thing.
+ *
  * @param {{
  *   userId: string,
- *   kind: string,
- *   title: string,
+ *   type?: string,
+ *   title?: string,
  *   subtitle?: string,
  *   source?: 'citizen'|'government',
  *   issuedBy?: string,
@@ -68,43 +111,44 @@ export async function getDocument({ userId, documentId }) {
  * @returns {Promise<import('../data/types').VaultDocument>}
  */
 export async function addDocument({
-  userId, kind, title, subtitle, source = 'citizen', issuedBy, refNo, fileName, mimeType,
+  userId, type, title, subtitle, source = 'citizen', issuedBy, refNo, fileName, mimeType,
   blob = null, content = null,
 }) {
   if (!userId) throw new ApiError('You need to be signed in to use your Vault.', 'unauthenticated');
-  const known = VAULT_KINDS[kind] ? kind : 'other';
+
+  const resolved = resolveType(type, title);
+  const def = documentType(resolved);
 
   /** @type {import('../data/types').VaultDocument} */
   const row = {
     id: newId('vdoc'),
     userId,
-    kind: known,
-    title: title || VAULT_KINDS[known].label,
-    subtitle: subtitle || VAULT_KINDS[known].label,
-    icon: VAULT_KINDS[known].icon,
+    type: resolved,
+    title: title || def.label,
+    subtitle: subtitle || def.label,
+    icon: def.icon,
     source,
-    issuedBy: issuedBy ?? null,
+    issuedBy: issuedBy ?? def.issuer ?? null,
     refNo: refNo ?? null,
     fileName: fileName ?? null,
     mimeType: mimeType ?? blob?.type ?? null,
     // The file itself. IndexedDB stores Blobs, so the Vault holds the real
-    // document rather than just a note that one exists — which is what makes
-    // "attach it from my Vault" work without asking for the file again.
+    // document rather than just a note that one exists.
     blob: blob ?? null,
     sizeBytes: blob?.size ?? null,
     content,
     addedAt: now(),
   };
   await put(STORE, row);
-  return row;
+  return hydrate(row);
 }
 
 /**
  * File a document the citizen uploaded while filling in an application.
  *
- * Every upload lands in the Vault first and is then attached to the application
- * from there, so nothing a citizen hands to government is asked for twice — the
- * next service that needs the same document offers it straight from the Vault.
+ * The requirement decides the type: a file chosen for the National ID slot is
+ * filed as a National ID, so it lands in Cards & IDs and is offered back only
+ * where a National ID is accepted.
  *
  * @param {{
  *   userId: string,
@@ -115,13 +159,16 @@ export async function addDocument({
  * @returns {Promise<import('../data/types').VaultDocument>}
  */
 export async function fileUploadedDocument({ userId, file, doc, serviceName }) {
+  // A slot that accepts exactly one type says what the upload is. A slot that
+  // accepts several cannot, so fall back to reading the requirement's label.
+  const type = doc?.accepts?.length === 1 ? doc.accepts[0] : resolveType(null, doc?.label);
   return addDocument({
     userId,
-    kind: doc.vaultKind || 'other',
-    title: doc.label,
-    subtitle: serviceName ? `Uploaded for ${serviceName}` : (doc.issuer || 'Uploaded'),
+    type,
+    title: documentType(type).label,
+    subtitle: serviceName ? `Uploaded for ${serviceName}` : (doc?.issuer || 'Uploaded'),
     source: 'citizen',
-    issuedBy: doc.issuer || null,
+    issuedBy: doc?.issuer || null,
     fileName: file.name,
     mimeType: file.type || null,
     blob: file,
@@ -137,7 +184,7 @@ export async function fileUploadedDocument({ userId, file, doc, serviceName }) {
  */
 export async function fileIssuedDocument(args) {
   const existing = await listDocuments(args.userId);
-  const already = existing.find((d) => d.refNo && d.refNo === args.refNo && d.kind === args.kind);
+  const already = existing.find((d) => d.refNo && d.refNo === args.refNo && d.type === args.type);
   if (already) return { document: already, created: false };
   const document = await addDocument({ ...args, source: 'government' });
   return { document, created: true };
@@ -154,6 +201,25 @@ export async function removeDocument({ userId, documentId }) {
   return { deleted: true };
 }
 
+/**
+ * Assert that a Vault document may be attached to a field — the check every
+ * endpoint runs before anything is saved.
+ *
+ * @param {{userId: string, documentId: string, field: import('../data/types').DocumentDef}} args
+ * @returns {Promise<import('../data/types').VaultDocument>} the document, if it is allowed
+ */
+export async function assertAttachable({ userId, documentId, field }) {
+  const doc = await getDocument({ userId, documentId });
+  if (!typeAccepted(field?.accepts, doc.type)) {
+    throw new ApiError(
+      `${field?.label || 'This slot'}: a ${documentType(doc.type).label} cannot go here — it only takes ${acceptedLabel(field?.accepts)}.`,
+      'documentType',
+      { documentType: doc.type, accepts: field?.accepts ?? [], field: field?.id }
+    );
+  }
+  return doc;
+}
+
 /** Display date for a Vault row, matching how the existing screens format. */
 export function vaultDateLabel(iso) {
   const value = (iso || today()).slice(0, 10);
@@ -161,3 +227,5 @@ export function vaultDateLabel(iso) {
   if (Number.isNaN(d.getTime())) return value;
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+export { DOCUMENT_TYPES, documentType, sectionForType, typeAccepted, acceptedLabel };

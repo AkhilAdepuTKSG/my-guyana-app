@@ -1,119 +1,28 @@
-// One answer to "what is in this citizen's Vault?".
+// One answer to "what is in this citizen's Vault?", and one answer to "may this
+// document go in that slot?".
 //
-// The Vault is fed from several places, and before this they were only ever
-// assembled on the Vault screen itself — so a service asking "do you have a
-// National ID?" could only see the documents its own store had written, and
-// told the citizen their Vault was empty while the Vault screen was showing
-// the very document they were asking for.
+// The Vault is fed from several places. Each source records different things,
+// and only one of them ever stored a type — so before this, a document could
+// appear in the wrong Vault section and could be attached to a field that
+// should never have accepted it.
 //
-// Everything now goes through `buildVaultInventory`, which normalises all of
-// it into one list, and `matchRequirement`, which decides whether a given
-// requirement is already covered. Every service — the seeded ones and the
-// older bespoke flows — asks the same two questions of the same list.
+// Everything is now normalised to the shared contract in
+// src/data/documentTypes.js. A document has exactly one type; that type decides
+// the section it appears in and the fields that will take it. `candidatesFor`
+// is the only way a form finds a document, and it filters by type — so the UI
+// cannot offer something the endpoints would reject.
 //
 // The sources:
 //   • the e-ID itself;
 //   • CARDS & IDS derived from the government record (licence, National ID, NIS);
 //   • DOCUMENTS & RECORDS derived from the record and connected agencies;
 //   • documents the citizen requested through the Vault (context `vaultDocs`);
-//   • documents filed by a service against their account (`vault_documents`),
-//     which is where uploads and collected certificates land.
+//   • documents filed by a service (`vault_documents`) — uploads and collected
+//     certificates.
 
-/** The vocabulary every source is normalised into. */
-export const DOCUMENT_KINDS = [
-  'e-id',
-  'national-id',
-  'passport',
-  'licence',
-  'birth-certificate',
-  'death-certificate',
-  'marriage-certificate',
-  'nis',
-  'police-clearance',
-  'proof-of-address',
-  'proof-of-income',
-  'site-plan',
-  'building-plan',
-  'plan',
-  'land-title',
-  'permit',
-  'certificate',
-  'other',
-];
-
-// Words that identify a kind, most specific first — a label is tested against
-// these in order, so "Birth certificate" is a birth certificate rather than a
-// generic certificate, and "National ID or current passport" is a National ID.
-const KIND_PATTERNS = [
-  ['e-id', [/\be-?id\b/, /digital identity/]],
-  ['birth-certificate', [/birth/]],
-  ['death-certificate', [/death/]],
-  ['marriage-certificate', [/marriage/]],
-  ['police-clearance', [/police/, /clearance/]],
-  ['national-id', [/national id/, /\bnid\b/, /national identification/, /gecom/]],
-  ['passport', [/passport/]],
-  ['licence', [/licence/, /license/, /driver/]],
-  ['nis', [/\bnis\b/, /national insurance/]],
-  ['proof-of-address', [/proof of address/, /utility bill/, /bank statement/]],
-  ['proof-of-income', [/proof of income/, /pay ?slip/, /income/]],
-  ['land-title', [/transport/, /title/, /lease/, /land/]],
-  // A site plan and a set of building plans are different drawings by
-  // different people — neither may stand in for the other.
-  ['site-plan', [/site or location/, /site plan/, /location plan/]],
-  ['building-plan', [/building plan/, /floor plan/, /elevation/, /structural/]],
-  ['plan', [/plan\b/, /drawing/, /survey/, /schedule/]],
-  ['permit', [/permit/, /approval/, /permission/, /occupancy/]],
-  ['certificate', [/certificate/, /letter/]],
-];
-
-/** Strip a name down to something comparable. */
-function normalise(value) {
-  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-}
-
-/**
- * Work out which kind a free-text document name refers to.
- * @param {string} name
- * @returns {string} one of DOCUMENT_KINDS
- */
-export function kindFromName(name) {
-  const n = normalise(name);
-  if (!n) return 'other';
-  for (const [kind, patterns] of KIND_PATTERNS) {
-    if (patterns.some((p) => p.test(n))) return kind;
-  }
-  return 'other';
-}
-
-/**
- * Settle on a kind from a declared one and a name.
- *
- * Both sides of a match run through this, which is the point: a document filed
- * under a seed's broad `vaultKind` of "certificate" but named "Transport, title
- * or lease" must land on the same kind as the requirement of the same name, or
- * the two can never meet. The name wins whenever it says something specific,
- * because it is what the citizen actually reads.
- *
- * @param {string|undefined|null} declared
- * @param {string|undefined|null} name
- * @returns {string} one of DOCUMENT_KINDS
- */
-export function resolveKind(declared, name) {
-  const d = declared && declared !== 'other' ? declared : null;
-  const derived = kindFromName(name);
-  if (derived !== 'other' && derived !== 'certificate') return derived;
-  if (d) return d;
-  return derived;
-}
-
-/**
- * The kind a requirement is asking for.
- * @param {import('../data/types').DocumentDef} doc
- */
-export function kindForRequirement(doc) {
-  if (!doc) return 'other';
-  return resolveKind(doc.vaultKind, doc.label);
-}
+import {
+  documentType, resolveType, sectionForType, typeAccepted, acceptedLabel,
+} from '../data/documentTypes';
 
 /**
  * @typedef {Object} VaultItem
@@ -121,20 +30,41 @@ export function kindForRequirement(doc) {
  * @property {string} title
  * @property {string} subtitle
  * @property {string} icon
- * @property {string} kind
- * @property {'record'|'card'|'requested'|'filed'} origin  where it came from
+ * @property {string} type              a DOCUMENT_TYPES id
+ * @property {string} section           'cards' | 'records'
+ * @property {'record'|'card'|'requested'|'filed'} origin
  * @property {string|null} vaultDocId   set when it is a row in `vault_documents`
  * @property {number|null} sizeBytes
  * @property {string|null} fileName
+ * @property {string|null} addedAt
  */
 
+/** Build one normalised item, with its type resolved once. */
+function item({ id, title, subtitle, storedType, origin, vaultDocId = null, sizeBytes = null, fileName = null, addedAt = null }) {
+  const type = resolveType(storedType, title);
+  const def = documentType(type);
+  return {
+    id,
+    title: title || def.label,
+    subtitle: subtitle || def.label,
+    icon: def.icon,
+    type,
+    section: sectionForType(type),
+    origin,
+    vaultDocId,
+    sizeBytes,
+    fileName,
+    addedAt,
+  };
+}
+
 /**
- * Assemble everything in the citizen's Vault into one normalised list.
+ * Assemble everything in the citizen's Vault into one typed list.
  *
  * @param {{
  *   persona?: any,
- *   cards?: {id: string, title: string, sub?: string, icon?: string}[],
- *   records?: {id: string, title: string, sub?: string, icon?: string}[],
+ *   cards?: {id: string, title: string, sub?: string}[],
+ *   records?: {id: string, title: string, sub?: string}[],
  *   vaultDocs?: any[],
  *   storedDocs?: import('../data/types').VaultDocument[]
  * }} sources
@@ -144,102 +74,97 @@ export function buildVaultInventory({ persona, cards = [], records = [], vaultDo
   /** @type {VaultItem[]} */
   const items = [];
 
-  // The e-ID is a document in its own right — plenty of services accept it as
+  // The e-ID is a document in its own right — plenty of services take it as
   // photo ID.
   if (persona?.eidStatus === 'issued') {
-    items.push({
+    items.push(item({
       id: 'eid', title: 'e-ID', subtitle: 'Digital Identity Card Registry',
-      icon: 'fingerprint', kind: 'e-id', origin: 'card',
-      vaultDocId: null, sizeBytes: null, fileName: null,
-    });
+      storedType: 'EID', origin: 'card',
+    }));
   }
 
-  cards.forEach((c) => items.push({
+  // Derived from the government record. These carry no stored type, so the
+  // type comes from the name — which is why the classifier lives in the shared
+  // contract rather than here.
+  cards.forEach((c) => items.push(item({
     id: `card:${c.id}`, title: c.title, subtitle: c.sub || 'Held by government',
-    icon: c.icon || 'id-card', kind: kindFromName(c.title), origin: 'card',
-    vaultDocId: null, sizeBytes: null, fileName: null,
-  }));
+    storedType: null, origin: 'card',
+  })));
 
-  records.forEach((r) => items.push({
+  records.forEach((r) => items.push(item({
     id: `record:${r.id}`, title: r.title, subtitle: r.sub || 'Issued by government',
-    icon: r.icon || 'file-text', kind: kindFromName(r.title), origin: 'record',
-    vaultDocId: null, sizeBytes: null, fileName: null,
-  }));
+    storedType: null, origin: 'record',
+  })));
 
-  // Documents the citizen requested through the Vault screen.
-  vaultDocs.forEach((d) => items.push({
+  // Requested through the Vault screen. `typeId` is the old loose vocabulary,
+  // so the label is the more reliable signal; resolveType prefers a recognised
+  // stored type and otherwise reads the name.
+  vaultDocs.forEach((d) => items.push(item({
     id: `requested:${d.id}`,
-    title: d.label || d.typeLabel || 'Document',
-    subtitle: d.typeLabel || 'Requested from the issuing agency',
-    icon: d.icon || 'file',
-    kind: resolveKind(d.typeId, d.label || d.typeLabel),
+    title: d.label || d.typeLabel,
+    subtitle: d.typeLabel ? `Requested · ${d.typeLabel}` : 'Requested from the issuing agency',
+    storedType: d.type,
     origin: 'requested',
-    vaultDocId: null, sizeBytes: null, fileName: d.fileName || null,
-  }));
+    fileName: d.fileName || null,
+    addedAt: d.addedOn || null,
+  })));
 
-  // Documents a service filed against the account — uploads and collected
-  // certificates. These carry a real file, so they are the strongest match.
-  storedDocs.forEach((d) => items.push({
+  // Filed by a service. These already carry a type and a real file.
+  storedDocs.forEach((d) => items.push(item({
     id: `filed:${d.id}`,
     title: d.title,
     subtitle: d.subtitle || (d.issuedBy ? `Issued by ${d.issuedBy}` : 'In your Vault'),
-    icon: d.icon || 'file',
-    kind: resolveKind(d.kind, d.title),
+    storedType: d.type,
     origin: 'filed',
     vaultDocId: d.id,
     sizeBytes: d.sizeBytes ?? null,
     fileName: d.fileName || null,
-  }));
+    addedAt: d.addedAt || null,
+  })));
 
   return items;
 }
 
-// A document that carries an actual file is preferred over a derived record,
-// because it can be previewed and re-attached.
+/** Group the inventory the way the Vault screen shows it. */
+export function groupBySection(inventory) {
+  return {
+    cards: (inventory || []).filter((i) => i.section === 'cards'),
+    records: (inventory || []).filter((i) => i.section === 'records'),
+  };
+}
+
+// A document that carries an actual file is preferred, because it can be
+// previewed and re-attached; then the citizen's own requests; then what the
+// government record implies.
 const ORIGIN_RANK = { filed: 0, requested: 1, record: 2, card: 3 };
 
 /**
- * The best Vault item that satisfies a requirement, or null.
+ * Every Vault document a field will accept, best first.
  *
- * Matching is by kind first — that is what makes "National ID" in CARDS & IDS
- * answer a requirement labelled "National ID or current passport". Failing
- * that it falls back to the names reading as each other, so an unusual label
- * still finds an obviously-matching document.
+ * This is the ONLY way a form finds a document, and it filters on type alone —
+ * a National ID slot returns National IDs and nothing else, whatever anything
+ * happens to be named.
  *
  * @param {VaultItem[]} inventory
- * @param {import('../data/types').DocumentDef} doc
- * @returns {VaultItem|null}
+ * @param {import('../data/types').DocumentDef} field
+ * @returns {VaultItem[]}
  */
-export function matchRequirement(inventory, doc) {
-  if (!doc || !inventory?.length) return null;
-  const wanted = kindForRequirement(doc);
-  const label = normalise(doc.label);
-
-  const byRank = (a, b) => (ORIGIN_RANK[a.origin] ?? 9) - (ORIGIN_RANK[b.origin] ?? 9);
-
-  if (wanted !== 'other') {
-    const sameKind = inventory.filter((i) => i.kind === wanted).sort(byRank);
-    if (sameKind.length) return sameKind[0];
-  }
-
-  // Name overlap, either direction: "National ID" matches a requirement for
-  // "National ID or current passport", and vice versa.
-  const byName = inventory
-    .filter((i) => {
-      const t = normalise(i.title);
-      return !!t && !!label && (label.includes(t) || t.includes(label));
-    })
-    .sort(byRank);
-  return byName[0] || null;
+export function candidatesFor(inventory, field) {
+  if (!field || !inventory?.length) return [];
+  return inventory
+    .filter((i) => typeAccepted(field.accepts, i.type))
+    .sort((a, b) => (ORIGIN_RANK[a.origin] ?? 9) - (ORIGIN_RANK[b.origin] ?? 9)
+      || String(b.addedAt || '').localeCompare(String(a.addedAt || '')));
 }
 
 /**
- * Everything in the Vault that could plausibly answer a requirement — used to
- * tell the citizen what they do have when nothing matches.
+ * The single best document for a field, or null. Where there is exactly one
+ * candidate this is what gets attached without asking.
  * @param {VaultItem[]} inventory
- * @param {import('../data/types').DocumentDef} doc
+ * @param {import('../data/types').DocumentDef} field
  */
-export function suggestionsFor(inventory, doc) {
-  const wanted = kindForRequirement(doc);
-  return (inventory || []).filter((i) => i.kind !== wanted).slice(0, 3);
+export function matchRequirement(inventory, field) {
+  return candidatesFor(inventory, field)[0] || null;
 }
+
+export { acceptedLabel, documentType, typeAccepted };

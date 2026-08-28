@@ -141,6 +141,37 @@ export const MIGRATIONS = [
       store(db, 'meta', 'key');
     },
   },
+  {
+    version: 6,
+    name: '0006_document_type',
+    up(db, tx) {
+      // Every Vault document now carries a definitive type from the shared
+      // contract (src/data/documentTypes.js). It is indexed because both the
+      // Vault sections and the typed attach-from-Vault pickers query by it.
+      const store = tx.objectStore('vault_documents');
+      if (!store.indexNames.contains('byType')) {
+        store.createIndex('byType', 'type', { unique: false });
+      }
+      if (!store.indexNames.contains('byUserType')) {
+        store.createIndex('byUserType', ['userId', 'type'], { unique: false });
+      }
+      // Backfill: rows written before types existed carry only the old loose
+      // `kind` and a title. Classify them from the title so nothing is
+      // stranded without a type. The migration cannot import the classifier
+      // (module state is not guaranteed inside an upgrade), so it stamps a
+      // sentinel and src/api/vault.js resolves it on first read.
+      const cursorReq = store.openCursor();
+      cursorReq.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (!cursor) return;
+        const row = cursor.value;
+        if (!row.type) {
+          cursor.update({ ...row, type: null, needsTypeBackfill: true });
+        }
+        cursor.continue();
+      };
+    },
+  },
 ];
 
 export const DB_VERSION = MIGRATIONS.reduce((max, m) => Math.max(max, m.version), 0);

@@ -179,7 +179,7 @@ const LAND_PREREQUISITES = [
     evidenceLabel: 'Transport, title or lease number',
   },
   {
-    id: 'outlinePermission',
+    id: 'outlinePermission', accepts: ['OUTLINE_PERMISSION'],
     label: 'Outline planning permission',
     detail:
       'CH&PA grants outline planning permission for what you intend to do with the parcel. '
@@ -317,11 +317,11 @@ export const SINGLE_WINDOW_SERVICES = [
       },
     ],
     documents: [
-      { id: 'landProof', label: 'Transport, title or lease', issuer: 'Deeds Registry / GLSC', required: true, hint: 'Your proof that you hold the parcel.', vaultKind: 'certificate' },
-      { id: 'outlinePermission', label: 'Outline planning permission', issuer: 'CH&PA', required: true, hint: 'The permission letter or approval notice.', vaultKind: 'certificate' },
-      { id: 'nationalId', label: 'National ID', issuer: 'GECOM', required: true, vaultKind: 'national-id' },
-      { id: 'sitePlan', label: 'Site or location plan', issuer: 'A licensed surveyor', required: true, hint: 'Shows the parcel boundaries and where the meter should sit.', vaultKind: 'plan' },
-      { id: 'authorityLetter', label: 'Letter of authority', issuer: 'The land owner', required: false, hint: 'Only if you are applying as an agent.', vaultKind: 'other' },
+      { id: 'landProof', accepts: ['LAND_TITLE'], label: 'Transport, title or lease', issuer: 'Deeds Registry / GLSC', required: true, hint: 'Your proof that you hold the parcel.' },
+      { id: 'outlinePermission', accepts: ['OUTLINE_PERMISSION'], label: 'Outline planning permission', issuer: 'CH&PA', required: true, hint: 'The permission letter or approval notice.' },
+      { id: 'nationalId', accepts: ['NID'], label: 'National ID', issuer: 'GECOM', required: true },
+      { id: 'sitePlan', accepts: ['SITE_PLAN'], label: 'Site or location plan', issuer: 'A licensed surveyor', required: true, hint: 'Shows the parcel boundaries and where the meter should sit.' },
+      { id: 'authorityLetter', accepts: ['AUTHORITY_LETTER'], label: 'Letter of authority', issuer: 'The land owner', required: false, hint: 'Only if you are applying as an agent.' },
     ],
     timeframeDays: 30,
     timeframeNote: 'GWI investigates an empty site within 10 working days. A straightforward connection is completed within 30 days of the fee being paid.',
@@ -476,13 +476,13 @@ export const SINGLE_WINDOW_SERVICES = [
       },
     ],
     documents: [
-      { id: 'landProof', label: 'Transport, title or lease', issuer: 'Deeds Registry / GLSC', required: true, vaultKind: 'certificate' },
-      { id: 'outlinePermission', label: 'Outline planning permission', issuer: 'CH&PA', required: true, vaultKind: 'certificate' },
-      { id: 'buildingPlans', label: 'Building plans', issuer: 'Registered draughtsman, architect or engineer', required: true, hint: 'Floor plans, elevations and sections, signed and stamped.', vaultKind: 'plan' },
-      { id: 'sitePlan', label: 'Site plan', issuer: 'A licensed surveyor', required: true, hint: 'Shows boundaries, setbacks and where the building sits on the parcel.', vaultKind: 'plan' },
-      { id: 'structuralCert', label: 'Structural certification', issuer: 'A registered engineer', required: false, hint: 'Required above two storeys.', vaultKind: 'plan' },
-      { id: 'nationalId', label: 'National ID', issuer: 'GECOM', required: true, vaultKind: 'national-id' },
-      { id: 'authorityLetter', label: 'Letter of authority', issuer: 'The land owner', required: false, hint: 'Only if you are applying as an agent.', vaultKind: 'other' },
+      { id: 'landProof', accepts: ['LAND_TITLE'], label: 'Transport, title or lease', issuer: 'Deeds Registry / GLSC', required: true },
+      { id: 'outlinePermission', accepts: ['OUTLINE_PERMISSION'], label: 'Outline planning permission', issuer: 'CH&PA', required: true },
+      { id: 'buildingPlans', accepts: ['BUILDING_PLAN'], label: 'Building plans', issuer: 'Registered draughtsman, architect or engineer', required: true, hint: 'Floor plans, elevations and sections, signed and stamped.' },
+      { id: 'sitePlan', accepts: ['SITE_PLAN'], label: 'Site plan', issuer: 'A licensed surveyor', required: true, hint: 'Shows boundaries, setbacks and where the building sits on the parcel.' },
+      { id: 'structuralCert', accepts: ['STRUCTURAL_CERT'], label: 'Structural certification', issuer: 'A registered engineer', required: false, hint: 'Required above two storeys.' },
+      { id: 'nationalId', accepts: ['NID'], label: 'National ID', issuer: 'GECOM', required: true },
+      { id: 'authorityLetter', accepts: ['AUTHORITY_LETTER'], label: 'Letter of authority', issuer: 'The land owner', required: false, hint: 'Only if you are applying as an agent.' },
     ],
     timeframeDays: 45,
     timeframeNote: 'CH&PA aims to decide within 45 days of a complete application. The clock only starts once every reviewing agency has what it needs.',
@@ -522,7 +522,7 @@ export const SINGLE_WINDOW_SERVICES = [
     prerequisites: [
       LAND_PREREQUISITES[0],
       {
-        id: 'buildingApproval',
+        id: 'buildingApproval', accepts: ['BUILDING_PERMIT'],
         label: 'Construction permit or occupancy certificate',
         detail:
           'GPL will not energise a new building that CH&PA has not permitted. If the building already exists and is occupied, '
@@ -624,11 +624,11 @@ export const SINGLE_WINDOW_SERVICES = [
       },
     ],
     documents: [
-      { id: 'landProof', label: 'Transport, title or lease', issuer: 'Deeds Registry / GLSC', required: true, vaultKind: 'certificate' },
-      { id: 'buildingApproval', label: 'Construction permit or occupancy certificate', issuer: 'CH&PA', required: true, vaultKind: 'certificate' },
-      { id: 'wiringCert', label: 'Wiring certificate', issuer: 'A licensed electrician', required: true, hint: 'Certifies the internal installation is safe to energise.', vaultKind: 'certificate' },
-      { id: 'loadSchedule', label: 'Load schedule', issuer: 'Your electrician', required: false, hint: 'Optional for a normal household supply.', vaultKind: 'plan' },
-      { id: 'nationalId', label: 'National ID', issuer: 'GECOM', required: true, vaultKind: 'national-id' },
+      { id: 'landProof', accepts: ['LAND_TITLE'], label: 'Transport, title or lease', issuer: 'Deeds Registry / GLSC', required: true },
+      { id: 'buildingApproval', accepts: ['BUILDING_PERMIT'], label: 'Construction permit or occupancy certificate', issuer: 'CH&PA', required: true },
+      { id: 'wiringCert', accepts: ['WIRING_CERTIFICATE'], label: 'Wiring certificate', issuer: 'A licensed electrician', required: true, hint: 'Certifies the internal installation is safe to energise.' },
+      { id: 'loadSchedule', accepts: ['LOAD_SCHEDULE'], label: 'Load schedule', issuer: 'Your electrician', required: false, hint: 'Optional for a normal household supply.' },
+      { id: 'nationalId', accepts: ['NID'], label: 'National ID', issuer: 'GECOM', required: true },
     ],
     timeframeDays: 30,
     timeframeNote: 'GPL inspects within 10 working days and energises a straightforward supply within 30 days of the fee being paid.',
@@ -665,7 +665,7 @@ export const SINGLE_WINDOW_SERVICES = [
     prerequisites: [
       LAND_PREREQUISITES[0],
       {
-        id: 'landApproval',
+        id: 'landApproval', accepts: ['OUTLINE_PERMISSION', 'BUILDING_PERMIT'],
         label: 'Land development approval',
         detail:
           'CH&PA\'s approval that this parcel may be developed as you intend. This is what a temporary utility supply hangs off.',
@@ -749,10 +749,10 @@ export const SINGLE_WINDOW_SERVICES = [
       },
     ],
     documents: [
-      { id: 'landProof', label: 'Transport, title or lease', issuer: 'Deeds Registry / GLSC', required: true, vaultKind: 'certificate' },
-      { id: 'landApproval', label: 'Land development approval or permit', issuer: 'CH&PA', required: true, vaultKind: 'certificate' },
-      { id: 'sitePlan', label: 'Site plan', issuer: 'A licensed surveyor', required: true, hint: 'Shows where the temporary supplies should terminate.', vaultKind: 'plan' },
-      { id: 'nationalId', label: 'National ID', issuer: 'GECOM', required: true, vaultKind: 'national-id' },
+      { id: 'landProof', accepts: ['LAND_TITLE'], label: 'Transport, title or lease', issuer: 'Deeds Registry / GLSC', required: true },
+      { id: 'landApproval', accepts: ['OUTLINE_PERMISSION', 'BUILDING_PERMIT'], label: 'Land development approval or permit', issuer: 'CH&PA', required: true },
+      { id: 'sitePlan', accepts: ['SITE_PLAN'], label: 'Site plan', issuer: 'A licensed surveyor', required: true, hint: 'Shows where the temporary supplies should terminate.' },
+      { id: 'nationalId', accepts: ['NID'], label: 'National ID', issuer: 'GECOM', required: true },
     ],
     timeframeDays: 21,
     timeframeNote: 'Temporary supplies are normally arranged within three weeks of CH&PA confirming the land approval.',

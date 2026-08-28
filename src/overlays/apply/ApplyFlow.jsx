@@ -9,7 +9,8 @@ import { getApplicationDef } from '../../state/requirements';
 import { buildEidDateOptions, EID_TIME_OPTIONS, formatEidDate } from '../eid/eidData';
 import { recognizeImage, parseFields } from '../../lib/ocr';
 import { findSlotClash, appointmentPurpose, dateClashSummary } from '../../lib/appointments';
-import { useVault } from '../../hooks/useVault';
+import { useVaultAttach } from '../../hooks/useVaultAttach';
+import VaultPickerSheet from '../../components/service/VaultPickerSheet';
 
 const fieldStyle = {
   width: '100%', boxSizing: 'border-box', minHeight: 48, padding: '12px 14px',
@@ -65,7 +66,28 @@ export default function ApplyFlow() {
   const payload = getPayload('apply');
   const def = getApplicationDef(payload?.serviceId);
 
-  const vault = useVault();
+  // The same shared, type-filtered attach the seeded services use — a slot
+  // only ever receives a document of a type it accepts.
+  const connectFromVault = (field, match) => {
+    setDocFiles((prev) => {
+      if (prev[field.id]?.url) URL.revokeObjectURL(prev[field.id].url);
+      return {
+        ...prev,
+        [field.id]: {
+          name: `${match.title} (from Vault)`,
+          url: null,
+          size: match.sizeBytes ?? null,
+          source: 'vault',
+          vaultDocId: match.vaultDocId ?? null,
+          type: match.type,
+        },
+      };
+    });
+    setDocStatus((st) => ({ ...st, [field.id]: 'uploaded' }));
+    showToast(`${match.title} added from your Vault`);
+  };
+  const { vault, requestFromVault, pickerFor, pickerCandidates, pick, closePicker } =
+    useVaultAttach({ onAttach: connectFromVault, showToast, active: open });
 
   const totalSteps = 3; // details → documents (+ appointment if any) → review
   const [step, setStep] = useState(1);
@@ -178,24 +200,9 @@ export default function ApplyFlow() {
     setDocStatus((s) => ({ ...s, [id]: 'uploaded' }));
     showToast(`Added — the ${label.toLowerCase()} is applied for together with this application`);
   };
-  const attachFromVault = (id, label) => {
+  const attachFromVault = (id) => {
     const docDef = (def?.documents || []).find((d) => d.id === id);
-    const match = docDef ? vault.find(docDef) : null;
-    setDocFiles((prev) => {
-      if (prev[id]?.url) URL.revokeObjectURL(prev[id].url);
-      return {
-        ...prev,
-        [id]: {
-          name: match ? `${match.title} (from Vault)` : `${label} (from Vault)`,
-          url: null,
-          size: match?.sizeBytes ?? null,
-          source: 'vault',
-          vaultDocId: match?.vaultDocId ?? null,
-        },
-      };
-    });
-    setDocStatus((s) => ({ ...s, [id]: 'uploaded' }));
-    showToast(match ? `${match.title} added from your Vault` : 'Added from your Vault');
+    if (docDef) requestFromVault(docDef);
   };
   const fmtSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
@@ -279,6 +286,15 @@ export default function ApplyFlow() {
 
   return (
     <PageOverlay open={open} onClose={() => closeOverlay('apply')} title={def.title} subtitle={agency?.name} headerRight={supportButton}>
+      <VaultPickerSheet
+        open={!!pickerFor}
+        field={pickerFor}
+        candidates={pickerCandidates}
+        accent={mark}
+        onPick={pick}
+        onClose={closePicker}
+      />
+
       <style>{'@keyframes applySpin { to { transform: rotate(360deg); } } .apply-spin { animation: applySpin 0.9s linear infinite; }'}</style>
 
       {done ? (

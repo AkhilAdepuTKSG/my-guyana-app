@@ -26,11 +26,16 @@ const REG_STORE = 'gro_registrations';
 const CERT_STORE = 'gro_certificates';
 const REQUEST_STORE = 'gro_requests';
 
-/** The Vault kind a certificate of each type is filed under. */
-const VAULT_KIND_BY_TYPE = {
-  birth: 'birth-certificate',
-  death: 'death-certificate',
-  marriage: 'marriage-certificate',
+/**
+ * The document type each certificate is filed under, from the shared contract.
+ * This is what puts a collected certificate in Documents & records rather than
+ * Cards & IDs, and what makes it selectable only where that certificate is
+ * accepted.
+ */
+const DOCUMENT_TYPE_BY_CERTIFICATE = {
+  birth: 'BIRTH_CERTIFICATE',
+  death: 'DEATH_CERTIFICATE',
+  marriage: 'MARRIAGE_CERTIFICATE',
 };
 
 /** Where a registration has reached, in citizen-facing language. */
@@ -315,10 +320,10 @@ export async function collectCertificate({ userId, requestId, issuedTo }) {
     });
   }
 
-  const kind = VAULT_KIND_BY_TYPE[registration.type] || 'certificate';
+  const docType = DOCUMENT_TYPE_BY_CERTIFICATE[registration.type] || 'OTHER';
   const { document, created } = await fileIssuedDocument({
     userId,
-    kind,
+    type: docType,
     title: `${certificateTypeLabel(registration.type)} certificate`,
     subtitle: `${primarySubject(registration)} · ${certificate.certNo}`,
     issuedBy: 'General Register Office',

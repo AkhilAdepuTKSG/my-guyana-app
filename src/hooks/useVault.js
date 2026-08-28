@@ -10,25 +10,37 @@ import { useAppState } from '../state/AppStateContext';
 import { useApi, useUserId } from './useApi';
 import { listDocuments } from '../api/vault';
 import { buildCards, buildRecords } from '../lib/vaultRecords';
-import { buildVaultInventory, matchRequirement } from '../lib/vaultInventory';
+import { buildVaultInventory, matchRequirement, candidatesFor, groupBySection } from '../lib/vaultInventory';
 
 /**
+ * @param {boolean} [active] re-read the Vault whenever this turns true
  * @returns {{
  *   inventory: import('../lib/vaultInventory').VaultItem[],
  *   storedDocs: import('../data/types').VaultDocument[],
  *   loading: boolean,
  *   reload: () => void,
- *   find: (doc: import('../data/types').DocumentDef) => import('../lib/vaultInventory').VaultItem|null,
- *   holds: (doc: import('../data/types').DocumentDef) => boolean
+ *   sections: {cards: import('../lib/vaultInventory').VaultItem[], records: import('../lib/vaultInventory').VaultItem[]},
+ *   candidatesFor: (field: import('../data/types').DocumentDef) => import('../lib/vaultInventory').VaultItem[],
+ *   find: (field: import('../data/types').DocumentDef) => import('../lib/vaultInventory').VaultItem|null,
+ *   holds: (field: import('../data/types').DocumentDef) => boolean
  * }}
  */
-export function useVault() {
+export function useVault(active = true) {
   const { persona, user, vaultDocs } = useAppState();
   const userId = useUserId();
 
   // Documents a service filed against this account. Everything else is derived
   // from the government record, so it needs no fetch.
-  const stored = useApi(() => listDocuments(userId), [userId], { enabled: !!userId, initial: [] });
+  //
+  // `active` is in the dependency list on purpose. The flows that use this are
+  // mounted for the life of the app and only render when their overlay opens,
+  // so a fetch that ran once at start-up would never see a document filed
+  // afterwards. Flipping active on re-reads the Vault.
+  const stored = useApi(
+    () => listDocuments(userId),
+    [userId, active],
+    { enabled: !!userId && active, initial: [] }
+  );
   const storedDocs = stored.data || [];
 
   const inventory = useMemo(
@@ -45,10 +57,14 @@ export function useVault() {
   return useMemo(() => ({
     inventory,
     storedDocs,
+    sections: groupBySection(inventory),
     loading: stored.loading,
     reload: stored.reload,
-    find: (doc) => matchRequirement(inventory, doc),
-    holds: (doc) => !!matchRequirement(inventory, doc),
+    // Everything a field will accept, type-filtered — the picker renders this
+    // list and nothing else.
+    candidatesFor: (field) => candidatesFor(inventory, field),
+    find: (field) => matchRequirement(inventory, field),
+    holds: (field) => candidatesFor(inventory, field).length > 0,
   }), [inventory, storedDocs, stored.loading, stored.reload]);
 }
 

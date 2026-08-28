@@ -42,11 +42,11 @@ export const APPLICATION_DEFS = {
       },
     ],
     documents: [
-      { id: 'birthCert', label: 'Birth certificate', issuer: 'General Register Office', required: true, source: 'vault', hint: 'Original Guyana birth certificate — the primary proof of citizenship' },
-      { id: 'nationalId', label: 'National ID or current passport', issuer: 'GECOM / Immigration', required: true, source: 'vault', hint: 'Valid photo ID in your current name' },
-      { id: 'clearance', label: 'Police clearance certificate', issuer: 'Guyana Police Force', required: true, source: 'vault', hint: 'Not in your Vault yet? Apply for it right here, together with your passport application.' },
-      { id: 'passportPhoto', label: 'Passport photograph', issuer: 'Recent, colour', required: true, hint: 'Plain background, taken within the last 6 months' },
-      { id: 'proofAddress', label: 'Proof of address', issuer: 'Dated within 3 months', required: false, hint: 'Utility bill or bank statement' },
+      { id: 'birthCert', accepts: ['BIRTH_CERTIFICATE'], label: 'Birth certificate', issuer: 'General Register Office', required: true, source: 'vault', hint: 'Original Guyana birth certificate — the primary proof of citizenship' },
+      { id: 'nationalId', accepts: ['NID', 'PASSPORT'], label: 'National ID or current passport', issuer: 'GECOM / Immigration', required: true, source: 'vault', hint: 'Valid photo ID in your current name' },
+      { id: 'clearance', accepts: ['POLICE_CLEARANCE'], label: 'Police clearance certificate', issuer: 'Guyana Police Force', required: true, source: 'vault', hint: 'Not in your Vault yet? Apply for it right here, together with your passport application.' },
+      { id: 'passportPhoto', accepts: ['PASSPORT_PHOTO'], label: 'Passport photograph', issuer: 'Recent, colour', required: true, hint: 'Plain background, taken within the last 6 months' },
+      { id: 'proofAddress', accepts: ['PROOF_OF_ADDRESS'], label: 'Proof of address', issuer: 'Dated within 3 months', required: false, hint: 'Utility bill or bank statement' },
     ],
   },
 
