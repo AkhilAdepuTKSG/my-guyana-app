@@ -1,11 +1,15 @@
 import Icon from '../ui/Icon';
 import { formatFileSize } from '../../lib/format';
+import { attachmentRoutes } from '../../data/documentTypes';
 
 // One document an application asks for.
 //
-// Two ways in, always both offered — upload a file, or take one from the Vault.
-// An upload is filed in the Vault on its way through, so the two routes end up
-// in the same place and government never asks twice for the same paper.
+// Which ways in are offered follows the document-type contract
+// (attachmentRoutes): IDs and certificates connect straight from the Vault —
+// no upload button — while anything only the citizen holds (a photo, a proof
+// of address, a plan) is uploaded. An upload is filed in the Vault on its way
+// through, so every route ends in the same place and government never asks
+// twice for the same paper.
 
 /**
  * @param {{
@@ -24,6 +28,7 @@ export default function DocumentSlot({
   doc, attachment, error, accent = 'var(--brand-600)', readOnly,
   onPick, onUseVault, onView, onRemove,
 }) {
+  const routes = attachmentRoutes(doc.accepts);
   const attached = attachment?.status === 'attached' || attachment?.status === 'fromVault';
   const fromVault = attachment?.status === 'fromVault';
   const borderColor = error ? 'var(--status-error)' : attached ? 'var(--status-success)' : 'var(--surface-border)';
@@ -87,8 +92,8 @@ export default function DocumentSlot({
               {onView && (
                 <SlotButton icon="eye" label="View" onClick={onView} />
               )}
-              <SlotButton icon="refresh-cw" label="Replace" onClick={onPick} />
-              <SlotButton icon="folder-lock" label="Vault" onClick={onUseVault} accent={accent} />
+              {routes.upload && <SlotButton icon="refresh-cw" label="Replace" onClick={onPick} />}
+              {routes.vault && <SlotButton icon="folder-lock" label="Vault" onClick={onUseVault} accent={accent} />}
               {onRemove && (
                 <button
                   type="button"
@@ -109,37 +114,41 @@ export default function DocumentSlot({
           )}
         </div>
       ) : (
-        /* The two ways in — always both, so the Vault is never a hidden option */
+        /* The ways in, per the document-type contract */
         <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            type="button"
-            className="press focus-ring"
-            onClick={onPick}
-            style={{
-              flex: 1, minHeight: 40, borderRadius: 10, border: '1px solid var(--surface-border)',
-              background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700,
-              cursor: 'pointer', fontFamily: 'inherit',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            }}
-          >
-            <Icon name="upload" size={13} />
-            {doc.required ? 'Upload file' : 'Add file'}
-          </button>
-          <button
-            type="button"
-            className="press focus-ring"
-            onClick={onUseVault}
-            style={{
-              flex: 1, minHeight: 40, borderRadius: 10,
-              border: `1px solid color-mix(in oklch, ${accent} 35%, var(--surface-border))`,
-              background: `color-mix(in oklch, ${accent} 8%, transparent)`,
-              color: accent, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            }}
-          >
-            <Icon name="folder-lock" size={13} />
-            From Vault
-          </button>
+          {routes.upload && (
+            <button
+              type="button"
+              className="press focus-ring"
+              onClick={onPick}
+              style={{
+                flex: 1, minHeight: 40, borderRadius: 10, border: '1px solid var(--surface-border)',
+                background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 12.5, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <Icon name="upload" size={13} />
+              {doc.required ? 'Upload file' : 'Add file'}
+            </button>
+          )}
+          {routes.vault && (
+            <button
+              type="button"
+              className="press focus-ring"
+              onClick={onUseVault}
+              style={{
+                flex: 1, minHeight: 40, borderRadius: 10,
+                border: `1px solid color-mix(in oklch, ${accent} 35%, var(--surface-border))`,
+                background: `color-mix(in oklch, ${accent} 8%, transparent)`,
+                color: accent, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <Icon name="folder-lock" size={13} />
+              {routes.upload ? 'From Vault' : 'Connect with Vault'}
+            </button>
+          )}
         </div>
       )}
 

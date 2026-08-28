@@ -699,7 +699,7 @@ function DocumentStep({ docs, attachments, missing, accent, onPick, onUseVault, 
       <SectionHeading
         eyebrow="Documents"
         title="Attach what we need"
-        description="Upload each one, or take it from your Vault. Anything you upload is saved to your Vault too, so you are never asked for it twice."
+        description="IDs and certificates connect straight from your Vault. Anything only you hold — a photo or proof of address — is attached as a photo, scan or PDF, and saved to your Vault so you are never asked for it twice."
         accent={accent}
       />
       <DocumentProgress docs={docs} attachments={attachments} accent={accent} />

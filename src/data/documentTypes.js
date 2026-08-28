@@ -46,6 +46,9 @@ export const DOCUMENT_CATEGORIES = {
  * @property {string} icon           lucide icon name
  * @property {string} [issuer]       who issues it, for the Vault request flow
  * @property {boolean} [requestable]  a citizen can ask the agency for a copy
+ * @property {boolean} [issued]      government-issued: it lives in the Vault and
+ *                                    connects from there — a citizen never uploads
+ *                                    one (proofs, photos and plans stay uploadable)
  * @property {boolean} [unique]      a person holds at most one of these at a time,
  *                                    so a newer copy replaces the one on file rather
  *                                    than sitting beside it
@@ -59,66 +62,66 @@ export const DOCUMENT_CATEGORIES = {
 export const DOCUMENT_TYPES = {
   // --- Cards & IDs -------------------------------------------------------
   EID: {
-    id: 'EID', unique: true, label: 'e-ID', category: 'id-card', icon: 'fingerprint',
+    id: 'EID', issued: true, unique: true, label: 'e-ID', category: 'id-card', icon: 'fingerprint',
     issuer: 'the Digital Identity Card Registry',
     patterns: [/\be-?id\b/, /digital identity card/],
   },
   NID: {
-    id: 'NID', unique: true, label: 'National ID', category: 'id-card', icon: 'id-card',
+    id: 'NID', issued: true, unique: true, label: 'National ID', category: 'id-card', icon: 'id-card',
     issuer: 'GECOM', requestable: true,
     patterns: [/national id\b/, /\bnid\b/, /national identification/, /national identity card/],
   },
   PASSPORT: {
-    id: 'PASSPORT', unique: true, label: 'Passport', category: 'id-card', icon: 'book-user',
+    id: 'PASSPORT', issued: true, unique: true, label: 'Passport', category: 'id-card', icon: 'book-user',
     issuer: 'the Immigration Department', requestable: true,
     patterns: [/passport/],
   },
   DRIVERS_LICENCE: {
-    id: 'DRIVERS_LICENCE', unique: true, label: "Driver's licence", category: 'id-card', icon: 'car',
+    id: 'DRIVERS_LICENCE', issued: true, unique: true, label: "Driver's licence", category: 'id-card', icon: 'car',
     issuer: 'the Guyana Police Force', requestable: true,
     patterns: [/driver/, /driving licence/, /driving license/],
   },
   NIS_CARD: {
-    id: 'NIS_CARD', unique: true, label: 'NIS card', category: 'id-card', icon: 'shield-check',
+    id: 'NIS_CARD', issued: true, unique: true, label: 'NIS card', category: 'id-card', icon: 'shield-check',
     issuer: 'the National Insurance Scheme',
     patterns: [/nis card/],
   },
 
   // --- Civil certificates -------------------------------------------------
   BIRTH_CERTIFICATE: {
-    id: 'BIRTH_CERTIFICATE', unique: true, label: 'Birth certificate', category: 'civil-certificate', icon: 'baby',
+    id: 'BIRTH_CERTIFICATE', issued: true, unique: true, label: 'Birth certificate', category: 'civil-certificate', icon: 'baby',
     issuer: 'the General Register Office', requestable: true,
     patterns: [/birth/],
   },
   DEATH_CERTIFICATE: {
-    id: 'DEATH_CERTIFICATE', label: 'Death certificate', category: 'civil-certificate', icon: 'file-text',
+    id: 'DEATH_CERTIFICATE', issued: true, label: 'Death certificate', category: 'civil-certificate', icon: 'file-text',
     issuer: 'the General Register Office',
     patterns: [/death/],
   },
   MARRIAGE_CERTIFICATE: {
-    id: 'MARRIAGE_CERTIFICATE', label: 'Marriage certificate', category: 'civil-certificate', icon: 'heart-handshake',
+    id: 'MARRIAGE_CERTIFICATE', issued: true, label: 'Marriage certificate', category: 'civil-certificate', icon: 'heart-handshake',
     issuer: 'the General Register Office',
     patterns: [/marriage/],
   },
 
   // --- Clearances and registrations ---------------------------------------
   POLICE_CLEARANCE: {
-    id: 'POLICE_CLEARANCE', unique: true, label: 'Police clearance certificate', category: 'clearance', icon: 'shield',
+    id: 'POLICE_CLEARANCE', issued: true, unique: true, label: 'Police clearance certificate', category: 'clearance', icon: 'shield',
     issuer: 'the Guyana Police Force', requestable: true,
     patterns: [/police clearance/, /clearance certificate/],
   },
   TIN_CERTIFICATE: {
-    id: 'TIN_CERTIFICATE', unique: true, label: 'TIN certificate', category: 'clearance', icon: 'hash',
+    id: 'TIN_CERTIFICATE', issued: true, unique: true, label: 'TIN certificate', category: 'clearance', icon: 'hash',
     issuer: 'the Guyana Revenue Authority', requestable: true,
     patterns: [/\btin\b/, /taxpayer identification/],
   },
   NIS_CERTIFICATE: {
-    id: 'NIS_CERTIFICATE', unique: true, label: 'NIS registration certificate', category: 'clearance', icon: 'shield-check',
+    id: 'NIS_CERTIFICATE', issued: true, unique: true, label: 'NIS registration certificate', category: 'clearance', icon: 'shield-check',
     issuer: 'the National Insurance Scheme',
     patterns: [/nis registration/, /national insurance/],
   },
   EID_LETTER: {
-    id: 'EID_LETTER', unique: true, label: 'e-ID issuance letter', category: 'letter', icon: 'badge-check',
+    id: 'EID_LETTER', issued: true, unique: true, label: 'e-ID issuance letter', category: 'letter', icon: 'badge-check',
     issuer: 'the Digital Identity Card Registry',
     patterns: [/e-?id issuance/, /issuance letter/],
   },
@@ -197,6 +200,24 @@ export const DOCUMENT_TYPE_IDS = Object.keys(DOCUMENT_TYPES);
 
 /** The types a citizen can ask the issuing agency for from the Vault. */
 export const REQUESTABLE_TYPE_IDS = DOCUMENT_TYPE_IDS.filter((id) => DOCUMENT_TYPES[id].requestable);
+
+/**
+ * How a document slot may be filled, from the types it accepts (per the
+ * reference design): IDs and certificates connect straight from the Vault and
+ * are never uploaded; anything only the citizen holds — a photo, a proof of
+ * address, a plan — is uploaded. A slot accepting both kinds offers both.
+ * @param {string[]} accepts
+ * @returns {{vault: boolean, upload: boolean}}
+ */
+export function attachmentRoutes(accepts) {
+  const defs = (accepts || []).map((id) => DOCUMENT_TYPES[id]).filter(Boolean);
+  // An untyped slot keeps both doors open rather than locking the citizen out.
+  if (!defs.length) return { vault: true, upload: true };
+  return {
+    vault: true, // whatever the type, a copy already in the Vault is always acceptable
+    upload: defs.some((d) => !d.issued),
+  };
+}
 
 /**
  * @param {string} typeId
