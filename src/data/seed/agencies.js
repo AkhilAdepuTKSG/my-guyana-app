@@ -85,4 +85,11 @@ export const AGENCY_SEED = [
     icon: 'book-open',
     mark: '#7d3550',
   },
+  {
+    id: 'gra',
+    name: 'Guyana Revenue Authority',
+    shortName: 'GRA',
+    icon: 'receipt',
+    mark: '#2563c9',
+  },
 ];

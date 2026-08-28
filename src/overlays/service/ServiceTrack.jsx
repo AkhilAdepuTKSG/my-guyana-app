@@ -10,6 +10,13 @@ import { fileUploadedDocument } from '../../api/vault';
 import { useVaultAttach } from '../../hooks/useVaultAttach';
 import * as cashGrants from '../../api/cashGrants';
 import * as singleWindow from '../../api/singleWindow';
+import * as gra from '../../api/gra';
+
+function apiForGroup(group) {
+  if (group === 'cashGrants') return cashGrants;
+  if (group === 'gra') return gra;
+  return singleWindow;
+}
 import AgencyRoute, { routeSummary } from '../../components/service/AgencyRoute';
 import StageList from '../../components/service/StageList';
 import DocumentSlot from '../../components/service/DocumentSlot';
@@ -57,13 +64,13 @@ export default function ServiceTrack() {
   const accent = (isGro ? '#7d3550' : data?.reviews?.[0]?.agency?.mark) || 'var(--brand-600)';
   // Which documents this application actually required, given its answers.
   const conditionalDocs = (!isGro && service && application)
-    ? (group === 'cashGrants' ? cashGrants : singleWindow).requiredDocumentsFor(service, application.fields)
+    ? apiForGroup(group).requiredDocumentsFor(service, application.fields)
     : [];
 
   // Anything added here follows the same path as the apply flow: into the
   // citizen's Vault first, then attached to the application from there.
   const attach = useAction(async ({ doc, file, vaultDoc }) => {
-    const api = group === 'cashGrants' ? cashGrants : singleWindow;
+    const api = apiForGroup(group);
     // Connecting from the Vault points at whatever is already there;
     // uploading files the document first and points at that.
     const filedId = vaultDoc
@@ -80,7 +87,7 @@ export default function ServiceTrack() {
     });
   });
 
-  const pay = useAction(async () => singleWindow.payFees({ userId, applicationId: id }));
+  const pay = useAction(async () => apiForGroup(group).payFees({ userId, applicationId: id }));
 
   if (!open) return null;
 

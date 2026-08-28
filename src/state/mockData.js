@@ -18,7 +18,9 @@ export const AGENCIES = {
   },
   gra: {
     id: 'gra', name: 'Guyana Revenue Authority', shortName: 'GRA',
-    icon: 'receipt', mark: '#2563c9', dataAgency: 'gra', comingSoon: true,
+    // Live since the seeded GRA services (TIN, driver's licence, business tax,
+    // property tax) shipped — see src/data/seed/servicesGra.js.
+    icon: 'receipt', mark: '#2563c9', dataAgency: 'gra',
   },
   immigration: {
     id: 'immigration', name: 'Immigration & Passport', shortName: 'Immigration',
@@ -282,7 +284,10 @@ export const SERVICE_DIRECTORY = [
   { id: 'cat-social', name: 'Social Security', icon: 'shield-check', agency: 'nis', services: ['NIS registration', 'Sickness Benefit', 'Maternity Benefit', 'Funeral Grant', 'Pension estimate'] },
   { id: 'cat-utilities', name: 'Utilities', icon: 'zap', agency: 'gpl', services: ['Pay electricity bill', 'Report an outage'] },
   { id: 'cat-immigration', name: 'Immigration & Passport', icon: 'plane', agency: 'immigration', services: ['Guyana Passport'] },
-  { id: 'cat-revenue', name: 'Revenue & Tax', icon: 'receipt', agency: 'gra', services: ['TIN registration', 'File annual return'], comingSoon: true },
+  // Revenue & Tax used to be a coming-soon placeholder here; the GRA services
+  // (TIN, driver's licence, business tax, property tax) are now seeded, so
+  // they list from the catalogue instead — see src/data/seed/servicesGra.js.
+  // { id: 'cat-revenue', name: 'Revenue & Tax', icon: 'receipt', agency: 'gra', services: ['TIN registration', 'File annual return'], comingSoon: true },
   // Water connection used to live here; it is now a seeded Single Window
   // service, so it is listed there instead of twice.
   { id: 'cat-housing', name: 'Housing & Land', icon: 'home', agency: 'housing', services: ['House lot application'], comingSoon: true },

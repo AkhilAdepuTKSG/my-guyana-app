@@ -172,6 +172,20 @@ export const MIGRATIONS = [
       };
     },
   },
+  {
+    version: 7,
+    name: '0007_gra_applications',
+    up(db) {
+      // GRA applications (TIN, driver's licence, business tax, property tax) —
+      // their own table, same shape discipline as the other application stores.
+      store(db, 'gra_applications', 'id', [
+        ['byUser', 'userId', { unique: false }],
+        ['byRef', 'ref', { unique: true }],
+        ['byService', 'serviceId', { unique: false }],
+        ['byStatus', 'status', { unique: false }],
+      ]);
+    },
+  },
 ];
 
 export const DB_VERSION = MIGRATIONS.reduce((max, m) => Math.max(max, m.version), 0);
@@ -190,6 +204,7 @@ export const STORE_NAMES = [
   'gro_certificates',
   'gro_requests',
   'vault_documents',
+  'gra_applications',
   'meta',
 ];
 

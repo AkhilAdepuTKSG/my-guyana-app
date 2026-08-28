@@ -27,6 +27,7 @@ export function isLive(application) {
 export const STORE_BY_GROUP = {
   cashGrants: 'cash_grant_applications',
   singleWindow: 'single_window_applications',
+  gra: 'gra_applications',
 };
 
 /**

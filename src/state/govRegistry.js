@@ -47,6 +47,9 @@ export const GOV_CITIZENS = [
     nationalId: 'N1234567890',
     passport: 'P1234567890',
     driversLicence: 'DL1234567890',
+    // Expires this October — close enough for the GRA renewal flow to be the
+    // obvious demo on her account (GRA advises renewing 3 months ahead).
+    driversLicenceExpiry: '2026-10-15',
     tin: '1234567890',
 
     // Agencies holding a record in her name — connected automatically at signup.
@@ -88,6 +91,7 @@ export const GOV_CITIZENS = [
     nationalId: 'N0987654321',
     passport: 'P0987654321',
     driversLicence: 'DL0987654321',
+    driversLicenceExpiry: '2028-06-30',
     tin: '0987654321',
 
     // Agencies holding a record in his name — connected automatically at signup.
@@ -193,6 +197,7 @@ export function toSessionGov(citizen) {
     nationalId: citizen.nationalId,
     passport: citizen.passport,
     driversLicence: citizen.driversLicence,
+    driversLicenceExpiry: citizen.driversLicenceExpiry || null,
     tin: citizen.tin,
   };
 }
