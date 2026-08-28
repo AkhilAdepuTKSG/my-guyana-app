@@ -11,7 +11,7 @@
 
 import { useCallback, useState } from 'react';
 import { useVault } from './useVault';
-import { acceptedLabel } from '../data/documentTypes';
+import { acceptedLabel, attachmentRoutes } from '../data/documentTypes';
 
 /**
  * @param {{
@@ -27,7 +27,11 @@ export function useVaultAttach({ onAttach, showToast, active = true }) {
   const requestFromVault = useCallback((field) => {
     const candidates = vault.candidatesFor(field);
     if (candidates.length === 0) {
-      showToast(`No ${acceptedLabel(field?.accepts)} in your Vault yet — upload it and we will keep it there`);
+      // Issued documents are never uploaded — the way to get one is to request
+      // it from the issuing agency in the Vault.
+      showToast(attachmentRoutes(field?.accepts).upload
+        ? `No ${acceptedLabel(field?.accepts)} in your Vault yet — upload it and we will keep it there`
+        : `No ${acceptedLabel(field?.accepts)} in your Vault yet — request it from ${field?.issuer || 'the issuing agency'} in your Vault`);
       return;
     }
     if (candidates.length === 1) {
