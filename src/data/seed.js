@@ -14,6 +14,7 @@ import { AGENCY_SEED } from './seed/agencies';
 import { CASH_GRANT_SERVICES, CASH_GRANT_FEES, CASH_GRANT_ROUTES } from './seed/servicesCashGrants';
 import { SINGLE_WINDOW_SERVICES, SINGLE_WINDOW_FEES, SINGLE_WINDOW_ROUTES } from './seed/servicesSingleWindow';
 import { GRO_SERVICES, GRO_FEES, GRO_ROUTES } from './seed/servicesGro';
+import { GRA_SERVICES, GRA_FEES, GRA_ROUTES } from './seed/servicesGra';
 import { GRO_REGISTRATION_SEED, normaliseRegNo } from './seed/groRegistry';
 
 /** Raise this when any seed file changes. */
@@ -26,18 +27,21 @@ export const ALL_SERVICES = [
   ...CASH_GRANT_SERVICES,
   ...SINGLE_WINDOW_SERVICES,
   ...GRO_SERVICES,
+  ...GRA_SERVICES,
 ];
 
 export const ALL_FEES = [
   ...CASH_GRANT_FEES,
   ...SINGLE_WINDOW_FEES,
   ...GRO_FEES,
+  ...GRA_FEES,
 ];
 
 export const ALL_ROUTES = [
   ...CASH_GRANT_ROUTES,
   ...SINGLE_WINDOW_ROUTES,
   ...GRO_ROUTES,
+  ...GRA_ROUTES,
 ];
 
 /** Register rows carry a normalised lookup key alongside the printed number. */

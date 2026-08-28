@@ -29,6 +29,13 @@ export const SERVICE_GROUPS = {
     icon: 'book-open',
     accent: '#7d3550',
   },
+  gra: {
+    id: 'gra',
+    name: 'Revenue & Tax (GRA)',
+    tagline: "TIN, driver's licence, business tax and property tax — the Guyana Revenue Authority online.",
+    icon: 'receipt',
+    accent: '#2563c9',
+  },
 };
 
 /**

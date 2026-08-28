@@ -11,6 +11,7 @@ import { useVaultAttach } from '../../hooks/useVaultAttach';
 import { listAll } from '../../api/applications';
 import * as cashGrants from '../../api/cashGrants';
 import * as singleWindow from '../../api/singleWindow';
+import * as gra from '../../api/gra';
 import { evaluateEligibility } from '../../data/eligibilityRules';
 import { validateFields, visibleFields, validateDocuments, validatePrerequisites } from '../../api/validate';
 import FormField from '../../components/service/FormField';
@@ -32,7 +33,9 @@ import { formatGyd, displayFieldValue, formatTimeframe } from '../../lib/format'
 
 /** The API module that owns a group's applications. */
 function apiFor(group) {
-  return group === 'cashGrants' ? cashGrants : singleWindow;
+  if (group === 'cashGrants') return cashGrants;
+  if (group === 'gra') return gra;
+  return singleWindow;
 }
 
 export default function ServiceApply() {
@@ -497,6 +500,8 @@ function prefillFromRecord(service, user, persona) {
     else if (key === 'email' && gov?.email) out[key] = gov.email;
     else if (key === 'address' && gov?.address) out[key] = gov.address;
     else if (key === 'region' && (gov?.region || persona?.region)) out[key] = gov?.region || persona.region;
+    else if (key === 'tin' && gov?.tin) out[key] = gov.tin;
+    else if (key === 'licenceNumber' && gov?.driversLicence) out[key] = gov.driversLicence;
     else if (key === 'accountHolder' && user?.name) out[key] = user.name;
     else if (key === 'siteContactName' && user?.name) out[key] = user.name;
     else if (key === 'siteContactPhone' && gov?.phone) out[key] = gov.phone;

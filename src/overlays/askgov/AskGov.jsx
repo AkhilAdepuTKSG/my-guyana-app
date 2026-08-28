@@ -108,6 +108,39 @@ const CONTEXTS = {
       { id: 'm-how', label: 'How does this work?', prompt: 'How do I get a marriage certificate?' },
     ],
   },
+  svc_gra_tin: {
+    title: 'TIN',
+    chips: [
+      { id: 't-docs', label: 'What do I need?', prompt: 'What documents do I need for my TIN?' },
+      { id: 't-change', label: 'Update my TIN details', prompt: 'How do I update the details on my TIN?' },
+      { id: 't-status', label: 'Track my application', prompt: "What's the status of my TIN application?" },
+    ],
+  },
+  svc_gra_drivers_licence: {
+    title: "Driver's licence",
+    chips: [
+      { id: 'l-renew', label: 'Renew my licence', prompt: "How do I renew my driver's licence?" },
+      { id: 'l-cost', label: 'Fees and how long', prompt: "What does a driver's licence cost?" },
+      { id: 'l-first', label: 'My first licence', prompt: 'How do I get my first driving licence?' },
+      { id: 'l-status', label: 'Track my application', prompt: "What's the status of my driver's licence application?" },
+    ],
+  },
+  svc_gra_business: {
+    title: 'Business tax',
+    chips: [
+      { id: 'bt-vat', label: 'Do I need VAT?', prompt: 'Do I need to register for VAT?' },
+      { id: 'bt-docs', label: 'What do I need?', prompt: 'What documents do I need to register a business for tax?' },
+      { id: 'bt-status', label: 'Track my registration', prompt: "What's the status of my business registration?" },
+    ],
+  },
+  svc_gra_property_tax: {
+    title: 'Property tax',
+    chips: [
+      { id: 'pt-who', label: 'Does it apply to me?', prompt: 'Do I have to pay property tax?' },
+      { id: 'pt-rates', label: 'Rates and deadline', prompt: 'What are the property tax rates?' },
+      { id: 'pt-status', label: 'Track my return', prompt: "What's the status of my property tax return?" },
+    ],
+  },
 };
 
 // -- deep-link targets ----------------------------------------------------
@@ -127,6 +160,12 @@ const GO = {
   groBirth: { overlay: 'serviceView', payload: { serviceId: 'svc_gro_birth' } },
   groDeath: { overlay: 'serviceView', payload: { serviceId: 'svc_gro_death' } },
   groMarriage: { overlay: 'serviceView', payload: { serviceId: 'svc_gro_marriage' } },
+  graTin: { overlay: 'serviceView', payload: { serviceId: 'svc_gra_tin' } },
+  graTinApply: { overlay: 'serviceApply', payload: { serviceId: 'svc_gra_tin' } },
+  graLicence: { overlay: 'serviceView', payload: { serviceId: 'svc_gra_drivers_licence' } },
+  graLicenceApply: { overlay: 'serviceApply', payload: { serviceId: 'svc_gra_drivers_licence' } },
+  graBusiness: { overlay: 'serviceView', payload: { serviceId: 'svc_gra_business' } },
+  graPropertyTax: { overlay: 'serviceView', payload: { serviceId: 'svc_gra_property_tax' } },
   financeServices: { overlay: 'category', payload: { id: 'cat-finance' } },
   nisHub: { screen: 'nis' },
   nisRegister: { overlay: 'nisReg' },
@@ -154,6 +193,11 @@ const act = (label, icon, go) => ({ label, icon, go });
 // Which application a question is about, by the words the citizen uses.
 const APP_MATCHERS = [
   { keys: ['passport'], ids: ['passport'], label: 'passport', apply: act('Apply for a passport', 'plane', GO.passportApply) },
+  // GRA (api-layer services).
+  { keys: [' tin', 'taxpayer'], ids: ['gra_tin'], label: 'TIN', apply: act('Apply for a TIN', 'id-card', GO.graTin) },
+  { keys: ["driver's licence", 'drivers licence', 'driving licence', "driver's license", 'drivers license', 'driving license', 'licence renewal', 'license renewal'], ids: ['gra_drivers_licence'], label: "driver's licence", apply: act("Apply for a driver's licence", 'car', GO.graLicence) },
+  { keys: ['business registration', 'business tax', 'vat registration', 'paye'], ids: ['gra_business'], label: 'business tax registration', apply: act('Register a business for tax', 'briefcase', GO.graBusiness) },
+  { keys: ['property tax', 'property return'], ids: ['gra_property_tax'], label: 'property tax return', apply: act('File a property tax return', 'home', GO.graPropertyTax) },
   { keys: ['cash grant', 'grant'], ids: ['cashGrant', 'cash_grant'], label: 'cash grant', apply: act('Check eligibility and apply', 'banknote', GO.cashGrant) },
   { keys: ['e-id', 'eid', 'digital id', 'id card'], ids: ['eid'], label: 'e-ID', apply: act('Apply for an e-ID', 'fingerprint', GO.eidApply) },
   { keys: ['nis registration', 'registration', 'register'], ids: ['nisReg'], label: 'NIS registration', apply: act('Register with NIS', 'badge-check', GO.nisRegister) },
@@ -368,6 +412,77 @@ function gplReply(t) {
   return { text: 'Electricity (GPL) — pay your bill, see your usage, report an outage, or apply for a new connection.', actions: [act('Pay my bill', 'receipt', GO.gplPay), act('Report an outage', 'zap-off', GO.gplOutage), hub, all] };
 }
 
+// Whole words only — 'tin' and 'vat' are substrings of everyday words
+// ("waiting", "private"), so a plain includes() would misfire.
+function hasWord(t, w) {
+  return new RegExp('\\b' + w + '\\b').test(t);
+}
+
+function graReply(t, ctxId) {
+  const tin = act('TIN — read & apply', 'id-card', GO.graTin);
+  const licence = act("Driver's licence — read & apply", 'car', GO.graLicence);
+  const business = act('Business tax — read & register', 'briefcase', GO.graBusiness);
+  const property = act('Property tax — read & file', 'home', GO.graPropertyTax);
+
+  const aboutTin = ctxId === 'svc_gra_tin' || hasWord(t, 'tin') || t.includes('taxpayer');
+  const aboutLicence = ctxId === 'svc_gra_drivers_licence' || t.includes('licence') || t.includes('license') || t.includes('driving') || t.includes('driver');
+  const aboutBusiness = ctxId === 'svc_gra_business' || hasWord(t, 'vat') || hasWord(t, 'paye') || t.includes('business');
+  const aboutProperty = ctxId === 'svc_gra_property_tax' || t.includes('property');
+
+  if (aboutTin) {
+    if (t.includes('update') || t.includes('change') || t.includes('correct')) {
+      return {
+        text: 'To change the name, address or a wrong detail on your TIN, use the TIN service and choose "Update my TIN" — attach the document that proves the change (deed poll, marriage certificate) and GRA corrects the record.',
+        actions: [act('Update my TIN', 'id-card', GO.graTinApply), tin],
+      };
+    }
+    return {
+      text: 'A TIN is free and issued within about three working days. You need valid ID (National ID, passport or NIS card — they connect from your Vault) and a proof of address; if the proof of address is not in your name, an attestation from the person you live with is accepted. One TIN per person, for life.',
+      actions: [act('Apply for a TIN', 'id-card', GO.graTinApply), tin],
+    };
+  }
+  if (aboutLicence) {
+    if (t.includes('renew')) {
+      return {
+        text: "Renewing your driver's licence costs G$4,500, runs another five years, and is completed the same day — you only need your old plastic card, no new photo or ID copies. GRA advises renewing up to three months before it expires. Your licence number prefills from your record.",
+        actions: [act('Renew my licence', 'car', GO.graLicenceApply), licence],
+      };
+    }
+    if (t.includes('first') || t.includes('new') || t.includes('provisional') || t.includes('learn')) {
+      return {
+        text: 'Your first licence needs the Letter of Competence from the Guyana Police Force (issued when you pass the driving test), valid ID and a passport-sized photo. The licence fee is G$4,500 and it runs five years. While learning, a provisional licence is G$1,500.',
+        actions: [act('Apply for my first licence', 'car', GO.graLicenceApply), licence],
+      };
+    }
+    if (t.includes('cost') || t.includes('fee') || t.includes('how long')) {
+      return {
+        text: "A driver's licence — new or renewed — is G$4,500 and is valid for five years. Renewals are completed the same day at the Licence Revenue Office; a provisional licence while learning is G$1,500.",
+        actions: [licence],
+      };
+    }
+    return {
+      text: "The GRA's Licence Revenue Office issues every driver's licence in Guyana — first licences, five-year renewals (same-day, old card only) and replacements for lost or damaged cards. G$4,500, right from this app.",
+      actions: [act('Renew my licence', 'car', GO.graLicenceApply), licence],
+    };
+  }
+  if (aboutProperty) {
+    return {
+      text: 'Property tax applies only where your net property exceeds G$40,000,000 at December 31 — below that there is nothing to file. Above it, the return is due by April 30: the first G$40M is free, the next G$20M is taxed at 0.5% and the remainder at 0.75%. Filing here is free and the assessment shows in your application.',
+      actions: [property],
+    };
+  }
+  if (aboutBusiness) {
+    return {
+      text: 'Registering a business for tax is free and sets up its accounts against your TIN: VAT — mandatory once taxable turnover reaches G$15,000,000 over twelve months, voluntary below that — and PAYE if you employ staff. You attach the business registration or certificate of incorporation, ID and proof of the business address.',
+      actions: [business, tin],
+    };
+  }
+  return {
+    text: 'The Guyana Revenue Authority is live in My Guyana with four services — your TIN, your five-year driver\'s licence, business tax registration (VAT and PAYE) and the annual property tax return. Each one can be read about, applied for and tracked right here.',
+    actions: [tin, licence, business, property],
+  };
+}
+
 function eidReply(t, persona) {
   const vault = act('Open my Vault', 'user-lock', GO.vault);
   const all = act('All Identity & Records services', 'layout-grid', GO.identityServices);
@@ -439,6 +554,13 @@ function pickReply(text, { persona, applications, ctxId }) {
       || t.includes('water connection') || t.includes('power connection') || t.includes('building plan')
       || t.includes('construction')) {
     return singleWindowReply(t, ctxId);
+  }
+  if (String(ctxId).startsWith('svc_gra_') || hasWord(t, 'gra') || t.includes('revenue authority')
+      || hasWord(t, 'tin') || t.includes('taxpayer')
+      || t.includes('licence') || t.includes('license') || t.includes('driving')
+      || hasWord(t, 'vat') || hasWord(t, 'paye') || t.includes('property tax')
+      || (t.includes('business') && (t.includes('regist') || t.includes('tax')))) {
+    return graReply(t, ctxId);
   }
   if (String(ctxId).startsWith('svc_gro_') || t.includes('registration number')
       || t.includes('birth cert') || t.includes('death cert') || t.includes('marriage cert')

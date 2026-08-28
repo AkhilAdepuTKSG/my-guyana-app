@@ -10,6 +10,7 @@ import { getAgencyMap, getService, listServices } from './catalog';
 import * as cashGrants from './cashGrants';
 import * as singleWindow from './singleWindow';
 import * as gro from './gro';
+import * as gra from './gra';
 import { listEvents, listReviews, syncReviewProgress } from './applicationCommon';
 import { ApiError } from './validate';
 
@@ -101,12 +102,13 @@ export function partitionByProgress(rows) {
 export async function listAll(userId) {
   if (!userId) return [];
 
-  const [agencies, services, grants, sw, requests] = await Promise.all([
+  const [agencies, services, grants, sw, requests, revenue] = await Promise.all([
     getAgencyMap(),
     listServices(),
     cashGrants.listApplications(userId),
     singleWindow.listApplications(userId),
     gro.listRequests(userId),
+    gra.listApplications(userId),
   ]);
   const serviceById = Object.fromEntries(services.map((s) => [s.id, s]));
 
@@ -199,7 +201,48 @@ export async function listAll(userId) {
     });
   });
 
+  revenue.forEach((a) => {
+    rows.push({
+      id: a.id,
+      ref: a.ref,
+      group: 'gra',
+      serviceId: a.serviceId,
+      title: a.title,
+      ...agencyBits(a.agencyId),
+      icon: serviceById[a.serviceId]?.icon || 'receipt',
+      status: a.status,
+      statusLabel: statusLabel(a.status),
+      tone: statusTone(a.status),
+      submittedAt: a.submittedAt,
+      updatedAt: a.updatedAt,
+      step: stepFor(a.status),
+      totalSteps: 4,
+      subtitle: graSubtitle(a),
+      hasCertificate: false,
+      certificateId: null,
+      actionLabel: a.status === 'draft' ? 'Resume' : 'Track',
+      documents: a.documents || [],
+      documentSummary: summariseDocuments(a.documents),
+    });
+  });
+
   return rows.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+}
+
+/** One line saying what a GRA application is about, for the list rows. */
+function graSubtitle(a) {
+  const type = a.applicationType || a.fields?.applicationType;
+  const typeLabel = { new: 'New', renewal: 'Renewal', change: 'Update', return: 'Annual return' }[type];
+  switch (a.serviceId) {
+    case 'svc_gra_drivers_licence':
+      return [typeLabel, a.fields?.licenceNumber ? 'licence ' + a.fields.licenceNumber : null].filter(Boolean).join(' · ') || null;
+    case 'svc_gra_business':
+      return a.fields?.businessName || typeLabel || null;
+    case 'svc_gra_property_tax':
+      return a.fields?.taxYear ? 'Year of assessment ' + a.fields.taxYear : typeLabel || null;
+    default:
+      return typeLabel || null;
+  }
 }
 
 /**
@@ -249,6 +292,10 @@ export async function getDetail({ userId, group, id }) {
   }
   if (group === 'singleWindow') {
     const detail = await singleWindow.getApplicationDetail({ userId, applicationId: id });
+    return { kind: 'application', ...detail };
+  }
+  if (group === 'gra') {
+    const detail = await gra.getApplicationDetail({ userId, applicationId: id });
     return { kind: 'application', ...detail };
   }
   if (group === 'gro') {
