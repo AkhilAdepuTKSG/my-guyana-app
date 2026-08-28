@@ -49,7 +49,7 @@ import PushBanner from './PushBanner';
 import ServiceView from '../../overlays/service/ServiceView';
 import ServiceApply from '../../overlays/service/ServiceApply';
 import ServiceTrack from '../../overlays/service/ServiceTrack';
-import SingleWindowHub from '../../overlays/singleWindow/SingleWindowHub';
+// import SingleWindowHub from '../../overlays/singleWindow/SingleWindowHub'; // hub render is switched off below
 import GroLookup from '../../overlays/gro/GroLookup';
 import GroCertificate from '../../overlays/gro/GroCertificate';
 import WelcomeCarousel from '../../overlays/welcome/WelcomeCarousel';

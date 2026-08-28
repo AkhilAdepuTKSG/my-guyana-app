@@ -4,8 +4,8 @@ import Surface from '../components/ui/Surface';
 import StatusPill from '../components/ui/StatusPill';
 import StepProgress from '../components/ui/StepProgress';
 import Button from '../components/ui/Button';
-import { useApi, useUserId } from '../hooks/useApi';
-import { listAll, partitionByProgress } from '../api/applications';
+import { partitionByProgress } from '../api/applications';
+import { useMyApplications, openTargetFor } from '../hooks/useMyApplications';
 import { LoadingState, ErrorState } from '../components/service/ServicePieces';
 import DocumentProgress from '../components/service/DocumentProgress';
 import { formatDate, formatRelativeDate } from '../lib/format';
@@ -16,23 +16,16 @@ import { formatDate, formatRelativeDate } from '../lib/format';
 
 export default function Applications() {
   const { navigate, openOverlay } = useAppState();
-  const userId = useUserId();
-  const { data, loading, error, reload } = useApi(() => listAll(userId), [userId], { enabled: !!userId, initial: [] });
-  const applications = data || [];
+  // Every application from every store — api-layer services plus the e-ID and
+  // passport flows — through the one merge (hooks/useMyApplications).
+  const { applications, loading, error, reload } = useMyApplications();
   // Live applications lead; finished ones drop into History below, so the
   // screen answers "what is waiting on me" before "what have I ever done".
   const { active, history } = partitionByProgress(applications);
 
   const openApplication = (app) => {
-    if (app.status === 'draft') {
-      openOverlay('serviceApply', { serviceId: app.serviceId, applicationId: app.id });
-      return;
-    }
-    if (app.group === 'gro' && app.status === 'approved') {
-      openOverlay('groCertificate', { requestId: app.id });
-      return;
-    }
-    openOverlay('serviceTrack', { group: app.group, id: app.id });
+    const target = openTargetFor(app);
+    openOverlay(target.overlay, target.payload);
   };
 
   return (

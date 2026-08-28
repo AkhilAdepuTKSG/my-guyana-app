@@ -3,7 +3,6 @@ import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
 import { missingPersonalFields } from '../../lib/profileFields';
 import { useRegionName } from './regionStore';
-import MyApplicationsList from '../../components/service/MyApplicationsList';
 
 // The profile bottom sheet, laid out as the Final design: identity header with
 // the e-ID number pill (the "access my e-ID" entry, backlog 2.2) · Region ·
@@ -107,24 +106,8 @@ export default function ProfileSheet() {
           </button>
         </div>
 
-        {/* My Applications — everything the citizen has applied for, with the
-            action each row needs: resume a draft, track it, or open a
-            certificate that is ready. The full list is on the Applications tab. */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h2 className="ds-eyebrow" style={{ flex: 1, minWidth: 0, margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>My applications</h2>
-            <button
-              className="press focus-ring"
-              onClick={() => { closeOverlay('profile'); navigate('applications'); }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: 'none', border: 'none', padding: 0, color: 'var(--agency-accent)', fontSize: 12.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              See all<Icon name="chevron-right" size={14} />
-            </button>
-          </div>
-          <MyApplicationsList limit={3} onNavigate={() => closeOverlay('profile')} />
-        </div>
-
-        {/* Quick access */}
+        {/* Quick access — My applications is a row here, alongside Personal
+            information; the list itself lives on the Applications tab. */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <h2 className="ds-eyebrow" style={{ margin: 0, fontSize: 11, color: 'var(--fg-3)' }}>Quick access</h2>
           <QuickRow icon="user-lock" title="Vault" sub="Your IDs, cards and certificates" onClick={go(() => navigate('vault'))} />

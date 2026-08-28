@@ -247,7 +247,7 @@ export default function BenefitClaimFlow() {
 
   const [step, setStep] = useState('type'); // type | subtype | about | 1 | 2 | 3 | success
   const [sbType, setSbType] = useState(null);
-  const [sbSubtype, setSbSubtype] = useState(null);
+  const [, setSbSubtype] = useState(null); // recorded for the claim; not read by this screen yet
   const [aboutTab, setAboutTab] = useState('why');
 
   const [sbFields, setSbFields] = useState(INITIAL_SB_FIELDS);
