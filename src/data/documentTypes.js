@@ -46,6 +46,9 @@ export const DOCUMENT_CATEGORIES = {
  * @property {string} icon           lucide icon name
  * @property {string} [issuer]       who issues it, for the Vault request flow
  * @property {boolean} [requestable]  a citizen can ask the agency for a copy
+ * @property {boolean} [unique]      a person holds at most one of these at a time,
+ *                                    so a newer copy replaces the one on file rather
+ *                                    than sitting beside it
  * @property {RegExp[]} [patterns]   how a free-text name is recognised as this type
  */
 
@@ -56,34 +59,34 @@ export const DOCUMENT_CATEGORIES = {
 export const DOCUMENT_TYPES = {
   // --- Cards & IDs -------------------------------------------------------
   EID: {
-    id: 'EID', label: 'e-ID', category: 'id-card', icon: 'fingerprint',
+    id: 'EID', unique: true, label: 'e-ID', category: 'id-card', icon: 'fingerprint',
     issuer: 'the Digital Identity Card Registry',
     patterns: [/\be-?id\b/, /digital identity card/],
   },
   NID: {
-    id: 'NID', label: 'National ID', category: 'id-card', icon: 'id-card',
+    id: 'NID', unique: true, label: 'National ID', category: 'id-card', icon: 'id-card',
     issuer: 'GECOM', requestable: true,
     patterns: [/national id\b/, /\bnid\b/, /national identification/, /national identity card/],
   },
   PASSPORT: {
-    id: 'PASSPORT', label: 'Passport', category: 'id-card', icon: 'book-user',
+    id: 'PASSPORT', unique: true, label: 'Passport', category: 'id-card', icon: 'book-user',
     issuer: 'the Immigration Department', requestable: true,
     patterns: [/passport/],
   },
   DRIVERS_LICENCE: {
-    id: 'DRIVERS_LICENCE', label: "Driver's licence", category: 'id-card', icon: 'car',
+    id: 'DRIVERS_LICENCE', unique: true, label: "Driver's licence", category: 'id-card', icon: 'car',
     issuer: 'the Guyana Police Force', requestable: true,
     patterns: [/driver/, /driving licence/, /driving license/],
   },
   NIS_CARD: {
-    id: 'NIS_CARD', label: 'NIS card', category: 'id-card', icon: 'shield-check',
+    id: 'NIS_CARD', unique: true, label: 'NIS card', category: 'id-card', icon: 'shield-check',
     issuer: 'the National Insurance Scheme',
     patterns: [/nis card/],
   },
 
   // --- Civil certificates -------------------------------------------------
   BIRTH_CERTIFICATE: {
-    id: 'BIRTH_CERTIFICATE', label: 'Birth certificate', category: 'civil-certificate', icon: 'baby',
+    id: 'BIRTH_CERTIFICATE', unique: true, label: 'Birth certificate', category: 'civil-certificate', icon: 'baby',
     issuer: 'the General Register Office', requestable: true,
     patterns: [/birth/],
   },
@@ -100,22 +103,22 @@ export const DOCUMENT_TYPES = {
 
   // --- Clearances and registrations ---------------------------------------
   POLICE_CLEARANCE: {
-    id: 'POLICE_CLEARANCE', label: 'Police clearance certificate', category: 'clearance', icon: 'shield',
+    id: 'POLICE_CLEARANCE', unique: true, label: 'Police clearance certificate', category: 'clearance', icon: 'shield',
     issuer: 'the Guyana Police Force', requestable: true,
     patterns: [/police clearance/, /clearance certificate/],
   },
   TIN_CERTIFICATE: {
-    id: 'TIN_CERTIFICATE', label: 'TIN certificate', category: 'clearance', icon: 'hash',
+    id: 'TIN_CERTIFICATE', unique: true, label: 'TIN certificate', category: 'clearance', icon: 'hash',
     issuer: 'the Guyana Revenue Authority', requestable: true,
     patterns: [/\btin\b/, /taxpayer identification/],
   },
   NIS_CERTIFICATE: {
-    id: 'NIS_CERTIFICATE', label: 'NIS registration certificate', category: 'clearance', icon: 'shield-check',
+    id: 'NIS_CERTIFICATE', unique: true, label: 'NIS registration certificate', category: 'clearance', icon: 'shield-check',
     issuer: 'the National Insurance Scheme',
     patterns: [/nis registration/, /national insurance/],
   },
   EID_LETTER: {
-    id: 'EID_LETTER', label: 'e-ID issuance letter', category: 'letter', icon: 'badge-check',
+    id: 'EID_LETTER', unique: true, label: 'e-ID issuance letter', category: 'letter', icon: 'badge-check',
     issuer: 'the Digital Identity Card Registry',
     patterns: [/e-?id issuance/, /issuance letter/],
   },
@@ -212,6 +215,19 @@ export function sectionForType(typeId) {
 /** Is this an identity card? Only these may appear under Cards & IDs. */
 export function isIdCard(typeId) {
   return documentType(typeId).category === 'id-card';
+}
+
+/**
+ * Does a citizen hold at most one of these?
+ *
+ * A person has one National ID, one passport, one licence, one birth
+ * certificate. A newer copy of such a document is the *same* document — it
+ * replaces what was on file rather than appearing beside it. Proofs, plans and
+ * permits are the opposite: a citizen legitimately holds several, one per
+ * parcel or per month, so those accumulate.
+ */
+export function isUniqueType(typeId) {
+  return !!documentType(typeId).unique;
 }
 
 function normalise(value) {

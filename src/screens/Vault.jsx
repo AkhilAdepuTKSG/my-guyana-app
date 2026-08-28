@@ -7,6 +7,7 @@ import { renderCertificatePdf, certificateFileName } from '../lib/certificates';
 import { downloadBlob } from '../lib/format';
 import { buildCards, buildRecords } from '../lib/vaultRecords';
 import { isIdCard, resolveType, documentType, REQUESTABLE_TYPE_IDS } from '../data/documentTypes';
+import { buildVaultInventory } from '../lib/vaultInventory';
 import Icon from '../components/ui/Icon';
 import ListRow from '../components/ui/ListRow';
 import Sheet from '../components/ui/Sheet';
@@ -108,13 +109,32 @@ export default function Vault() {
     type: resolveType(d.type, d.label || d.typeLabel),
   }));
 
+  // A citizen holds one National ID, not two. The same collapse the forms use
+  // decides which entries survive here, so the Vault and every picker show the
+  // identical set — see collapseUnique in lib/vaultInventory.
+  const inventory = buildVaultInventory({
+    persona,
+    cards: derived.filter((d) => isIdCard(d.type)),
+    records: derived.filter((d) => !isIdCard(d.type)),
+    vaultDocs: requested,
+    storedDocs: issuedDocs,
+  });
+  const survives = new Set(inventory.map((i) => i.id));
+  // When a copy the citizen uploaded was collapsed into the government record's
+  // row, that row still carries the file — so it stays openable rather than
+  // disappearing with the duplicate.
+  const mergedFileFor = (invId) => {
+    const hit = inventory.find((i) => i.id === invId);
+    return hit?.vaultDocId ? issuedDocs.find((d) => d.id === hit.vaultDocId) || null : null;
+  };
+
   const inCards = (d) => isIdCard(d.type);
-  const cards = derived.filter(inCards);
-  const records = derived.filter((d) => !inCards(d));
-  const requestedCards = requested.filter(inCards);
-  const requestedRecords = requested.filter((d) => !inCards(d));
-  const issuedCards = issuedDocs.filter(inCards);
-  const issuedRecords = issuedDocs.filter((d) => !inCards(d));
+  const cards = derived.filter((d) => inCards(d) && survives.has(`card:${d.id}`));
+  const records = derived.filter((d) => !inCards(d) && survives.has(`record:${d.id}`));
+  const requestedCards = requested.filter((d) => inCards(d) && survives.has(`requested:${d.id}`));
+  const requestedRecords = requested.filter((d) => !inCards(d) && survives.has(`requested:${d.id}`));
+  const issuedCards = issuedDocs.filter((d) => inCards(d) && survives.has(`filed:${d.id}`));
+  const issuedRecords = issuedDocs.filter((d) => !inCards(d) && survives.has(`filed:${d.id}`));
   const cardCount = cards.length + requestedCards.length + issuedCards.length;
 
   // A certificate is redrawn from the register entry on demand rather than
@@ -310,7 +330,7 @@ export default function Vault() {
           <h2 style={eyebrow}>Cards &amp; IDs</h2>
           <div style={listCard}>
             {[
-              ...cards.map((c) => ({ ...c, kind: 'derived' })),
+              ...cards.map((c) => ({ ...c, kind: 'derived', file: mergedFileFor(`card:${c.id}`) })),
               ...requestedCards.map((c) => ({ ...c, title: c.label || c.typeLabel, sub: `Requested · ${documentType(c.type).label}`, kind: 'requested' })),
               ...issuedCards.map((c) => ({ ...c, sub: c.subtitle, kind: 'filed' })),
             ].map((c, i, arr) => (
@@ -325,6 +345,7 @@ export default function Vault() {
                 onClick={() => {
                   if (c.overlay) { openOverlay(c.overlay); return; }
                   if (c.kind === 'filed') { openIssued(c); return; }
+                  if (c.file) { openIssued(c.file); return; }
                   showToast(`${c.title} — issued by government`);
                 }}
                 style={rowStyle(i === arr.length - 1)}

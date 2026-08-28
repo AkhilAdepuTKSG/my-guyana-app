@@ -31,7 +31,16 @@ export function useVault(active = true) {
 
   // Documents a service filed against this account. Everything else is derived
   // from the government record, so it needs no fetch.
-  const stored = useApi(() => listDocuments(userId), [userId], { enabled: !!userId, initial: [] });
+  //
+  // `active` is in the dependency list on purpose. The flows that use this are
+  // mounted for the life of the app and only render when their overlay opens,
+  // so a fetch that ran once at start-up would never see a document filed
+  // afterwards. Flipping active on re-reads the Vault.
+  const stored = useApi(
+    () => listDocuments(userId),
+    [userId, active],
+    { enabled: !!userId && active, initial: [] }
+  );
   // Stable identity while the data hasn't changed, so the memos below hold.
   const storedDocs = useMemo(() => stored.data || [], [stored.data]);
 

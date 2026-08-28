@@ -13,7 +13,7 @@
 import { getAllBy, get, put, del } from '../data/db';
 import { newId, now, today } from '../data/ids';
 import {
-  DOCUMENT_TYPES, documentType, resolveType, sectionForType, typeAccepted, acceptedLabel,
+  DOCUMENT_TYPES, documentType, resolveType, sectionForType, typeAccepted, acceptedLabel, isUniqueType,
 } from '../data/documentTypes';
 import { ApiError } from './validate';
 
@@ -119,9 +119,17 @@ export async function addDocument({
   const resolved = resolveType(type, title);
   const def = documentType(resolved);
 
+  // A citizen holds one National ID, one passport, one birth certificate. A
+  // newer copy of a unique document is the same document, so it replaces the
+  // row already on file instead of creating a second one. Anything genuinely
+  // repeatable — a pay slip, a site plan, a lease — is appended as usual.
+  const existing = isUniqueType(resolved)
+    ? (await listDocuments(userId)).find((d) => d.type === resolved)
+    : null;
+
   /** @type {import('../data/types').VaultDocument} */
   const row = {
-    id: newId('vdoc'),
+    id: existing?.id || newId('vdoc'),
     userId,
     type: resolved,
     title: title || def.label,
@@ -137,7 +145,10 @@ export async function addDocument({
     blob: blob ?? null,
     sizeBytes: blob?.size ?? null,
     content,
-    addedAt: now(),
+    // Replacing a unique document keeps the date it first entered the Vault and
+    // records when the copy was refreshed.
+    addedAt: existing?.addedAt || now(),
+    updatedAt: existing ? now() : null,
   };
   await put(STORE, row);
   return hydrate(row);
