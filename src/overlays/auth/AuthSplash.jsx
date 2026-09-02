@@ -3,7 +3,7 @@ import coatOfArms from '../../assets/guyana-coat-of-arms.png';
 // The Kaieteur Falls hero scene: the single most bespoke visual asset in
 // the source prototype, ported here as inline SVG with the same looping
 // CSS keyframes (defined globally in src/styles/tokens.css).
-function WaterfallScene() {
+export function WaterfallScene() {
   return (
     <svg aria-hidden="true" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
       <defs>

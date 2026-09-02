@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppState } from '../../state/AppStateContext';
 import AuthSplash from './AuthSplash';
+import AuthWebLayout, { AuthWelcome } from './AuthWebLayout';
+import { useLayout } from '../../hooks/useViewport';
 import { SignInDevice, EidSignIn, OtherWays, PasswordScreen, IdentifierScreen, NoAccount } from './AuthSignIn';
 import {
   GovId, GovScan, GovCheck, NoRecord, ConfirmId, NotMe, GovContact, ContactHelp,
@@ -131,6 +133,7 @@ function makeInitialState(persona) {
 export default function AuthFlow({ gate = false }) {
   const { isOpen, closeOverlay, openOverlay, persona, showToast, signIn, addNotification, addAppointment, addApplication, connectAgency } = useAppState();
   const open = gate || isOpen('auth');
+  const { isWeb } = useLayout();
   const [st, setSt] = useState(() => makeInitialState(persona));
   const timers = useRef([]);
   const otpTick = useRef(null);
@@ -742,6 +745,8 @@ export default function AuthFlow({ gate = false }) {
   if (!open) return null;
 
   let ScreenNode;
+  // The splash is the only step the web layout replaces outright.
+  let isSplash = false;
   switch (st.authStep) {
     case 'signin-device': ScreenNode = <SignInDevice st={st} on={on} persona={persona} />; break;
     case 'eid-signin': ScreenNode = <EidSignIn st={st} on={on} />; break;
@@ -785,7 +790,25 @@ export default function AuthFlow({ gate = false }) {
     case 'recovery-fix': ScreenNode = <RecoveryFix st={st} on={on} />; break;
 
     case 'splash':
-    default: ScreenNode = <AuthSplash onSignIn={on.signInGo} onCreateAccount={on.createAccount} />;
+    default:
+      isSplash = true;
+      ScreenNode = <AuthSplash onSignIn={on.signInGo} onCreateAccount={on.createAccount} />;
+  }
+
+  // On the web the flow runs inside a panel beside the hero, so the service's
+  // identity stays on screen while the citizen proves theirs. The splash is the
+  // one step that differs: its buttons live in that panel rather than over the
+  // picture, which on a phone is the only place they can go.
+  if (isWeb) {
+    return (
+      <div style={{ position: 'absolute', inset: 0, zIndex: 1000, overflow: 'hidden', fontFamily: 'var(--font-sans)' }}>
+        <AuthWebLayout>
+          {isSplash
+            ? <AuthWelcome onSignIn={on.signInGo} onCreateAccount={on.createAccount} />
+            : ScreenNode}
+        </AuthWebLayout>
+      </div>
+    );
   }
 
   return (

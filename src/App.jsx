@@ -7,31 +7,30 @@ import { useIsDesktop } from './hooks/useViewport';
 
 // The frame the sign-in gate sits in.
 //
-// Signing in is a single column of content at any width, so on a wide screen it
-// stays a column — centred as a card on the page background rather than
-// stretched across the monitor. The shell has its own frame (AppShell), which
-// is where the sidebar layout lives.
+// On the web it is the whole page: the flow renders a split screen of its own
+// (AuthWebLayout), so wrapping it in a card would put a page inside a card. On
+// a phone it is the same 480px frame the shell uses, so the app looks the same
+// before and after signing in.
 function AuthFrame({ children }) {
   const isDesktop = useIsDesktop();
+
+  // The web layout is the whole page — a split screen with the hero on one side
+  // and the flow on the other (see AuthWebLayout). The phone keeps the frame.
+  if (isDesktop) {
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: 'var(--surface-1)' }}>
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div style={{
       width: '100%', height: '100dvh', margin: '0 auto',
-      display: isDesktop ? 'flex' : 'block',
-      alignItems: 'center', justifyContent: 'center',
-      background: isDesktop ? 'var(--surface-2)' : 'var(--bg-page)',
-      padding: isDesktop ? 32 : 0,
-      boxSizing: 'border-box',
+      position: 'relative', background: 'var(--bg-page)', overflow: 'hidden',
+      maxWidth: 480, boxShadow: '0 0 40px rgba(9,26,43,0.08)',
     }}>
-      <div style={{
-        width: '100%', maxWidth: 480,
-        height: isDesktop ? 'min(760px, 100%)' : '100%',
-        margin: '0 auto', position: 'relative',
-        background: 'var(--bg-page)', overflow: 'hidden',
-        borderRadius: isDesktop ? 'var(--radius-xl)' : 0,
-        boxShadow: isDesktop ? '0 24px 64px rgba(9,26,43,0.18)' : '0 0 40px rgba(9,26,43,0.08)',
-      }}>
-        {children}
-      </div>
+      {children}
     </div>
   );
 }

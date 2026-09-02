@@ -3,21 +3,54 @@
 // source's bespoke full-bleed auth screens rather than the app's general
 // card/list chrome.
 import Icon from '../../components/ui/Icon';
+import { useLayout } from '../../hooks/useViewport';
+import { AUTH_COLUMN_WIDTH } from './AuthWebLayout';
 
 export function Screen({ children, onBack, padTop = 28, gap = 16, bg = 'var(--surface-1)', center = false, style }) {
+  const { isWeb } = useLayout();
+
+  // Every step of the flow is one column of content. On a phone the column is
+  // the screen. In the web layout it sits in a panel that is much wider than a
+  // form should be, so the column keeps its measure and is centred in the
+  // panel — a 44px-tall button stretched across 700px is not a button anyone
+  // designed.
+  const body = isWeb && !center
+    ? (
+      <div style={{
+        width: '100%', maxWidth: AUTH_COLUMN_WIDTH,
+        // `auto` on every side centres the column in the panel both ways, and
+        // — unlike justify-content — still lets a tall step scroll from its
+        // top instead of clipping it. The column hugs its content, so a short
+        // step sits in the middle of the panel rather than pinned to the top
+        // with a field of white underneath it.
+        margin: 'auto',
+        display: 'flex', flexDirection: 'column', gap,
+      }}>
+        {onBack && <BackButton onClick={onBack} />}
+        {children}
+      </div>
+    )
+    : (
+      <>
+        {onBack && <BackButton onClick={onBack} />}
+        {children}
+      </>
+    );
+
   return (
     <div
       className="auth-screen"
       style={{
         position: 'absolute', inset: 0, overflowY: 'auto', background: bg,
-        padding: center ? '0 28px' : `${padTop}px 20px 30px`,
-        display: 'flex', flexDirection: 'column', gap,
+        padding: center
+          ? '0 28px'
+          : isWeb ? `clamp(32px, 6vh, 64px) clamp(28px, 5vw, 72px)` : `${padTop}px 20px 30px`,
+        display: 'flex', flexDirection: 'column', gap: isWeb && !center ? 0 : gap,
         ...(center ? { alignItems: 'center', justifyContent: 'center', textAlign: 'center' } : {}),
         ...style,
       }}
     >
-      {onBack && <BackButton onClick={onBack} />}
-      {children}
+      {body}
     </div>
   );
 }
@@ -210,8 +243,16 @@ export function textInputStyle(hasError, extra) {
   };
 }
 
+// Separates a step's content from whatever sits at its foot.
+//
+// On a phone that means "take the rest of the screen", so the buttons land
+// under the thumb. In the web panel the column is centred and only as tall as
+// its content, so a greedy spacer would stretch it to the full height of the
+// panel and strand the footer at the bottom, far from what it belongs to. There
+// it is simply a gap.
 export function Spacer() {
-  return <div style={{ flex: 1 }} />;
+  const { isWeb } = useLayout();
+  return <div style={isWeb ? { height: 8, flexShrink: 0 } : { flex: 1 }} />;
 }
 
 export function Spinner({ size = 84, iconName = 'search-check', iconSize = 34, tone = 'brand' }) {
