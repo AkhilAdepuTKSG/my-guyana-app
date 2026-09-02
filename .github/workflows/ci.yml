@@ -1,0 +1,51 @@
+# Adapted from MPS-Guyana/.github/workflows/ci.yml. Same registry and repository
+# as the MPS images, distinguished by tag prefix: myguyana<run number> for the
+# build, myguyana-latest as the moving tag. The run number is the image's
+# version — it is what a deployment names, so it has to come from here, not
+# from a local build.
+name: Build and Push My Guyana Docker Image
+
+on:
+  push:
+    branches:
+      - main
+      - web-dev
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: ravinadh/ksquarenis
+  IMAGE_TAG: myguyana${{ github.run_number }}
+
+jobs:
+  docker-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ravinadh
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t $IMAGE_NAME:$IMAGE_TAG \
+            -t $IMAGE_NAME:myguyana-latest \
+            .
+
+      - name: Push Docker Images
+        run: |
+          docker push $IMAGE_NAME:$IMAGE_TAG
+          docker push $IMAGE_NAME:myguyana-latest
+
+      - name: Show Image Details
+        run: |
+          echo "Image: $IMAGE_NAME"
+          echo "Tag: $IMAGE_TAG"
