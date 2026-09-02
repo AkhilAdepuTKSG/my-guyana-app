@@ -71,6 +71,12 @@
   --fg-on-accent: #ffffff;
 
   --bg-page:  #f5f7f9;
+
+  /* Chrome that is not part of the light/dark palette proper: the government
+     strip is the same navy in both appearances, because it is an identity mark
+     rather than a surface. */
+  --gov-strip: #0b1c2e;
+  --nav-active-bg: #eef2f6;
   --bg-subtle:var(--neutral-50);
   --bg-solid: var(--neutral-0);
 
@@ -200,6 +206,43 @@
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
+/* --- Dark appearance ------------------------------------------------------
+   Only the colours change. Every component reads these tokens, so nothing
+   below has to know which appearance is in force — which is also why the
+   toggle in the top bar is a one-line state change rather than a re-theme. */
+:root[data-theme='dark'] {
+  --neutral-0:   #131a22;
+  --neutral-50:  #18212b;
+  --neutral-100: #1d2733;
+  --neutral-200: #26323f;
+  --neutral-300: #33414f;
+  --neutral-500: #8b9bab;
+  --neutral-600: #a7b6c4;
+  --neutral-800: #dbe4ec;
+  --neutral-900: #f2f6fa;
+
+  --bg-page:   #0e151c;
+  --bg-subtle: #131a22;
+  --bg-solid:  #131a22;
+
+  --surface-1: #161f28;
+  --surface-2: #1b2532;
+  --surface-3: #1f2a37;
+  --surface-4: #26323f;
+
+  --surface-border:      rgba(226, 236, 245, 0.14);
+  --surface-border-soft: rgba(226, 236, 245, 0.08);
+  --surface-hairline:    rgba(226, 236, 245, 0.10);
+
+  --nav-active-bg: rgba(226, 236, 245, 0.09);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 3px 8px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.50), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-xl: 0 12px 30px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.40);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .interactive, .press, .focus-ring, * { transition-duration: 1ms !important; animation-duration: 1ms !important; }
   .interactive:hover, .press:hover { transform: none; }
@@ -217,6 +260,10 @@
 @keyframes successRingPulse { 0% { transform: scale(0.8); opacity: 0.7; } 100% { transform: scale(1.9); opacity: 0; } }
 @keyframes confettiFall { 0% { transform: translateY(-16px) rotate(0deg); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(140px) rotate(200deg); opacity: 0; } }
 @keyframes pageSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+/* How a dialog arrives on a wide screen: it rises into place rather than
+   sliding in from an edge that is nowhere near where the citizen clicked. */
+@keyframes dockSlideIn { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes dialogRise { from { transform: translateY(12px) scale(0.985); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
 @keyframes faceSweep { 0% { transform: translateY(-64px); opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { transform: translateY(64px); opacity: 0; } }
 @keyframes faceArcSpin { to { transform: rotate(360deg); } }
 @keyframes fallDrift { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -520; } }

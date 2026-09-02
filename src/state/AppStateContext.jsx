@@ -1,4 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  screenForPath, pathForScreen, isRoutedFlow, pathForFlow, flowForLocation, parentPathForFlow,
+} from './routes';
 import { PERSONAS } from './mockData';
 
 const AppStateContext = createContext(null);
@@ -12,6 +16,7 @@ export const SCREENS = ['home', 'nis', 'mops', 'gpl', 'vault', 'wallet', 'servic
 // and a signed-in citizen stays signed in across reloads. Bump the version suffix
 // if the stored shape changes incompatibly.
 const SESSION_KEY = 'myguyana.session.v1';
+const THEME_KEY = 'myguyana.theme.v1';
 
 function loadSession() {
   try {
@@ -64,8 +69,36 @@ function loadObject(key) {
 }
 
 export function AppStateProvider({ children }) {
-  const [screen, setScreenState] = useState('home');
+  // The URL is the source of truth for where the citizen is. `screen` is
+  // derived from it rather than held beside it, so the address bar, the back
+  // button and the sidebar's active state can never disagree.
+  const routerNavigate = useNavigate();
+  const location = useLocation();
+  const screen = useMemo(() => screenForPath(location.pathname), [location.pathname]);
+  // The routed flow the URL names, if it names one (a service, an application).
+  const routedFlow = useMemo(
+    () => flowForLocation(location.pathname, location.search),
+    [location.pathname, location.search]
+  );
+
   const [overlays, setOverlays] = useState(new Map()); // key -> payload
+
+  // Light or dark. Remembered on the device, and stamped on the document root
+  // so the token sheet can answer for every colour in one place rather than
+  // every component deciding for itself.
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch { /* storage unavailable */ }
+    return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches
+      ? 'dark' : 'light';
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ }
+  }, [theme]);
+  const toggleTheme = useCallback(() => setTheme((t) => (t === 'dark' ? 'light' : 'dark')), []);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
 
@@ -117,37 +150,68 @@ export function AppStateProvider({ children }) {
     try { localStorage.setItem(AGENCY_USAGE_KEY, JSON.stringify(agencyUsage)); } catch { /* ignore */ }
   }, [agencyUsage]);
 
+  // Screen names still go in; a URL comes out. Every existing caller —
+  // navigate('vault'), navigate('applications') — is unchanged.
   const navigate = useCallback((next) => {
-    setScreenState(next);
-    // Going to a screen closes whatever was covering the frame. Overlays sit on
-    // top of the screen, so leaving one open would show the citizen the screen
-    // they asked for hidden behind the service they were just in — which is
-    // exactly what "View my applications" from an eligibility notice used to do.
-    // A flow that means to land somewhere with an overlay open opens it after
-    // this call, and that still works: the two updates apply in order.
+    // Going to a screen closes whatever was covering it. Sheets sit on top of
+    // the page, so leaving one open would show the citizen the screen they
+    // asked for hidden behind the one they were just in. A flow that means to
+    // land somewhere with a sheet open opens it after this call, and that still
+    // works: the two updates apply in order.
     setOverlays((prev) => (prev.size ? new Map() : prev));
+    routerNavigate(pathForScreen(next));
     window.scrollTo?.(0, 0);
-  }, []);
+  }, [routerNavigate]);
 
+  // Opening one of the flows that is a page now navigates to it; everything
+  // else is still a sheet layered over the page. Callers do not need to know
+  // which is which — that is the point of keeping this one entry point.
   const openOverlay = useCallback((key, payload = true) => {
+    if (isRoutedFlow(key)) {
+      const path = pathForFlow(key, payload);
+      if (path) {
+        routerNavigate(path);
+        window.scrollTo?.(0, 0);
+        return;
+      }
+      // Not enough in the payload to address it — fall through to a sheet
+      // rather than navigating somewhere that cannot render.
+    }
     setOverlays((prev) => {
       const next = new Map(prev);
       next.set(key, payload);
       return next;
     });
-  }, []);
+  }, [routerNavigate]);
 
   const closeOverlay = useCallback((key) => {
+    if (isRoutedFlow(key) && routedFlow?.key === key) {
+      // Back, where there is somewhere to go back to: that is what "close"
+      // means to whoever opened it. Cold-opened from a link or a bookmark there
+      // is no history, so fall back to the section the flow belongs to.
+      if (window.history.state?.idx > 0) routerNavigate(-1);
+      else routerNavigate(parentPathForFlow(key, routedFlow.payload), { replace: true });
+      return;
+    }
     setOverlays((prev) => {
       if (!prev.has(key)) return prev;
       const next = new Map(prev);
       next.delete(key);
       return next;
     });
-  }, []);
+  }, [routerNavigate, routedFlow]);
 
-  const isOpen = useCallback((key) => overlays.has(key), [overlays]);
-  const getPayload = useCallback((key) => overlays.get(key), [overlays]);
+  // A routed flow reads as "open" when the URL says so, and hands back the
+  // payload the URL implies — so the screens that used to read an overlay
+  // payload read their arguments exactly as they did before.
+  const isOpen = useCallback(
+    (key) => (routedFlow?.key === key ? true : overlays.has(key)),
+    [overlays, routedFlow]
+  );
+  const getPayload = useCallback(
+    (key) => (routedFlow?.key === key ? routedFlow.payload : overlays.get(key)),
+    [overlays, routedFlow]
+  );
 
   // Gate a sensitive action behind a one-time code. `opts.onConfirm` runs only
   // after a valid code (see overlays/security/OtpGate). Every submission,
@@ -295,7 +359,7 @@ export function AppStateProvider({ children }) {
   const unreadCount = notifications.reduce((c, n) => c + (n.read ? 0 : 1), 0);
 
   const value = useMemo(() => ({
-    screen, navigate,
+    screen, navigate, theme, toggleTheme,
     persona,
     overlays, openOverlay, closeOverlay, isOpen, getPayload, requireOtp,
     toast, showToast,
@@ -306,7 +370,7 @@ export function AppStateProvider({ children }) {
     vaultDocs, addVaultDoc, removeVaultDoc,
     connectedAgencies, connectAgency, disconnectAgency,
     pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse,
-  }), [screen, navigate, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, requireOtp, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, markPushSeen, appointments, addAppointment, updateAppointment, removeAppointment, vaultDocs, addVaultDoc, removeVaultDoc, connectedAgencies, connectAgency, disconnectAgency, pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse]);
+  }), [screen, navigate, theme, toggleTheme, persona, overlays, openOverlay, closeOverlay, isOpen, getPayload, requireOtp, toast, showToast, session, user, isAuthenticated, signIn, signOut, updateUser, applications, addApplication, updateApplication, notifications, addNotification, dismissNotification, markNotificationsRead, unreadCount, markPushSeen, appointments, addAppointment, updateAppointment, removeAppointment, vaultDocs, addVaultDoc, removeVaultDoc, connectedAgencies, connectAgency, disconnectAgency, pinnedAgencies, togglePinAgency, agencyUsage, recordAgencyUse]);
 
   return (
     <AppStateContext.Provider value={value}>

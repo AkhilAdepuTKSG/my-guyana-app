@@ -57,7 +57,7 @@ export default function Services() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div className="ds-h2">Services</div>
-        <NotificationBell />
+        <NotificationBell hideOnDesktop />
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, minHeight: 48, padding: '0 14px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--surface-border)', background: 'var(--surface-1)' }}>
@@ -156,7 +156,17 @@ export default function Services() {
           )} */}
 
           {/* --- Everything else, as tiles ---------------------------------- */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {/* Two tiles across on a phone, and as many as fit after that. The
+              minimum is the width a tile already has on a phone, so tiles stay
+              the size they were designed at and the grid simply gains columns
+              as the window grows, rather than stretching two of them across a
+              monitor. `min(100%, …)` keeps it to one column if the container
+              is ever narrower than a single tile. */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 160px), 1fr))',
+            gap: 10,
+          }}>
             {[...seededTiles, ...legacy]
               .slice()
               .sort((a, b) => a.name.localeCompare(b.name))

@@ -668,13 +668,20 @@ export default function AskGov() {
     sendMessage(input);
   }
 
+  function resetThread() {
+    setMessages([{ id: 1, from: 'bot', text: GREETING }]);
+    setInput('');
+    setChipsVisible(true);
+    setSpeakingId(null);
+  }
+
   if (!open) return null;
 
   const chips = ctx ? ctx.chips : CHIPS;
 
   const footer = (
     <>
-      <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#E1E4EB' }}>
+      <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface-2)' }}>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-3)' }}>
           {ctx ? `${ctx.title} — quick actions` : 'Quick actions'}
         </span>
@@ -684,7 +691,7 @@ export default function AskGov() {
         </button>
       </div>
       {chipsVisible && (
-        <div style={{ padding: '0 16px 8px', display: 'flex', gap: 8, overflowX: 'auto', background: '#E1E4EB' }}>
+        <div style={{ padding: '0 16px 8px', display: 'flex', gap: 8, overflowX: 'auto', background: 'var(--surface-2)' }}>
           {chips.map((c) => (
             <button key={c.id} className="press focus-ring" onClick={() => sendMessage(c.prompt)}
               style={{ flexShrink: 0, minHeight: 44, padding: '0 16px', borderRadius: 999, border: '1px solid var(--surface-border)', background: 'var(--surface-1)', color: 'var(--fg-1)', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -712,12 +719,48 @@ export default function AskGov() {
           <Icon name="arrow-up" size={18} />
         </button>
       </form>
+
+      {/* What the assistant is and is not allowed to do. It drafts and it
+          explains; a citizen presses submit. Saying so where the citizen is
+          typing is the honest place for it. */}
+      <div style={{
+        padding: '0 16px 16px', background: 'var(--surface-1)',
+        fontSize: 11.5, lineHeight: 1.45, color: 'var(--fg-4)', textAlign: 'center',
+      }}>
+        AskGov proposes — you review and confirm. It never submits for you.
+      </div>
     </>
   );
 
   return (
-    <PageOverlay open={open} onClose={() => closeOverlay('askGov')} title="Ask Gov" subtitle={ctx ? ctx.title : 'Government assistant'}
-      headerRight={null} noPadding footer={footer}
+    <PageOverlay
+      open={open}
+      onClose={() => closeOverlay('askGov')}
+      title="AskGov"
+      subtitle={ctx ? ctx.title : (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span aria-hidden="true" style={{
+            width: 7, height: 7, borderRadius: 999, background: 'var(--status-success)',
+          }} />
+          Online
+        </span>
+      )}
+      headerRight={(
+        <button
+          className="press focus-ring"
+          onClick={resetThread}
+          aria-label="Start a new conversation"
+          title="Start a new conversation"
+          style={{
+            width: 32, height: 32, borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
+            border: '1px solid var(--surface-border)', background: 'var(--surface-1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Icon name="rotate-ccw" size={15} color="var(--fg-2)" />
+        </button>
+      )}
+      noPadding footer={footer} dock="right"
     >
       <div ref={threadRef} style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {messages.map((m) => (

@@ -4,6 +4,7 @@ import { AGENCIES, SERVICE_DIRECTORY } from '../../state/mockData';
 import Icon from '../../components/ui/Icon';
 import ListRow from '../../components/ui/ListRow';
 import { SERVICE_ICONS, resolveServiceAction } from '../../lib/serviceCatalog';
+import { useLayout } from '../../hooks/useViewport';
 
 // Full-screen category drill-down (backlog 3.3/3.4): tapping a category or a
 // service tile takes over the ENTIRE screen — bottom nav included — and shows
@@ -12,6 +13,7 @@ import { SERVICE_ICONS, resolveServiceAction } from '../../lib/serviceCatalog';
 // are ordinary overlays at the same layer or above and cover it in turn.
 export default function CategoryDrillDown() {
   const { isOpen, closeOverlay, getPayload, openOverlay, showToast } = useAppState();
+  const layout = useLayout();
   const open = isOpen('category');
   const payload = getPayload('category');
   const categoryId = payload && typeof payload === 'object' ? payload.id : null;
@@ -42,7 +44,11 @@ export default function CategoryDrillDown() {
       animation: 'pageSlideIn var(--dur-slow) var(--ease-emphasis)',
     }}>
       {/* The only chrome: back + search (3.4) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 16px 12px', flexShrink: 0, background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-hairline)' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10, padding: '16px 16px 12px', flexShrink: 0,
+        background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-hairline)',
+        ...(layout.isWeb ? { width: '100%', maxWidth: layout.contentMaxWidth, margin: '0 auto', padding: `16px ${layout.gutter}px 12px`, boxSizing: 'border-box' } : null),
+      }}>
         <button
           className="press focus-ring"
           onClick={() => closeOverlay('category')}
@@ -74,7 +80,11 @@ export default function CategoryDrillDown() {
       </div>
 
       {/* Only this category's services — the owning agency as a grouping label (3.1) */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px calc(28px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{
+        flex: 1, overflowY: 'auto', padding: '16px 20px calc(28px + env(safe-area-inset-bottom, 0px))',
+        display: 'flex', flexDirection: 'column', gap: 12,
+        ...(layout.isWeb ? { width: '100%', maxWidth: layout.contentMaxWidth, margin: '0 auto', padding: `16px ${layout.gutter}px ${layout.gutter * 2}px`, boxSizing: 'border-box' } : null),
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 999, background: agency?.mark, flexShrink: 0 }} />
           <h1 style={{ margin: 0, fontSize: 17, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--fg-1)', flex: 1, minWidth: 0 }}>{cat.name}</h1>

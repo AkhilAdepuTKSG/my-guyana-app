@@ -4,6 +4,7 @@ import ListRow from '../components/ui/ListRow';
 import StatusPill from '../components/ui/StatusPill';
 import NotificationBell from '../components/ui/NotificationBell';
 import { PAYMENT_HISTORY, AGENCIES } from '../state/mockData';
+import { useLayout } from '../hooks/useViewport';
 
 // A new account has no linked payment accounts — the citizen adds their own.
 const BANK_ACCOUNTS = [];
@@ -24,27 +25,31 @@ function formatPeriod(iso) {
 
 export default function Wallet() {
   const { navigate, openOverlay, showToast } = useAppState();
+  const { isWeb } = useLayout();
   const recentPayments = PAYMENT_HISTORY.slice(0, 3);
   const hasPaymentHistory = recentPayments.length > 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <button
-            className="press focus-ring"
-            onClick={() => navigate('home')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 3, minHeight: 36, padding: '0 12px 0 8px',
-              borderRadius: 999, background: 'var(--surface-2)', border: '1px solid var(--surface-border)',
-              color: 'var(--fg-1)', fontSize: 'var(--text-xs)', fontWeight: 700,
-            }}
-          >
-            <Icon name="chevron-left" size={18} color="var(--fg-1)" />Home
-          </button>
-          <div style={{ flex: 1 }} />
-          <NotificationBell size={40} />
-        </div>
+        {/* Phone only — the sidebar is the way back on the web. */}
+        {!isWeb && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <button
+              className="press focus-ring"
+              onClick={() => navigate('home')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 3, minHeight: 36, padding: '0 12px 0 8px',
+                borderRadius: 999, background: 'var(--surface-2)', border: '1px solid var(--surface-border)',
+                color: 'var(--fg-1)', fontSize: 'var(--text-xs)', fontWeight: 700,
+              }}
+            >
+              <Icon name="chevron-left" size={18} color="var(--fg-1)" />Home
+            </button>
+            <div style={{ flex: 1 }} />
+            <NotificationBell size={40} />
+          </div>
+        )}
         <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--fg-1)' }}>Wallet</div>
         <div style={{ fontSize: 'var(--text-2xs)', fontWeight: 500, color: 'var(--fg-3)', marginTop: 2 }}>Pay bills and receive benefit payments</div>
       </div>

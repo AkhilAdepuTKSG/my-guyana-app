@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Icon from '../../components/ui/Icon';
 import Button from '../../components/ui/Button';
 import { useAppState } from '../../state/AppStateContext';
+import { useIsDesktop } from '../../hooks/useViewport';
 
 // Reusable one-time-code confirmation, layered above any flow. Opened via
 // requireOtp({ title, message, confirmLabel, onConfirm }) from AppStateContext —
@@ -9,6 +10,7 @@ import { useAppState } from '../../state/AppStateContext';
 // payment / change can gate its final action behind a code with one wrapper.
 export default function OtpGate() {
   const { isOpen, closeOverlay, getPayload, user, showToast } = useAppState();
+  const isDesktop = useIsDesktop();
   const open = isOpen('otpGate');
   const raw = getPayload('otpGate');
   const payload = raw && typeof raw === 'object' ? raw : {};
@@ -30,14 +32,27 @@ export default function OtpGate() {
 
   return (
     <div
-      style={{ position: 'absolute', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'flex-end', background: 'rgba(9,26,43,0.5)', animation: 'sheetOverlayFade var(--dur-base) var(--ease-out)' }}
+      style={{
+        position: 'absolute', inset: 0, zIndex: 1200, display: 'flex',
+        alignItems: isDesktop ? 'center' : 'flex-end', justifyContent: 'center',
+        padding: isDesktop ? 32 : 0,
+        background: 'rgba(9,26,43,0.5)', animation: 'sheetOverlayFade var(--dur-base) var(--ease-out)',
+      }}
       onClick={() => closeOverlay('otpGate')}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ width: '100%', background: 'var(--surface-1)', borderRadius: '24px 24px 0 0', padding: '10px 20px 28px', animation: 'sheetSlideUp var(--dur-slow) var(--ease-emphasis)' }}
+        style={{
+          width: '100%', maxWidth: isDesktop ? 460 : undefined,
+          maxHeight: isDesktop ? '100%' : undefined, overflowY: isDesktop ? 'auto' : undefined,
+          background: 'var(--surface-1)',
+          borderRadius: isDesktop ? 'var(--radius-xl)' : '24px 24px 0 0',
+          padding: isDesktop ? '20px 24px 24px' : '10px 20px 28px',
+          boxShadow: isDesktop ? '0 24px 64px rgba(9,26,43,0.28)' : 'none',
+          animation: isDesktop ? 'dialogRise var(--dur-slow) var(--ease-emphasis)' : 'sheetSlideUp var(--dur-slow) var(--ease-emphasis)',
+        }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 999, background: 'var(--surface-4)', margin: '6px auto 16px' }} />
+        {!isDesktop && <div style={{ width: 36, height: 4, borderRadius: 999, background: 'var(--surface-4)', margin: '6px auto 16px' }} />}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <span aria-hidden="true" style={{ width: 48, height: 48, borderRadius: 14, background: 'var(--brand-100)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="shield-check" size={22} color="var(--brand-700)" />

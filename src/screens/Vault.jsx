@@ -15,6 +15,7 @@ import ListRow from '../components/ui/ListRow';
 import Sheet from '../components/ui/Sheet';
 import Button from '../components/ui/Button';
 import NotificationBell from '../components/ui/NotificationBell';
+import { useLayout } from '../hooks/useViewport';
 
 // The Vault, per the Final design: opening it asks for a one-time code in a
 // bottom sheet ("Vault access · Verify it's you"); once open it shows the e-ID
@@ -89,6 +90,7 @@ function formatAdded(iso) {
 
 export default function Vault() {
   const { navigate, openOverlay, persona, showToast, user, vaultDocs, addVaultDoc, removeVaultDoc, requireOtp, addNotification } = useAppState();
+  const { isWeb } = useLayout();
   // Which section a document belongs in is decided by its TYPE, never by which
   // list it happened to arrive in — so Cards & IDs holds identity cards and
   // nothing else, wherever a document came from.
@@ -237,21 +239,25 @@ export default function Vault() {
 
   const header = (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <button
-          className="press focus-ring"
-          onClick={() => navigate('home')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 3, minHeight: 38, padding: '0 14px 0 9px',
-            borderRadius: 999, background: 'var(--surface-1)', border: '1px solid var(--surface-border)',
-            color: 'var(--fg-1)', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >
-          <Icon name="chevron-left" size={18} color="var(--fg-1)" />Home
-        </button>
-        <div style={{ flex: 1 }} />
-        <NotificationBell size={44} />
-      </div>
+      {/* The way back. On the web the sidebar is already on screen and does
+          this better, so the in-page control is the phone's alone. */}
+      {!isWeb && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <button
+            className="press focus-ring"
+            onClick={() => navigate('home')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 3, minHeight: 38, padding: '0 14px 0 9px',
+              borderRadius: 999, background: 'var(--surface-1)', border: '1px solid var(--surface-border)',
+              color: 'var(--fg-1)', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <Icon name="chevron-left" size={18} color="var(--fg-1)" />Home
+          </button>
+          <div style={{ flex: 1 }} />
+          <NotificationBell size={44} />
+        </div>
+      )}
       <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--fg-1)' }}>Vault</div>
       <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg-3)', marginTop: 2 }}>Your IDs, cards and documents</div>
     </div>

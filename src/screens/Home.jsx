@@ -6,6 +6,8 @@ import { AGENCIES, NOTIFICATIONS, REGIONS } from '../state/mockData';
 import { AGENCY_HUBS, agencyCategoryId, SERVICE_ACCESS } from '../lib/serviceCatalog';
 import { missingPersonalFields } from '../lib/profileFields';
 import { useMyApplications, openTargetFor } from '../hooks/useMyApplications';
+import { useLayout } from '../hooks/useViewport';
+import HomeWeb from './HomeWeb';
 
 // ---------------------------------------------------------------------------
 // Local helpers / mock-derived data. Home reads persona + shared fixtures but
@@ -73,7 +75,16 @@ const ELIGIBILITY_DEFS = [
   },
 ];
 
+// The web layout gets its own composition of the same information — two
+// columns rather than one scroll (see HomeWeb). The phone screen below is
+// unchanged.
 export default function Home() {
+  const { isWeb: web } = useLayout();
+  if (web) return <HomeWeb />;
+  return <HomePhone />;
+}
+
+function HomePhone() {
   const { navigate, openOverlay, showToast, persona, user, updateUser, pinnedAgencies, agencyUsage, recordAgencyUse } = useAppState();
   const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
   // Everything the citizen has applied for, from every store — the one merge
@@ -113,6 +124,7 @@ export default function Home() {
   // Any connected agency (including MoPS) counts — once the citizen adds one, the
   // dial replaces the "your agencies will gather here" empty state.
   const hasNoAgencies = connected.length === 0;
+  const { isWeb } = useLayout();
   const firstName = persona.name.split(' ')[0];
   const regionName = REGIONS.find((r) => r.id === persona.region)?.name || '';
   const dayGreeting = getDayGreeting();
@@ -235,9 +247,16 @@ export default function Home() {
 
   return (
     <>
-      {/* Header — full-bleed navy bar, bleeding past the shell's ambient padding. */}
+      {/* Header — full-bleed navy bar carrying the profile chip and the bell.
+          It bleeds by exactly the shell's own gutter (--shell-gutter), so it
+          reaches the edge of the content column at every window size instead of
+          being hardcoded to the phone's 20px and landing short everywhere else.
+          On the web layout the top bar carries both controls for every screen,
+          so this row stands down rather than repeating them. */}
+      {!isWeb && (
       <div style={{
-        margin: '-20px -20px 0', padding: '16px 16px 14px',
+        margin: 'calc(var(--shell-gutter, 20px) * -1) calc(var(--shell-gutter, 20px) * -1) 0',
+        padding: '16px 16px 14px',
         display: 'flex', alignItems: 'center', gap: 10, background: 'var(--brand-800)',
       }}>
         <button
@@ -275,10 +294,14 @@ export default function Home() {
         </button>
         <NotificationBell size={44} iconSize={18} iconColor="var(--fg-1)" />
       </div>
+      )}
 
       {/* Hero — dark, full-bleed. Carries the "her government ecosystem" dial
-          plus the greeting; nothing else competes for attention here. */}
+          plus the greeting; nothing else competes for attention here. With the
+          header row gone on the web layout it also takes the top of the column,
+          so it bleeds upwards by the gutter as well. */}
       <div style={{
+        ...(isWeb ? { marginTop: 'calc(var(--shell-gutter, 20px) * -1)' } : null),
         margin: '0 -20px', padding: '24px 20px 28px', background: 'var(--hero-navy-gradient)',
         color: '#fff', display: 'flex', flexDirection: 'column', gap: 18,
         borderRadius: '0 0 24px 24px',

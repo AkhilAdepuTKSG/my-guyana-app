@@ -1,11 +1,16 @@
 import Icon from './Icon';
 import { useAppState } from '../../state/AppStateContext';
+import { useIsDesktop } from '../../hooks/useViewport';
 
 // The notification bell + unread badge, shared across every screen header so
 // the count (from the persisted notifications store) stays consistent. Style
 // props keep each screen's existing bell look.
-export default function NotificationBell({ size = 38, iconSize = 17, iconColor = 'var(--fg-2)', bordered = true, bg = 'var(--surface-1)' }) {
+export default function NotificationBell({ size = 38, iconSize = 17, iconColor = 'var(--fg-2)', bordered = true, bg = 'var(--surface-1)', hideOnDesktop = false }) {
   const { openOverlay, unreadCount } = useAppState();
+  const isDesktop = useIsDesktop();
+  // On the web layout the top bar carries this control for every screen, so a
+  // screen's own copy would be the same bell twice on one page.
+  if (hideOnDesktop && isDesktop) return null;
   return (
     <button
       className="press focus-ring"

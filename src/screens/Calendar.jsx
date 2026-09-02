@@ -59,7 +59,7 @@ export default function Calendar() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div className="ds-h2">Appointments</div>
-        <NotificationBell />
+        <NotificationBell hideOnDesktop />
       </div>
 
       <button

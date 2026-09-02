@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
 import { profileSections } from '../../lib/profileFields';
+import DialogSurface from '../../components/ui/DialogSurface';
 
 // Personal information — the full page, laid out as the Final design: a
 // "‹ Home" back chip, then four cards (Identity & contact · Demographics ·
@@ -78,7 +79,7 @@ export default function PersonalInfoPage() {
   };
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 100, background: 'var(--bg-page)', display: 'flex', flexDirection: 'column', animation: 'pageSlideIn var(--dur-slow) var(--ease-emphasis)' }}>
+    <DialogSurface zIndex={100} onScrimClick={() => closeOverlay('personalInfo')}>
       {/* Header — just the way back, as in the design */}
       <div style={{ flexShrink: 0, padding: '14px 16px 10px', background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-hairline)' }}>
         <button
@@ -168,6 +169,6 @@ export default function PersonalInfoPage() {
           );
         })}
       </div>
-    </div>
+    </DialogSurface>
   );
 }

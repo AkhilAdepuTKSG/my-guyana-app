@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Icon from '../../components/ui/Icon';
 import Button from '../../components/ui/Button';
 import { useAppState } from '../../state/AppStateContext';
+import DialogSurface from '../../components/ui/DialogSurface';
 
 // ---- copy fixtures (mirrors the source's empRegRows / empRegSteps) ----
 const EMPLOYER_NAME = 'Devcon Construction Ltd.'; // matches NOTIFICATIONS / NIS_ACTIVITY mock data
@@ -81,7 +82,7 @@ export default function EmployerRegistrationFlow() {
   return (
     <>
       {open && (
-      <div data-agency="nis" style={{ position: 'absolute', inset: 0, zIndex: 115, display: 'flex', flexDirection: 'column', background: 'var(--surface-1)', animation: 'pageSlideIn var(--dur-slow) var(--ease-emphasis)' }}>
+      <DialogSurface agency="nis" zIndex={115} background="var(--surface-1)" onScrimClick={close}>
         <div style={{ flexShrink: 0, padding: '18px 20px 22px', display: 'flex', flexDirection: 'column', gap: 16, background: 'linear-gradient(150deg, #00563a 0%, #009b67 100%)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button className="press focus-ring" onClick={close} aria-label="Close" style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
@@ -206,7 +207,7 @@ export default function EmployerRegistrationFlow() {
             </div>
           </>
         )}
-      </div>
+      </DialogSurface>
       )}
     </>
   );
