@@ -20,7 +20,6 @@ import Calendar from '../../screens/Calendar';
 import Applications from '../../screens/Applications';
 
 import EidApplicationFlow from '../../overlays/eid/EidApplicationFlow';
-import ApplyFlow from '../../overlays/apply/ApplyFlow';
 import OtpGate from '../../overlays/security/OtpGate';
 import NisRegistrationFlow from '../../overlays/nisReg/NisRegistrationFlow';
 import BenefitClaimFlow from '../../overlays/benefit/BenefitClaimFlow';
@@ -118,7 +117,6 @@ function LayeredFlows() {
       <PushBanner />
 
       <EidApplicationFlow />
-      <ApplyFlow />
       <NisRegistrationFlow />
       <BenefitClaimFlow />
       <GplPayBill />
@@ -239,7 +237,7 @@ export default function AppShell() {
           scrollbarGutter: 'stable both-edges',
         }}>
           <div style={{
-            width: '100%', maxWidth: contentMaxWidth, margin: '0 auto',
+            width: '100%', maxWidth: contentMaxWidth ?? 'none', margin: '0 auto',
             padding: `${gutter}px ${gutter}px ${gutter * 2}px`,
             boxSizing: 'border-box',
           }}>

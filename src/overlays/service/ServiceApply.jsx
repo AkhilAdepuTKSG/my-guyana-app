@@ -12,6 +12,7 @@ import { listAll } from '../../api/applications';
 import * as cashGrants from '../../api/cashGrants';
 import * as singleWindow from '../../api/singleWindow';
 import * as gra from '../../api/gra';
+import * as immigration from '../../api/immigration';
 import * as oldAgePension from '../../api/oldAgePension';
 import { evaluateEligibility } from '../../data/eligibilityRules';
 import { validateFields, visibleFields, validateDocuments, validatePrerequisites } from '../../api/validate';
@@ -19,6 +20,7 @@ import FormField from '../../components/service/FormField';
 import DocumentSlot from '../../components/service/DocumentSlot';
 import DocumentProgress from '../../components/service/DocumentProgress';
 import VaultPickerSheet from '../../components/service/VaultPickerSheet';
+import AppointmentPicker, { appointmentComplete, appointmentLabel, appointmentWhen } from '../../components/service/AppointmentPicker';
 import {
   SectionHeading, InfoPanel, Card, DetailRow, FeeTable, LoadingState, ErrorState,
 } from '../../components/service/ServicePieces';
@@ -36,14 +38,19 @@ import { formatGyd, displayFieldValue, formatTimeframe } from '../../lib/format'
 function apiFor(group) {
   if (group === 'cashGrants') return cashGrants;
   if (group === 'gra') return gra;
+  if (group === 'immigration') return immigration;
   if (group === 'mhsss') return oldAgePension;
   return singleWindow;
 }
+
+/** A booking with nothing chosen yet. */
+const NO_APPOINTMENT = { office: '', date: '', time: '' };
 
 export default function ServiceApply() {
   const {
     isOpen, getPayload, closeOverlay, openOverlay, navigate,
     user, persona, showToast, requireOtp, addNotification,
+    appointments, addAppointment,
   } = useAppState();
 
   const open = isOpen('serviceApply');
@@ -82,6 +89,9 @@ export default function ServiceApply() {
   const [fields, setFields] = useState({});
   const [prereqs, setPrereqs] = useState({});
   const [docs, setDocs] = useState({});
+  // Only services that declare one ever show this; for everything else it stays
+  // empty and is never read.
+  const [appt, setAppt] = useState(NO_APPOINTMENT);
   const [touched, setTouched] = useState({});
   const [stepIndex, setStepIndex] = useState(0);
   const [eligibilityPassed, setEligibilityPassed] = useState(false);
@@ -121,11 +131,13 @@ export default function ServiceApply() {
         setDocs(Object.fromEntries((draft.documents || [])
           .filter((d) => d.status !== 'missing')
           .map((d) => [d.docId, { status: d.status, fileName: d.fileName, size: d.size, vaultDocId: d.vaultDocId }])));
+        setAppt(draft.appointment ? { ...NO_APPOINTMENT, ...draft.appointment } : NO_APPOINTMENT);
       } else {
         setApplicationId(null);
         setFields({ ...fieldDefaults(service), ...prefillFromRecord(service, user, persona) });
         setPrereqs({});
         setDocs({});
+        setAppt(NO_APPOINTMENT);
       }
     });
     return () => { cancelled = true; };
@@ -143,6 +155,9 @@ export default function ServiceApply() {
     if (service.prerequisites?.length) list.push({ id: 'prerequisites', title: 'Before you start' });
     (service.sections || []).forEach((s) => list.push({ id: `section:${s.id}`, title: s.title, section: s }));
     if (service.documents?.length) list.push({ id: 'documents', title: 'Documents' });
+    // A service that has to see the citizen in person books the visit here,
+    // before the review, so the slot is one of the things being confirmed.
+    if (service.appointment) list.push({ id: 'appointment', title: service.appointment.title || 'Appointment' });
     list.push({ id: 'review', title: 'Review and submit' });
     return list;
   }, [service]);
@@ -172,6 +187,7 @@ export default function ServiceApply() {
     if (step.id === 'prerequisites') return Object.keys(prereqErrors).length === 0;
     if (step.section) return Object.keys(sectionErrors).length === 0;
     if (step.id === 'documents') return docCheck.ok;
+    if (step.id === 'appointment') return appointmentComplete(appt);
     return true;
   })();
 
@@ -191,7 +207,10 @@ export default function ServiceApply() {
     const api = apiFor(service.group);
     const saved = service.group === 'cashGrants'
       ? await api.saveDraft({ userId, applicationId, fields, documents: docs })
-      : await api.saveDraft({ userId, serviceId, applicationId, fields, documents: docs, prerequisites: prereqs });
+      : await api.saveDraft({
+        userId, serviceId, applicationId, fields, documents: docs, prerequisites: prereqs,
+        ...(service.appointment ? { appointment: appt } : null),
+      });
     if (saved?.id) setApplicationId(saved.id);
     return saved;
   });
@@ -204,7 +223,10 @@ export default function ServiceApply() {
     const api = apiFor(service.group);
     return service.group === 'cashGrants'
       ? api.submitApplication({ userId, applicationId, fields, documents: docs })
-      : api.submitApplication({ userId, serviceId, applicationId, fields, documents: docs, prerequisites: prereqs });
+      : api.submitApplication({
+        userId, serviceId, applicationId, fields, documents: docs, prerequisites: prereqs,
+        ...(service.appointment ? { appointment: appt } : null),
+      });
   });
 
   if (!open) return null;
@@ -217,7 +239,11 @@ export default function ServiceApply() {
   const goNext = async () => {
     if (!stepValid) {
       setShowErrors(true);
-      showToast(step?.id === 'documents' ? 'Attach the documents marked required' : 'Check the highlighted answers');
+      showToast(
+        step?.id === 'documents' ? 'Attach the documents marked required'
+          : step?.id === 'appointment' ? 'Pick an office, a day and a time'
+            : 'Check the highlighted answers'
+      );
       return;
     }
     setShowErrors(false);
@@ -287,11 +313,27 @@ export default function ServiceApply() {
         const result = await submit.run();
         if (!result) return;
         setSubmitted(result);
+        // A booked visit is a commitment the citizen has to keep, so it becomes
+        // a real entry in their Schedule rather than a line buried in the
+        // application they would have to go looking for.
+        if (result.appointment?.date) {
+          addAppointment({
+            id: `appt-${result.id}`,
+            agency: service.agencyId,
+            title: `${service.name} appointment`,
+            location: result.appointment.office,
+            date: result.appointment.date,
+            time: result.appointment.time,
+            applicationId: result.id,
+          });
+        }
         addNotification({
           agency: service.agencyId,
           icon: service.icon,
           title: `${service.name} application submitted`,
-          body: `Reference ${result.ref}. We will update you here as it moves.`,
+          body: result.appointment?.date
+            ? `Reference ${result.ref}. Your visit is booked for ${appointmentLabel(result.appointment)}.`
+            : `Reference ${result.ref}. We will update you here as it moves.`,
           applicationId: result.id,
         });
         mine.reload();
@@ -444,6 +486,16 @@ export default function ServiceApply() {
             />
           )}
 
+          {step?.id === 'appointment' && (
+            <AppointmentStep
+              service={service}
+              value={appt}
+              appointments={appointments}
+              accent={accent}
+              onChange={setAppt}
+            />
+          )}
+
           {step?.id === 'review' && (
             <ReviewStep
               service={service}
@@ -451,6 +503,7 @@ export default function ServiceApply() {
               fields={fields}
               prereqs={prereqs}
               docs={docs}
+              appointment={appt}
               accent={accent}
               error={submit.error}
               onTrackExisting={(details) => {
@@ -498,6 +551,11 @@ function prefillFromRecord(service, user, persona) {
   (service.fields || []).forEach((f) => {
     const key = f.key;
     if (key === 'applicantName' && (user?.name || gov?.name)) out[key] = user?.name || gov?.name;
+    // Services that ask for the name in parts — the passport is one — get the
+    // parts, not the whole string.
+    else if (key === 'surname' && (gov?.lastName || user?.lastName)) out[key] = gov?.lastName || user.lastName;
+    else if (key === 'givenNames' && (gov?.firstName || user?.firstName)) out[key] = gov?.firstName || user.firstName;
+    else if (key === 'placeOfBirth' && gov?.placeOfBirth) out[key] = gov.placeOfBirth;
     else if (key === 'nationalId' && gov?.nationalId) out[key] = gov.nationalId;
     else if (key === 'dob' && gov?.dob) out[key] = gov.dob;
     else if (key === 'phone' && gov?.phone) out[key] = gov.phone;
@@ -702,6 +760,29 @@ function SectionStep({ service, section, fields, errors, touched, showErrors, ac
 
 /* -------------------------------------------------------------------------- */
 
+function AppointmentStep({ service, value, appointments, accent, onChange }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <SectionHeading
+        eyebrow="In person"
+        title={service.appointment.title || 'Book your visit'}
+        description="This is the part that cannot be done online. Pick a time that suits you — you can change it later from your Schedule."
+        accent={accent}
+      />
+      <AppointmentPicker
+        appointment={service.appointment}
+        agencyId={service.agencyId}
+        value={value}
+        appointments={appointments}
+        accent={accent}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+
 function DocumentStep({ docs, attachments, missing, accent, onPick, onUseVault, onView, onRemove }) {
   const missingSet = new Set(missing);
   const done = docs.filter((d) => ['attached', 'fromVault'].includes(attachments[d.id]?.status)).length;
@@ -738,7 +819,7 @@ function DocumentStep({ docs, attachments, missing, accent, onPick, onUseVault, 
 
 /* -------------------------------------------------------------------------- */
 
-function ReviewStep({ service, detail, fields, prereqs, docs, accent, error, onJumpTo, onTrackExisting }) {
+function ReviewStep({ service, detail, fields, prereqs, docs, appointment, accent, error, onJumpTo, onTrackExisting }) {
   const asked = visibleFields(service.fields, fields);
   const pricing = service.group === 'singleWindow'
     ? singleWindow.priceApplication(detail.fees, fields)
@@ -833,6 +914,16 @@ function ReviewStep({ service, detail, fields, prereqs, docs, accent, error, onJ
                 />
               );
             })}
+          </Card>
+        </section>
+      )}
+
+      {service.appointment && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          <SectionHeading eyebrow="Your visit" accent={accent} />
+          <Card>
+            <DetailRow label="Office" value={appointment?.office || '—'} />
+            <DetailRow label="Date and time" value={appointmentWhen(appointment) || '—'} last />
           </Card>
         </section>
       )}

@@ -30,16 +30,22 @@ const CHIPS = [
 
 // Per-service context (4.2): opened from inside a service, the quick actions
 // are that service's questions, not the generic set.
+const PASSPORT_CONTEXT = {
+  title: 'Guyana Passport',
+  chips: [
+    { id: 'p-apply', label: 'Apply for a passport', prompt: 'How do I apply for a passport?' },
+    { id: 'p-renew', label: 'Renew my passport', prompt: 'How do I renew my passport?' },
+    { id: 'p-docs', label: 'Documents required', prompt: 'What documents do I need for my passport?' },
+    { id: 'p-status', label: 'Track my passport application', prompt: "What's the status of my passport application?" },
+  ],
+};
+
 const CONTEXTS = {
-  passport: {
-    title: 'Guyana Passport',
-    chips: [
-      { id: 'p-apply', label: 'Apply for a passport', prompt: 'How do I apply for a passport?' },
-      { id: 'p-renew', label: 'Renew my passport', prompt: 'How do I renew my passport?' },
-      { id: 'p-docs', label: 'Documents required', prompt: 'What documents do I need for my passport?' },
-      { id: 'p-status', label: 'Track my passport application', prompt: "What's the status of my passport application?" },
-    ],
-  },
+  // Keyed by the seeded service id, which is what ServiceView / ServiceApply
+  // pass in. The old `passport` key stays alongside it so an Ask Gov opened
+  // from a link written before the move still lands in context.
+  svc_immigration_passport: PASSPORT_CONTEXT,
+  passport: PASSPORT_CONTEXT,
   cashGrant: {
     title: 'Cash Grant',
     chips: [
@@ -147,10 +153,15 @@ const CONTEXTS = {
 // go: { screen? , overlay?, payload? } — a screen change, an overlay, or both
 // (screen first, overlay on top of it).
 const GO = {
-  passportApply: { overlay: 'apply', payload: { serviceId: 'passport' } },
-  passportRenew: { overlay: 'apply', payload: { serviceId: 'passport', preset: { applicationType: 'renewal' } } },
-  passportReplace: { overlay: 'apply', payload: { serviceId: 'passport', preset: { applicationType: 'replacement' } } },
-  immigrationServices: { overlay: 'category', payload: { id: 'cat-immigration' } },
+  // The passport is a seeded service, so all three land on it the same way
+  // every other service is reached. Which of the three it is — first, renewal,
+  // replacement — is the form's opening question, so there is nothing to preset:
+  // the citizen answers it on the screen they have just been taken to.
+  passport: { overlay: 'serviceView', payload: { serviceId: 'svc_immigration_passport' } },
+  passportApply: { overlay: 'serviceApply', payload: { serviceId: 'svc_immigration_passport' } },
+  passportRenew: { overlay: 'serviceApply', payload: { serviceId: 'svc_immigration_passport' } },
+  passportReplace: { overlay: 'serviceApply', payload: { serviceId: 'svc_immigration_passport' } },
+  immigrationServices: { overlay: 'serviceView', payload: { serviceId: 'svc_immigration_passport' } },
   cashGrant: { overlay: 'serviceView', payload: { serviceId: 'svc_cash_grant' } },
   singleWindow: { overlay: 'singleWindow' },
   waterConnection: { overlay: 'serviceView', payload: { serviceId: 'svc_sw_water_connection' } },
@@ -192,7 +203,7 @@ const act = (label, icon, go) => ({ label, icon, go });
 
 // Which application a question is about, by the words the citizen uses.
 const APP_MATCHERS = [
-  { keys: ['passport'], ids: ['passport'], label: 'passport', apply: act('Apply for a passport', 'plane', GO.passportApply) },
+  { keys: ['passport'], ids: ['passport'], label: 'passport', apply: act('Apply for a passport', 'plane', GO.passport) },
   // GRA (api-layer services).
   { keys: [' tin', 'taxpayer'], ids: ['gra_tin'], label: 'TIN', apply: act('Apply for a TIN', 'id-card', GO.graTin) },
   { keys: ["driver's licence", 'drivers licence', 'driving licence', "driver's license", 'drivers license', 'driving license', 'licence renewal', 'license renewal'], ids: ['gra_drivers_licence'], label: "driver's licence", apply: act("Apply for a driver's licence", 'car', GO.graLicence) },
@@ -276,7 +287,7 @@ function statusReply(text, applications) {
 function passportReply(t, applications) {
   const renew = act('Renew your passport', 'refresh-cw', GO.passportRenew);
   const applyNow = act('Apply now', 'plane', GO.passportApply);
-  const all = act('All Immigration & Passport services', 'layout-grid', GO.immigrationServices);
+  const all = act('About the passport service', 'layout-grid', GO.immigrationServices);
   const hasApp = (applications || []).some((a) => appMatches(a, APP_MATCHERS[0]));
   const track = hasApp ? act('Track my passport application', 'route', GO.applications) : null;
   if (t.includes('renew')) {
@@ -647,10 +658,7 @@ export default function AskGov() {
   function runAction(action) {
     const go = action.go || {};
     closeOverlay('askGov');
-    if (go.screen) {
-      closeOverlay('apply'); // a screen target must not stay hidden under a service flow
-      navigate(go.screen);
-    }
+    if (go.screen) navigate(go.screen);
     if (go.overlay) openOverlay(go.overlay, go.payload ?? true);
   }
 

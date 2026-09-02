@@ -119,7 +119,11 @@ function HomePhone() {
     if (AGENCY_HUBS.includes(id)) { navigate(id); return; }
     const catId = agencyCategoryId(id);
     if (catId) { openOverlay('category', { id: catId }); return; }
-    showToast(`${AGENCIES[id]?.shortName || 'This agency'} services are coming to My Guyana`);
+    // No legacy category: this agency's services are in the seeded catalogue
+    // (Immigration, GRA, GRO, MHSSS…), so Services is where they are — landing
+    // there beats telling a citizen that a service they can already apply for
+    // is "coming soon".
+    navigate('services');
   };
   // Any connected agency (including MoPS) counts — once the citizen adds one, the
   // dial replaces the "your agencies will gather here" empty state.

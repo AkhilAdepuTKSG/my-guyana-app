@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState } from 'react';
 export const BREAKPOINTS = {
   tablet: 768,   // the sidebar appears, collapsed to a rail
   desktop: 1024, // the sidebar opens out, labels and all
-  wide: 1440,    // the reading column stops growing; margins take the rest
+  wide: 1440,    // the gutter opens out; the page column keeps filling the row
 };
 
 /** The web layout — sidebar and top bar — starts here. */
@@ -66,7 +66,7 @@ export function layoutFor(width) {
       isPhone: false, isTablet: true, isDesktop: false, isWide: false, isWeb: true,
       gutter: 24,
       frameMaxWidth: null,
-      contentMaxWidth: 760,
+      contentMaxWidth: null,
       sidebarWidth: 76,
       sidebarCollapsed: true,
       canDock: false,
@@ -78,10 +78,13 @@ export function layoutFor(width) {
     isPhone: false, isTablet: false, isDesktop: true, isWide, isWeb: true,
     gutter: isWide ? 32 : 28,
     frameMaxWidth: null,
-    // Wide enough for a page with a summary rail beside its main column, and
-    // no wider — past this the window keeps the rest as margin rather than
-    // stretching a paragraph across a monitor.
-    contentMaxWidth: isWide ? 1320 : 1160,
+    // No cap. The page column is one of three in the shell's row, and the
+    // assistant beside it opens and closes: capping the column meant the page
+    // was flush against the navigation while the assistant was docked, then
+    // jumped inwards and grew a margin on both sides the moment it closed.
+    // Filling the room it is given keeps the page in one place whichever way
+    // the assistant is, which is what the citizen actually notices.
+    contentMaxWidth: null,
     sidebarWidth: 264,
     sidebarCollapsed: false,
     canDock: w >= DOCK_MIN_WIDTH,

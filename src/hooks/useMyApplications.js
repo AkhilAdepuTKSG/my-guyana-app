@@ -6,13 +6,14 @@ import { AGENCIES } from '../state/mockData';
 
 // ONE list of everything the citizen has applied for.
 //
-// The newer services (cash grants, Single Window, GRO certificates) live in the
-// api layer and are read through listAll(); the e-ID enrolment booked at
-// sign-up and the passport application still live in the app context. Every
-// screen that shows "my applications" — the Applications tab, Home, Ask Gov —
-// reads this merge, so an application can never go missing because of which
-// store it was written to.
+// The services live in the api layer and are read through listAll(); the e-ID
+// enrolment booked at sign-up still lives in the app context. Every screen that
+// shows "my applications" — the Applications tab, Home, Ask Gov — reads this
+// merge, so an application can never go missing because of which store it was
+// written to.
 
+// Passports written before the service moved into the database are still in the
+// context list, so their icon stays mapped here.
 const LEGACY_ICONS = { eid: 'fingerprint', passport: 'plane', cashGrant: 'banknote' };
 
 // The older flows store a free-text status ("Appointment booked", "Approved —
@@ -50,7 +51,7 @@ function summarise(documents) {
   };
 }
 
-/** A context application (e-ID, passport) in the api layer's ApplicationSummary shape. */
+/** A context application (the e-ID enrolment) in the api layer's ApplicationSummary shape. */
 export function toSummary(a) {
   const agency = AGENCIES[a.agency] || {};
   const status = normaliseStatus(a.status);

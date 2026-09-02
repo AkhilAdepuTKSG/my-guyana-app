@@ -2,24 +2,27 @@ import PageOverlay from '../../components/ui/PageOverlay';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/ui/Icon';
 import { useAppState } from '../../state/AppStateContext';
-import { useApi, useAction, useUserId } from '../../hooks/useApi';
+import { useApi, useUserId } from '../../hooks/useApi';
 import { collectCertificate, certificateTypeLabel } from '../../api/gro';
 import { InfoPanel, LoadingState, ErrorState } from '../../components/service/ServicePieces';
-import { CERTIFICATE_TITLES, renderCertificatePdf, certificateFileName } from '../../lib/certificates';
-import { formatLongDate, downloadBlob } from '../../lib/format';
+import { CERTIFICATE_TITLES } from '../../lib/certificates';
+import { formatLongDate } from '../../lib/format';
 
 // The certificate itself.
 //
 // Opening this collects the certificate: it is generated from the register
 // entry on first collection, shown here, and filed in the citizen's own Vault.
-// The PDF is drawn from exactly the rows shown on screen, so the download is
-// the same document.
+//
+// It is read here and nowhere else. The certified copy is drawn on screen from
+// the register entry itself, and this screen hands out no file — a certificate
+// that can be saved off is a certificate that can be edited and passed on, and
+// the register entry is the record, not a copy of it.
 
 const ACCENT = '#7d3550';
 const NAVY = 'var(--brand-600)';
 
 export default function GroCertificate() {
-  const { isOpen, getPayload, closeOverlay, navigate, showToast, user } = useAppState();
+  const { isOpen, getPayload, closeOverlay, navigate, user } = useAppState();
   const open = isOpen('groCertificate');
   const payload = getPayload('groCertificate');
   const requestId = payload && typeof payload === 'object' ? payload.requestId : null;
@@ -32,16 +35,6 @@ export default function GroCertificate() {
     [userId, requestId],
     { enabled: open && !!userId && !!requestId }
   );
-
-  const download = useAction(async () => {
-    const blob = renderCertificatePdf({
-      certificate: view.data.certificate,
-      registration: view.data.registration,
-      issuedTo: user?.name || null,
-    });
-    downloadBlob(blob, certificateFileName(view.data.certificate));
-    return true;
-  });
 
   if (!open) return null;
 
@@ -58,22 +51,17 @@ export default function GroCertificate() {
       <Button
         fullWidth
         style={{ background: ACCENT }}
-        icon={<Icon name="download" size={17} color="#fff" />}
-        onClick={async () => {
-          await download.run();
-          showToast('Certificate downloaded');
-        }}
-        disabled={download.pending}
+        icon={<Icon name="folder-lock" size={17} color="#fff" />}
+        onClick={() => { closeOverlay('groCertificate'); navigate('vault'); }}
       >
-        Download PDF
+        Open my Vault
       </Button>
       <Button
         fullWidth
         variant="outline"
-        icon={<Icon name="folder-lock" size={17} color="var(--fg-3)" />}
-        onClick={() => { closeOverlay('groCertificate'); navigate('vault'); }}
+        onClick={() => closeOverlay('groCertificate')}
       >
-        Open my Vault
+        Done
       </Button>
     </div>
   );
@@ -100,7 +88,7 @@ export default function GroCertificate() {
             Your certified copy is stored under your account. Only you can see it — it does not appear for anyone else who uses this device.
           </InfoPanel>
 
-          {/* --- The certificate, drawn the same way as the PDF ------------- */}
+          {/* --- The certificate, drawn from the register entry ------------- */}
           <div style={{
             borderRadius: 'var(--radius-xl)', overflow: 'hidden',
             border: '1px solid var(--surface-border)', background: 'var(--surface-1)',
@@ -188,8 +176,9 @@ export default function GroCertificate() {
             </div>
           </div>
 
-          <InfoPanel tone="neutral" icon="info">
-            The PDF you download is the same document shown here. Banks, schools, employers and the courts accept it.
+          <InfoPanel tone="neutral" icon="eye">
+            View only. This is your certified copy, drawn from the register entry — banks, schools, employers and the
+            courts accept it. It stays in your Vault; nothing is saved to this device.
           </InfoPanel>
 
           <div style={{ height: 4 }} />

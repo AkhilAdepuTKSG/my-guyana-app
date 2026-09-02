@@ -47,7 +47,7 @@ export default function CategoryDrillDown() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10, padding: '16px 16px 12px', flexShrink: 0,
         background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-hairline)',
-        ...(layout.isWeb ? { width: '100%', maxWidth: layout.contentMaxWidth, margin: '0 auto', padding: `16px ${layout.gutter}px 12px`, boxSizing: 'border-box' } : null),
+        ...(layout.isWeb ? { width: '100%', maxWidth: layout.contentMaxWidth ?? 'none', margin: '0 auto', padding: `16px ${layout.gutter}px 12px`, boxSizing: 'border-box' } : null),
       }}>
         <button
           className="press focus-ring"
@@ -83,7 +83,7 @@ export default function CategoryDrillDown() {
       <div style={{
         flex: 1, overflowY: 'auto', padding: '16px 20px calc(28px + env(safe-area-inset-bottom, 0px))',
         display: 'flex', flexDirection: 'column', gap: 12,
-        ...(layout.isWeb ? { width: '100%', maxWidth: layout.contentMaxWidth, margin: '0 auto', padding: `16px ${layout.gutter}px ${layout.gutter * 2}px`, boxSizing: 'border-box' } : null),
+        ...(layout.isWeb ? { width: '100%', maxWidth: layout.contentMaxWidth ?? 'none', margin: '0 auto', padding: `16px ${layout.gutter}px ${layout.gutter * 2}px`, boxSizing: 'border-box' } : null),
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 999, background: agency?.mark, flexShrink: 0 }} />

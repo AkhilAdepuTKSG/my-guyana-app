@@ -1,6 +1,6 @@
 // Seeded catalogue for the Cash Grants service (Ministry of Finance).
 //
-// This is the enhanced form of what src/state/requirements.js carried as a
+// This is the enhanced form of what the old src/state/requirements.js carried as a
 // single flat `cashGrant` definition: the same grant types and documents, now
 // split into gated sections, with per-field validation and a real fee/timeframe
 // record. The apply engine renders straight from this — adding a question is a

@@ -54,7 +54,9 @@ export default function AddAgencyDiscoverySheet() {
     if (AGENCY_HUBS.includes(id)) { navigate(id); return; }
     const catId = agencyCategoryId(id);
     if (catId) { openOverlay('category', { id: catId }); return; }
-    showToast(`${def?.shortName || 'This agency'} services are coming to My Guyana`);
+    // Seeded-catalogue agencies have no legacy category — their services are on
+    // the Services screen, so send the citizen there rather than to a toast.
+    navigate('services');
   };
 
   const pin = (id) => {

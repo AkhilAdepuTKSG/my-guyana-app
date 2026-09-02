@@ -2,7 +2,7 @@
 //
 // The app has two sources of services:
 //   • the legacy directory in src/state/mockData.js, for the flows that live as
-//     bespoke overlays (NIS registration, benefit claims, GPL, passport);
+//     bespoke overlays (NIS registration, benefit claims, GPL);
 //   • the seeded `services` table, read through src/api/catalog.js, for Cash
 //     Grants, the Single Window services and the GRO certificates — those render
 //     their overview, form, fees and routing entirely from data.
@@ -59,9 +59,9 @@ export function resolveServiceAction(name, { openOverlay, showToast }) {
       return () => openOverlay('gplPay');
     case 'Report an outage':
       return () => openOverlay('gplOutage');
-    case 'Guyana Passport':
-      return () => openOverlay('apply', { serviceId: 'passport' });
     // --- names that moved to the seeded catalogue ---
+    case 'Guyana Passport':
+      return () => openOverlay('serviceView', { serviceId: 'svc_immigration_passport' });
     case 'Cash Grant':
       return () => openOverlay('serviceView', { serviceId: 'svc_cash_grant' });
     case 'Birth certificate copy':

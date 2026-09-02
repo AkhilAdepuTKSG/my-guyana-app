@@ -6,7 +6,7 @@
 // treat a change here as a change every layer must follow (models, seed,
 // endpoints, validation, UI).
 
-/** @typedef {'cashGrants'|'singleWindow'|'gro'|'gra'|'mhsss'} ServiceGroup */
+/** @typedef {'cashGrants'|'singleWindow'|'gro'|'gra'|'immigration'|'mhsss'} ServiceGroup */
 
 /** @typedef {'draft'|'submitted'|'inReview'|'actionNeeded'|'approved'|'rejected'|'withdrawn'} ApplicationStatus */
 
@@ -118,11 +118,28 @@
  * @property {string} timeframeNote
  * @property {number} sortOrder
  * @property {boolean} active
+ * @property {AppointmentDef} [appointment]  an in-person visit the application books;
+ *                                 the apply engine renders a step for it and the
+ *                                 booking lands in the citizen's Schedule
  * @property {Record<string, number|string>} [config]  resolved service_config values,
  *                                 merged on read by src/api/catalog.js so a screen or
  *                                 an endpoint reads a threshold without a second call
  * @property {ServiceConfig[]} [configRows]  the same values with their labels and
  *                                 notes, for the screens that display them
+ */
+
+/**
+ * An in-person visit a service requires — a Passport Office appointment, say.
+ *
+ * Some services cannot be finished online: a photograph, a signature and
+ * fingerprints are captured across a counter, and the originals of what was
+ * connected from the Vault are checked there. A service that says so here gets
+ * a booking step in the apply engine, and the slot the citizen picks becomes a
+ * real appointment in their Schedule.
+ * @typedef {Object} AppointmentDef
+ * @property {string} [title]   the step's heading
+ * @property {string} label     what the citizen is being asked to do
+ * @property {string} note      why the visit is needed, and what to bring
  */
 
 /**

@@ -286,7 +286,11 @@ export const SERVICE_DIRECTORY = [
   { id: 'cat-id', name: 'Identity & Records', icon: 'id-card', agency: 'mops', services: ['Change of name'] },
   { id: 'cat-social', name: 'Social Security', icon: 'shield-check', agency: 'nis', services: ['NIS registration', 'Sickness Benefit', 'Maternity Benefit', 'Funeral Grant', 'Pension estimate'] },
   { id: 'cat-utilities', name: 'Utilities', icon: 'zap', agency: 'gpl', services: ['Pay electricity bill', 'Report an outage'] },
-  { id: 'cat-immigration', name: 'Immigration & Passport', icon: 'plane', agency: 'immigration', services: ['Guyana Passport'] },
+  // Immigration & Passport used to live here, with the passport behind a
+  // bespoke overlay. It is a seeded service now (src/data/seed/servicesImmigration.js)
+  // and lists from the catalogue like the rest, so listing it here too would
+  // put the same passport on the Services grid twice.
+  // { id: 'cat-immigration', name: 'Immigration & Passport', icon: 'plane', agency: 'immigration', services: ['Guyana Passport'] },
   // Revenue & Tax used to be a coming-soon placeholder here; the GRA services
   // (TIN, driver's licence, business tax, property tax) are now seeded, so
   // they list from the catalogue instead — see src/data/seed/servicesGra.js.

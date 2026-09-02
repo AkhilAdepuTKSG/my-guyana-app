@@ -1,6 +1,6 @@
 // Seeded agency reference data.
 //
-// These are the bodies that own or review the three services. Ids and identity
+// These are the bodies that own or review the seeded services. Ids and identity
 // colours match src/state/mockData.js where an agency already exists there, so
 // a service rendered from the database looks identical to one rendered from the
 // legacy catalogue. The three new rows (CH&PA, Central Board of Health, Sea
@@ -91,6 +91,16 @@ export const AGENCY_SEED = [
     shortName: 'GRA',
     icon: 'receipt',
     mark: '#2563c9',
+  },
+  {
+    // The same id the legacy catalogue uses (src/state/mockData.js), so the
+    // passport rendered from the database and the Immigration offices a visit
+    // is booked at are one agency, not two.
+    id: 'immigration',
+    name: 'Immigration & Passport',
+    shortName: 'Immigration',
+    icon: 'plane',
+    mark: '#3a45b0',
   },
   {
     // The same id the legacy catalogue uses for this ministry

@@ -212,6 +212,23 @@ export const MIGRATIONS = [
       ]);
     },
   },
+
+  {
+    version: 9,
+    name: '0009_immigration',
+    up(db) {
+      // Passport applications. The passport was the last service still held in
+      // the app context rather than in a table of its own; it keeps the same
+      // shape discipline as every other application store so My Applications
+      // and the tracker read it exactly as they read a TIN or a pension.
+      store(db, 'immigration_applications', 'id', [
+        ['byUser', 'userId', { unique: false }],
+        ['byRef', 'ref', { unique: true }],
+        ['byService', 'serviceId', { unique: false }],
+        ['byStatus', 'status', { unique: false }],
+      ]);
+    },
+  },
 ];
 
 export const DB_VERSION = MIGRATIONS.reduce((max, m) => Math.max(max, m.version), 0);
@@ -231,6 +248,7 @@ export const STORE_NAMES = [
   'gro_requests',
   'vault_documents',
   'gra_applications',
+  'immigration_applications',
   'old_age_pension_applications',
   'service_config',
   'meta',

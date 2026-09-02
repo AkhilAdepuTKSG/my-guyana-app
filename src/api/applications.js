@@ -1,8 +1,8 @@
 // The unified view over everything a citizen has applied for.
 //
 // Cash grants, Single Window applications, GRO certificate requests, GRA
-// applications and the old age pension live in five different tables with five
-// different shapes. Every screen that lists "my applications" — the
+// applications, passports and the old age pension live in six different tables
+// with six different shapes. Every screen that lists "my applications" — the
 // Applications tab, the My Applications section in the profile — reads the one
 // flattened shape produced here, so none of them has to know which table a row
 // came from.
@@ -12,9 +12,11 @@ import * as cashGrants from './cashGrants';
 import * as singleWindow from './singleWindow';
 import * as gro from './gro';
 import * as gra from './gra';
+import * as immigration from './immigration';
 import * as oldAgePension from './oldAgePension';
 import { listEvents, listReviews, syncReviewProgress } from './applicationCommon';
 import { ApiError } from './validate';
+import { formatDate } from '../lib/format';
 
 /**
  * A row in the unified list.
@@ -104,13 +106,14 @@ export function partitionByProgress(rows) {
 export async function listAll(userId) {
   if (!userId) return [];
 
-  const [agencies, services, grants, sw, requests, revenue, pensions] = await Promise.all([
+  const [agencies, services, grants, sw, requests, revenue, passports, pensions] = await Promise.all([
     getAgencyMap(),
     listServices(),
     cashGrants.listApplications(userId),
     singleWindow.listApplications(userId),
     gro.listRequests(userId),
     gra.listApplications(userId),
+    immigration.listApplications(userId),
     oldAgePension.listApplications(userId),
   ]);
   const serviceById = Object.fromEntries(services.map((s) => [s.id, s]));
@@ -229,6 +232,31 @@ export async function listAll(userId) {
     });
   });
 
+  passports.forEach((a) => {
+    rows.push({
+      id: a.id,
+      ref: a.ref,
+      group: 'immigration',
+      serviceId: a.serviceId,
+      title: a.title,
+      ...agencyBits(a.agencyId),
+      icon: serviceById[a.serviceId]?.icon || 'plane',
+      status: a.status,
+      statusLabel: statusLabel(a.status),
+      tone: statusTone(a.status),
+      submittedAt: a.submittedAt,
+      updatedAt: a.updatedAt,
+      step: stepFor(a.status),
+      totalSteps: 4,
+      subtitle: passportSubtitle(a),
+      hasCertificate: false,
+      certificateId: null,
+      actionLabel: a.status === 'draft' ? 'Resume' : 'Track',
+      documents: a.documents || [],
+      documentSummary: summariseDocuments(a.documents),
+    });
+  });
+
   pensions.forEach((a) => {
     rows.push({
       id: a.id,
@@ -267,6 +295,19 @@ function pensionSubtitle(a) {
   if (a.disbursementMethod === 'mmg') return 'Paid to mobile money';
   if (a.disbursementMethod === 'bank') return 'Paid to your bank account';
   return null;
+}
+
+/**
+ * One line saying where a passport application stands, for the list rows. The
+ * Passport Office visit is the thing the citizen has to turn up to, so that is
+ * what the row leads with until it has happened.
+ */
+function passportSubtitle(a) {
+  if (a.appointment?.date) {
+    return `Passport Office visit ${formatDate(a.appointment.date)}${a.appointment.time ? ` at ${a.appointment.time}` : ''}`;
+  }
+  const type = a.applicationType || a.fields?.applicationType;
+  return { first: 'First passport', renewal: 'Renewal', replacement: 'Replacement' }[type] || null;
 }
 
 /** One line saying what a GRA application is about, for the list rows. */
@@ -336,6 +377,10 @@ export async function getDetail({ userId, group, id }) {
   }
   if (group === 'gra') {
     const detail = await gra.getApplicationDetail({ userId, applicationId: id });
+    return { kind: 'application', ...detail };
+  }
+  if (group === 'immigration') {
+    const detail = await immigration.getApplicationDetail({ userId, applicationId: id });
     return { kind: 'application', ...detail };
   }
   if (group === 'mhsss') {

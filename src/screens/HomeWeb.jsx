@@ -48,7 +48,7 @@ const AGENCY_BLURBS = {
 
 export default function HomeWeb() {
   const {
-    navigate, openOverlay, showToast, persona, user,
+    navigate, openOverlay, persona, user,
     appointments, recordAgencyUse,
   } = useAppState();
   const routerNavigate = useNavigate();
@@ -84,7 +84,11 @@ export default function HomeWeb() {
     if (AGENCY_HUBS.includes(id)) { navigate(id); return; }
     const catId = agencyCategoryId(id);
     if (catId) { openOverlay('category', { id: catId }); return; }
-    showToast(`${AGENCIES[id]?.shortName || 'This agency'} services are coming to My Guyana`);
+    // No legacy category: this agency's services are in the seeded catalogue
+    // (Immigration, GRA, GRO, MHSSS…), so Services is where they are — landing
+    // there beats telling a citizen that a service they can already apply for
+    // is "coming soon".
+    navigate('services');
   };
 
   return (

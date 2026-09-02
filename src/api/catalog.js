@@ -36,6 +36,13 @@ export const SERVICE_GROUPS = {
     icon: 'receipt',
     accent: '#2563c9',
   },
+  immigration: {
+    id: 'immigration',
+    name: 'Immigration & Passport',
+    tagline: 'The machine-readable Guyana passport, from the Immigration Department.',
+    icon: 'plane',
+    accent: '#3a45b0',
+  },
   mhsss: {
     id: 'mhsss',
     name: 'Pensions & Public Assistance',

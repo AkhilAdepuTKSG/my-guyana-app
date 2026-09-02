@@ -15,11 +15,12 @@ import { CASH_GRANT_SERVICES, CASH_GRANT_FEES, CASH_GRANT_ROUTES } from './seed/
 import { SINGLE_WINDOW_SERVICES, SINGLE_WINDOW_FEES, SINGLE_WINDOW_ROUTES } from './seed/servicesSingleWindow';
 import { GRO_SERVICES, GRO_FEES, GRO_ROUTES } from './seed/servicesGro';
 import { GRA_SERVICES, GRA_FEES, GRA_ROUTES } from './seed/servicesGra';
+import { IMMIGRATION_SERVICES, IMMIGRATION_FEES, IMMIGRATION_ROUTES } from './seed/servicesImmigration';
 import { MHSSS_SERVICES, MHSSS_FEES, MHSSS_ROUTES, MHSSS_CONFIG } from './seed/servicesMhsss';
 import { GRO_REGISTRATION_SEED, normaliseRegNo } from './seed/groRegistry';
 
 /** Raise this when any seed file changes. */
-export const SEED_REVISION = 12;
+export const SEED_REVISION = 14;
 
 const SEED_META_KEY = 'seedRevision';
 
@@ -29,6 +30,7 @@ export const ALL_SERVICES = [
   ...SINGLE_WINDOW_SERVICES,
   ...GRO_SERVICES,
   ...GRA_SERVICES,
+  ...IMMIGRATION_SERVICES,
   ...MHSSS_SERVICES,
 ];
 
@@ -37,6 +39,7 @@ export const ALL_FEES = [
   ...SINGLE_WINDOW_FEES,
   ...GRO_FEES,
   ...GRA_FEES,
+  ...IMMIGRATION_FEES,
   ...MHSSS_FEES,
 ];
 
@@ -45,6 +48,7 @@ export const ALL_ROUTES = [
   ...SINGLE_WINDOW_ROUTES,
   ...GRO_ROUTES,
   ...GRA_ROUTES,
+  ...IMMIGRATION_ROUTES,
   ...MHSSS_ROUTES,
 ];
 

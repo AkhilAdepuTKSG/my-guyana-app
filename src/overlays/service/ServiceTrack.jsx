@@ -11,11 +11,13 @@ import { useVaultAttach } from '../../hooks/useVaultAttach';
 import * as cashGrants from '../../api/cashGrants';
 import * as singleWindow from '../../api/singleWindow';
 import * as gra from '../../api/gra';
+import * as immigration from '../../api/immigration';
 import * as oldAgePension from '../../api/oldAgePension';
 
 function apiForGroup(group) {
   if (group === 'cashGrants') return cashGrants;
   if (group === 'gra') return gra;
+  if (group === 'immigration') return immigration;
   if (group === 'mhsss') return oldAgePension;
   return singleWindow;
 }
@@ -24,6 +26,7 @@ import StageList from '../../components/service/StageList';
 import DocumentSlot from '../../components/service/DocumentSlot';
 import DocumentProgress, { documentSummary } from '../../components/service/DocumentProgress';
 import VaultPickerSheet from '../../components/service/VaultPickerSheet';
+import { appointmentWhen } from '../../components/service/AppointmentPicker';
 import {
   SectionHeading, InfoPanel, Card, DetailRow, FeeTable, LoadingState, ErrorState,
 } from '../../components/service/ServicePieces';
@@ -231,6 +234,37 @@ export default function ServiceTrack() {
                 </section>
               )}
             </>
+          )}
+
+          {/* --- The in-person visit ---------------------------------------
+              The one thing on this screen the citizen has to physically turn
+              up to, so it sits above the routing rather than among the details. */}
+          {!isGro && application.appointment?.date && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <SectionHeading
+                eyebrow="In person"
+                title="Your appointment"
+                description="Bring the originals of every document you connected. The processing time runs from this visit."
+                accent={accent}
+              />
+              <Card>
+                <DetailRow label="Office" value={application.appointment.office || '—'} />
+                <DetailRow label="Date and time" value={appointmentWhen(application.appointment) || '—'} />
+                <DetailRow
+                  label="Change it"
+                  value="From your Schedule"
+                  last
+                />
+              </Card>
+              <Button
+                fullWidth
+                variant="outline"
+                icon={<Icon name="calendar" size={17} color="var(--fg-3)" />}
+                onClick={() => { closeOverlay('serviceTrack'); navigate('calendar'); }}
+              >
+                Open my Schedule
+              </Button>
+            </section>
           )}
 
           {/* --- Multi-agency routing -------------------------------------- */}
