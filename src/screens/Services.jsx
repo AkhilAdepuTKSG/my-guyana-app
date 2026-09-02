@@ -11,12 +11,6 @@ import {
   flattenServices, flattenSeededServices, resolveServiceAction, SERVICE_GROUPS,
 } from '../lib/serviceCatalog';
 
-// The services catalogue. Two browse routes, one list:
-//   • the Single Window leads, because land-development approvals are a single
-//     process across several agencies rather than a set of separate errands;
-//   • everything else is a tile, whether its flow is a seeded service or one of
-//     the older bespoke overlays.
-// Search covers both sources, so a citizen never has to know the difference.
 
 export default function Services() {
   const { openOverlay, showToast } = useAppState();
